@@ -1,6 +1,5 @@
 {
-  "outputDirectory": "public",
-  "rewrites": [
-    { "source": "/api/claude", "destination": "/api/claude.js" }
-  ]
+  "functions": {
+    "api/claude.js": { "memory": 128 }
+  }
 }
