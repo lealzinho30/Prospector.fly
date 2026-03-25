@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Flying Studio · Prospector</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Plus Jakarta Sans',sans-serif}
+body{background:#f4f5f7;min-height:100vh;color:#111827}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.fade{animation:fadeUp .22s ease both}
+.row-in{animation:fadeUp .18s ease both}
+.row-in:nth-child(1){animation-delay:.03s}.row-in:nth-child(2){animation-delay:.06s}
+.row-in:nth-child(3){animation-delay:.09s}.row-in:nth-child(n+4){animation-delay:.11s}
+/* INPUTS */
+input,select,textarea{background:#fff;border:1.5px solid #e5e7eb;color:#111827;font-size:14px;width:100%;outline:none;padding:11px 14px;transition:all .15s;border-radius:8px;font-family:inherit;line-height:1.5}
+input:focus,select:focus,textarea:focus{border-color:#b89a4e;box-shadow:0 0 0 3px rgba(184,154,78,.1)}
+input:hover:not(:focus),select:hover:not(:focus){border-color:#d1d5db}
+input::placeholder,textarea::placeholder{color:#9ca3af}
+input.error{border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.1)}
+textarea{resize:vertical;line-height:1.7;min-height:100px}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px}
+.field-hint{font-size:11px;color:#9ca3af;margin-top:4px}
+.field-ok{font-size:11px;color:#b89a4e;margin-top:4px;font-weight:600}
+.field-err{font-size:11px;color:#ef4444;margin-top:4px;font-weight:600}
+/* BUTTONS */
+.btn{border:none;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-dark{background:#111827;color:#fff;width:100%}.btn-dark:hover{background:#1f2937}
+.btn-gold{background:#b89a4e;color:#fff;width:100%}.btn-gold:hover{background:#a08840}
+.btn-outline{background:#fff;border:1.5px solid #e5e7eb;color:#374151}.btn-outline:hover{border-color:#b89a4e;color:#7a5a1e;background:#fdf8ee}
+.btn-red{background:#fff;border:1.5px solid #fecaca;color:#ef4444;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}.btn-red:hover{background:#fef2f2}
+.btn-sm{background:#fff;border:1.5px solid #e5e7eb;color:#374151;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
+.btn-sm:hover{border-color:#b89a4e;color:#7a5a1e;background:#fdf8ee}
+.btn-icon{background:#f9fafb;border:1.5px solid #e5e7eb;color:#374151;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-icon:hover{border-color:#b89a4e;color:#7a5a1e;background:#fdf8ee}
+.btn:disabled,.btn-sm:disabled,.btn-icon:disabled{opacity:.35;cursor:not-allowed!important}
+.btn-copy{background:#111827;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn-copy:hover{background:#1f2937}
+.btn-wpp{background:#25d366;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px;text-decoration:none}
+.btn-wpp:hover{background:#1da851}
+/* TABS */
+.tab-btn{background:transparent;border:none;padding:13px 4px;cursor:pointer;font-size:13px;font-weight:600;color:#6b7280;transition:all .15s;position:relative;border-bottom:2px solid transparent;font-family:inherit;white-space:nowrap}
+.tab-btn.active{color:#111827;border-bottom-color:#b89a4e}
+.tab-btn:hover:not(.active){color:#374151}
+.tab-btn .notif{position:absolute;top:8px;right:-4px;width:7px;height:7px;background:#ef4444;border-radius:50%;border:1.5px solid #fff}
+/* CHIPS */
+.chip{display:inline-flex;padding:6px 13px;border:1.5px solid #e5e7eb;border-radius:20px;font-size:13px;font-weight:500;color:#6b7280;cursor:pointer;transition:all .12s;background:#fff;font-family:inherit}
+.chip.active{border-color:#b89a4e;color:#7a5a1e;background:#fdf8ee;font-weight:600}
+.chip:hover:not(.active){border-color:#d1c090;color:#4b3a18}
+/* CARDS */
+.card{background:#fff;border:1.5px solid #eaecf0;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card-flat{background:#fff;border:1.5px solid #f3f4f6;border-radius:10px;padding:18px 20px}
+.stat-card{background:#f9fafb;border:1.5px solid #f3f4f6;border-radius:10px;padding:16px 18px;transition:border-color .15s}
+.stat-card:hover{border-color:#e8d090}
+.info-row{display:flex;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f9fafb;gap:12px}
+.info-row:last-child{border-bottom:none}
+.result-row{border-bottom:1px solid #f9fafb;padding:14px 0;display:flex;align-items:center;gap:12px}
+.result-row:last-child{border-bottom:none}
+.result-row:hover{background:#fdfcfb;margin:0 -6px;padding-left:6px;padding-right:6px;border-radius:8px}
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;border-width:1px;border-style:solid}
+.tag-hot{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
+.tag-warm{background:#fdf8ee;color:#7a5a1e;border:1px solid #e8d090;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
+.tag-new{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
+.tag-blue{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
+/* LINKS */
+.link-btn{color:#9ca3af;font-size:11px;font-weight:600;text-decoration:none;padding:4px 9px;border:1px solid #f3f4f6;border-radius:6px;transition:all .12s;display:inline-block}
+.link-btn:hover{color:#b89a4e;border-color:#e8d090;background:#fdf8ee}
+/* SEARCH */
+.search-wrap{position:relative}
+.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none}
+.search-inp{background:#f9fafb;border:1.5px solid #e5e7eb;color:#111827;font-size:14px;width:100%;outline:none;padding:10px 14px 10px 38px;border-radius:8px;transition:all .15s;font-family:inherit}
+.search-inp:focus{border-color:#b89a4e;background:#fff;box-shadow:0 0 0 3px rgba(184,154,78,.1)}
+.search-inp::placeholder{color:#9ca3af}
+/* LOADER */
+.dot{width:4px;height:4px;background:#b89a4e;border-radius:50%;display:inline-block;margin:0 3px;animation:pulse 1.4s ease infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+.loader-box{text-align:center;padding:40px 0}
+.progress-bar{background:#f3f4f6;border-radius:99px;height:5px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#b89a4e,#d4b46a);transition:width .5s ease}
+/* SCORE */
+.score-ring{width:52px;height:52px;flex-shrink:0}
+/* MISC */
+.socio-card{background:#f9fafb;border:1px solid #f3f4f6;border-radius:8px;padding:14px 16px;margin-bottom:8px;transition:border-color .15s}
+.socio-card:hover{border-color:#e8d090}
+.msg-editable{background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:16px;font-size:14px;line-height:1.8;color:#374151;white-space:pre-wrap;min-height:120px;outline:none;transition:border-color .15s}
+.msg-editable:focus{border-color:#b89a4e;background:#fff}
+.hist-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f9fafb;cursor:pointer;transition:all .12s}
+.hist-row:last-child{border-bottom:none}
+.hist-row:hover{background:#fdfcfb;margin:0 -6px;padding-left:6px;padding-right:6px;border-radius:8px}
+.portal-link{background:#fff;border:1.5px solid #f3f4f6;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;text-decoration:none;transition:all .15s}
+.portal-link:hover{border-color:#e8d090;background:#fdfaf4}
+/* LAYOUT */
+.topbar{background:#fff;border-bottom:1px solid #eaecf0;padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:20;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.tabs{background:#fff;border-bottom:1px solid #eaecf0;padding:0 24px;display:flex;gap:16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{height:0}
+.content{max-width:720px;margin:0 auto;padding:32px 20px 80px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+.grid-portal{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* TOAST */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 22px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;z-index:200;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+#toast.show{opacity:1}
+/* SCORE CARD */
+.score-card{border-radius:10px;padding:16px 18px;display:flex;align-items:center;gap:14px}
+.score-90{background:#f0fdf4;border:1.5px solid #bbf7d0}
+.score-70{background:#fdf8ee;border:1.5px solid #e8d090}
+.score-50{background:#fff7ed;border:1.5px solid #fed7aa}
+.score-30{background:#f9fafb;border:1.5px solid #e5e7eb}
+/* EMPTY */
+.empty-state{text-align:center;padding:48px 20px}
+.empty-state p:first-child{font-size:14px;font-weight:600;color:#6b7280;margin-bottom:6px}
+.empty-state p:last-child{font-size:13px;color:#d1d5db}
+/* TIP BOX */
+.tip-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;display:flex;gap:8px;align-items:flex-start}
+.tip-gold{background:#fdf8ee;border:1px solid #e8d090}
+.tip-green{background:#f0fdf4;border:1px solid #bbf7d0}
+.tip-red{background:#fef2f2;border:1px solid #fecaca}
+/* RESPONSIVE */
+@media(max-width:600px){
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+  .grid-portal{grid-template-columns:1fr}
+  .topbar{padding:0 16px}
+  .content{padding:24px 14px 72px}
+  .card{padding:18px}
+}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="width:34px;height:34px;background:#111827;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+        <path d="M21 3L3 10.5l7.5 2L14 21l2.5-5.5L21 3z" stroke="#b89a4e" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M10.5 12.5L14 9" stroke="#b89a4e" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <span style="font-size:15px;font-weight:800;color:#111827;letter-spacing:-.01em">Flying Studio</span>
+      <span style="color:#e5e7eb;margin:0 8px">·</span>
+      <span style="font-size:13px;font-weight:500;color:#9ca3af">Prospector</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span id="hist-count-top" style="font-size:12px;color:#9ca3af;font-weight:500"></span>
+    <span style="font-size:11px;color:#d1d5db;background:#f9fafb;border:1px solid #f3f4f6;padding:4px 10px;border-radius:6px;font-weight:600">Hunter.io + BrasilAPI</span>
+  </div>
+</div>
+
+<!-- ═══ TABS ═══ -->
+<div class="tabs" id="main-tabs">
+  <button class="tab-btn active" id="tab-contatos"         onclick="switchTab('contatos')">📧 Contatos</button>
+  <button class="tab-btn"        id="tab-cnpj"             onclick="switchTab('cnpj')">🏢 CNPJ</button>
+  <button class="tab-btn"        id="tab-radar"            onclick="switchTab('radar')">📡 Radar</button>
+  <button class="tab-btn"        id="tab-mensagem"         onclick="switchTab('mensagem')">💬 Mensagem</button>
+  <button class="tab-btn"        id="tab-empreendimentos"  onclick="switchTab('empreendimentos')">🏗️ Empreendimentos</button>
+  <button class="tab-btn"        id="tab-historico"        onclick="switchTab('historico')">🕑 Histórico <span id="hist-notif" style="display:none" class="notif"></span></button>
+</div>
+
+<div class="content">
+  <div style="margin-bottom:22px">
+    <p id="hl-sub" style="font-size:11px;font-weight:700;color:#b89a4e;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">Prospecção inteligente</p>
+    <h1 id="hl-main" style="font-size:24px;font-weight:800;color:#111827;line-height:1.25;letter-spacing:-.02em">Encontre decisores. Feche mais projetos.</h1>
+  </div>
+
+  <!-- ═══════════ CONTATOS ═══════════ -->
+  <div id="page-contatos">
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;gap:20px;border-bottom:1px solid #f3f4f6;margin-bottom:20px;overflow-x:auto">
+        <button class="tab-btn active" id="mode-domain" onclick="switchMode('domain')" style="padding:8px 4px 12px">
+          <div>Todos os contatos</div><div style="font-size:11px;color:#9ca3af;font-weight:400;margin-top:2px">Mapeia emails do domínio</div>
+        </button>
+        <button class="tab-btn" id="mode-role" onclick="switchMode('role')" style="padding:8px 4px 12px">
+          <div>Filtrar por cargo</div><div style="font-size:11px;color:#9ca3af;font-weight:400;margin-top:2px">CEO, Marketing, Diretor...</div>
+        </button>
+      </div>
+      <div class="grid-2" style="margin-bottom:14px">
+        <div>
+          <label>Empresa</label>
+          <input id="inp-company" type="text" placeholder="Ex: EZTec" onkeydown="if(event.key==='Enter')doSearch()"/>
+        </div>
+        <div>
+          <label>Domínio do site</label>
+          <input id="inp-domain" type="text" placeholder="eztec.com.br" oninput="onDomainInput('inp-domain','domain-hint')" onkeydown="if(event.key==='Enter')doSearch()"/>
+          <p id="domain-hint" class="field-ok" style="display:none"></p>
+        </div>
+      </div>
+      <div id="role-filters" style="display:none;border-top:1px solid #f3f4f6;padding-top:18px;margin-bottom:16px">
+        <div style="margin-bottom:14px">
+          <label style="margin-bottom:8px">Área / Departamento</label>
+          <div id="dept-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div>
+        <div>
+          <label style="margin-bottom:8px">Nível hierárquico</label>
+          <div id="sen-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div>
+      </div>
+      <button class="btn btn-dark" id="btn-search" onclick="doSearch()">Mapear todos os contatos</button>
+    </div>
+    <div id="search-error" style="display:none" class="card" style="border-color:#fecaca;background:#fff7ed"></div>
+    <div id="search-loader" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <p id="prog-step" style="font-size:13px;font-weight:600;color:#374151">Conectando...</p>
+        <p id="prog-pct" style="font-size:18px;font-weight:800;color:#b89a4e">0%</p>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+      <p style="font-size:12px;color:#9ca3af;margin-top:8px">Consultando Hunter.io diretamente...</p>
+    </div>
+    <div id="search-results" style="display:none"></div>
+  </div>
+
+  <!-- ═══════════ CNPJ ═══════════ -->
+  <div id="page-cnpj" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <div class="grid-2" style="margin-bottom:14px">
+        <div>
+          <label>CNPJ da empresa</label>
+          <input id="inp-cnpj" type="text" placeholder="00.000.000/0001-00" oninput="maskCnpj(this)" maxlength="18" onkeydown="if(event.key==='Enter')buscarCnpj()"/>
+          <p id="cnpj-hint" class="field-hint">14 dígitos · Receita Federal via BrasilAPI</p>
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:flex-end">
+          <button class="btn btn-dark" id="btn-cnpj" onclick="buscarCnpj()">🔍 Buscar empresa</button>
+        </div>
+      </div>
+      <div class="tip-box">
+        <span style="font-size:14px;flex-shrink:0">ℹ️</span>
+        <p style="font-size:12px;color:#1e40af;font-weight:500;line-height:1.5">Dados oficiais da Receita Federal: razão social, sócios, endereço, telefone, CNAE. <strong>Grátis e ilimitado.</strong></p>
+      </div>
+    </div>
+    <div id="cnpj-loader" class="loader-box" style="display:none">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      <p style="font-size:13px;color:#9ca3af;margin-top:12px;font-weight:500">Consultando Receita Federal...</p>
+    </div>
+    <div id="cnpj-error" style="display:none"></div>
+    <div id="cnpj-results" style="display:none"></div>
+  </div>
+
+  <!-- ═══════════ RADAR ═══════════ -->
+  <div id="page-radar" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+        <div style="width:46px;height:46px;background:#fdf8ee;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📡</div>
+        <div>
+          <p style="font-size:15px;font-weight:700;color:#111827;margin-bottom:2px">Radar de novas incorporadoras</p>
+          <p style="font-size:13px;color:#9ca3af">Empresas abertas nos últimos 12 meses ainda não têm parceiro de visual consolidado</p>
+        </div>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="margin-bottom:8px">Estado alvo</label>
+        <div id="estado-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="margin-bottom:8px">Tipo de empresa</label>
+        <div id="tipo-chips" style="display:flex;flex-wrap:wrap;gap:8px">
+          <button class="chip active" id="tipo-todas"    onclick="selectTipoRadar('todas')">Todas</button>
+          <button class="chip"        id="tipo-alto"     onclick="selectTipoRadar('alto')">Alto padrão</button>
+          <button class="chip"        id="tipo-medio"    onclick="selectTipoRadar('medio')">Médio padrão</button>
+          <button class="chip"        id="tipo-mcmv"     onclick="selectTipoRadar('mcmv')">MCMV / Econômico</button>
+          <button class="chip"        id="tipo-comercial" onclick="selectTipoRadar('comercial')">Comercial / Lajes</button>
+        </div>
+      </div>
+      <button class="btn btn-gold" onclick="gerarRadar()">🏆 Buscar top 10 com IA</button>
+    </div>
+    <div id="radar-results" style="display:none"></div>
+  </div>
+
+  <!-- ═══════════ MENSAGEM ═══════════ -->
+  <div id="page-mensagem" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <p style="font-size:13px;font-weight:700;color:#374151;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+        <span style="background:#fdf8ee;border:1px solid #e8d090;border-radius:6px;padding:3px 8px;font-size:12px;color:#7a5a1e">Padrão Flying Studio</span>
+        Dados do lead
+      </p>
+      <div class="grid-2" style="margin-bottom:12px">
+        <div>
+          <label>Nome do contato</label>
+          <input id="msg-nome" type="text" placeholder="Ex: João Silva"/>
+        </div>
+        <div>
+          <label>Cargo</label>
+          <select id="msg-cargo">
+            <option>Diretor de Marketing</option>
+            <option>Gerente de Marketing</option>
+            <option>CEO / Presidente</option>
+            <option>Diretor Comercial</option>
+            <option>CMO</option>
+            <option>Gerente Comercial</option>
+            <option>Gerente de Produto</option>
+            <option>Sócio / Fundador</option>
+            <option>Coordenador de Marketing</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-bottom:12px">
+        <div>
+          <label>Empresa</label>
+          <input id="msg-empresa" type="text" placeholder="Ex: Gama Pro"/>
+        </div>
+        <div>
+          <label>Segmento</label>
+          <select id="msg-segmento">
+            <option value="alto padrão">Alto padrão</option>
+            <option value="médio padrão">Médio padrão</option>
+            <option value="econômico / MCMV">Econômico / MCMV</option>
+            <option value="comercial / lajes">Comercial / Lajes</option>
+            <option value="loteamentos">Loteamentos</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-bottom:16px">
+        <div>
+          <label>Empreendimento em lançamento <span style="font-weight:400;color:#9ca3af">(opcional)</span></label>
+          <input id="msg-lancamento" type="text" placeholder="Ex: Residencial Vista Verde"/>
+        </div>
+        <div>
+          <label>Cidade</label>
+          <input id="msg-cidade" type="text" placeholder="Ex: São Paulo - SP"/>
+        </div>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="margin-bottom:8px">Contexto do contato</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="ctx-chips">
+          <button class="chip active" id="ctx-frio"     onclick="selectCtx('frio')">Primeiro contato</button>
+          <button class="chip"        id="ctx-proposta" onclick="selectCtx('proposta')">Proposta já enviada</button>
+          <button class="chip"        id="ctx-followup" onclick="selectCtx('followup')">Follow up</button>
+          <button class="chip"        id="ctx-recusada" onclick="selectCtx('recusada')">Proposta recusada</button>
+          <button class="chip"        id="ctx-antiga"   onclick="selectCtx('antiga')">Proposta antiga</button>
+        </div>
+      </div>
+      <button class="btn btn-dark" onclick="gerarMensagem()">✨ Gerar mensagens personalizadas</button>
+    </div>
+    <div id="msg-results" style="display:none"></div>
+  </div>
+
+  <!-- ═══════════ EMPREENDIMENTOS ═══════════ -->
+  <div id="page-empreendimentos" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <div class="grid-2" style="margin-bottom:14px">
+        <div>
+          <label>Empresa / Incorporadora</label>
+          <input id="emp-company" type="text" placeholder="Ex: EZTec" onkeydown="if(event.key==='Enter')buscarEmp()"/>
+        </div>
+        <div>
+          <label>Domínio <span style="font-weight:400;color:#9ca3af">(opcional)</span></label>
+          <input id="emp-domain" type="text" placeholder="eztec.com.br" oninput="onDomainInput('emp-domain','emp-domain-hint')" onkeydown="if(event.key==='Enter')buscarEmp()"/>
+          <p id="emp-domain-hint" class="field-ok" style="display:none"></p>
+        </div>
+      </div>
+      <button class="btn btn-gold" onclick="buscarEmp()">🔍 Pesquisar empreendimentos</button>
+    </div>
+    <div id="emp-error" style="display:none"></div>
+    <div id="emp-results" style="display:none"></div>
+  </div>
+
+  <!-- ═══════════ HISTÓRICO ═══════════ -->
+  <div id="page-historico" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px">
+      <div>
+        <p id="hist-total" style="font-size:14px;font-weight:700;color:#111827">Histórico de pesquisas</p>
+        <p id="hist-sub" style="font-size:12px;color:#9ca3af;margin-top:2px"></p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-sm" onclick="exportHistorico()">↓ Exportar</button>
+        <button class="btn-red" onclick="limparHistorico()">🗑 Limpar</button>
+      </div>
+    </div>
+    <!-- search historico -->
+    <div class="search-wrap" style="margin-bottom:14px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="search-inp" placeholder="Buscar no histórico..." oninput="filterHistorico(this.value)"/>
+    </div>
+    <div id="hist-list"></div>
+  </div>
+
+</div><!-- end .content -->
+
+<script>
+// ═══════════════════════════════════════
+// CONSTANTES
+// ═══════════════════════════════════════
+var HUNTER_KEY = "8f122be7c8440172a49875acc9356073cb141ce2";
+var HIST_KEY   = "fp_hist_v2";
+
+var DEPTS = [
+  {id:"",label:"Todos"},
+  {id:"executive",label:"Diretoria / C-Level"},
+  {id:"management",label:"Gerência"},
+  {id:"marketing",label:"Marketing"},
+  {id:"sales",label:"Comercial / Vendas"},
+  {id:"communications",label:"Comunicação / PR"},
+  {id:"operations",label:"Operações"},
+  {id:"finance",label:"Financeiro"},
+];
+var SENS = [
+  {id:"",label:"Qualquer nível"},
+  {id:"executive",label:"Executivo (C-Level / Diretor)"},
+  {id:"senior",label:"Sênior (Gerente / Coord.)"},
+  {id:"junior",label:"Júnior / Analista"},
+];
+var ESTADOS = ["SP","RJ","MG","RS","PR","SC","BA","GO","DF","PE","CE","ES","MT","PA","MA","PB","RN","AL","AM"];
+var SEGS = [
+  {id:"all",label:"Todos"},
+  {id:"alto",label:"Alto padrão"},
+  {id:"medio",label:"Médio padrão"},
+  {id:"mcmv",label:"MCMV"},
+  {id:"comercial",label:"Comercial"},
+  {id:"loteamento",label:"Loteamentos"},
+];
+var TARGET_ROLES = ["ceo","diretor","director","marketing","comercial","gerente","manager","product","cmo","founder","sócio","socio","proprietário","presidente","vp","head"];
+
+// ═══════════════════════════════════════
+// ESTADO GLOBAL
+// ═══════════════════════════════════════
+var currentMode = "domain";
+var selectedDept = "";
+var selectedSen = "executive";
+var selectedEstado = "SP";
+var selectedSeg = "all";
+var selectedCtx = "frio";
+var allResults = [];
+var progTimers = [];
+var fullHistory = [];
+
+// ═══════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════
+function cleanDomain(raw){
+  return (raw||"").trim()
+    .replace(/^https?:\/\//i,"")
+    .replace(/^www\./i,"")
+    .replace(/[/?#].*/,"")
+    .trim().toLowerCase();
+}
+function isTarget(p){ return TARGET_ROLES.some(function(r){return (p||"").toLowerCase().includes(r);}); }
+function scoreColor(s){ return s>=75?"#166534":s>=45?"#854d0e":"#9a3412"; }
+function scoreBg(s)   { return s>=75?"#f0fdf4":s>=45?"#fefce8":"#fff7ed"; }
+function scoreBd(s)   { return s>=75?"#bbf7d0":s>=45?"#fde68a":"#fed7aa"; }
+function scoreLabel(s){ return s>=75?"Confirmado":s>=45?"Provável":"Incerto"; }
+var avColors = ["#1d4ed8","#7c3aed","#0f766e","#b45309","#be185d","#0284c7","#7c2d12"];
+var avBgs    = ["#eff6ff","#f5f3ff","#f0fdfa","#fffbeb","#fdf2f8","#f0f9ff","#fff7ed"];
+function getAvColor(n){ return avColors[(n||"?").charCodeAt(0)%avColors.length]; }
+function getAvBg(n)   { return avBgs[(n||"?").charCodeAt(0)%avBgs.length]; }
+function initials(f,l){ return ((f||"")[0]||"").toUpperCase()+((l||"")[0]||"").toUpperCase()||"?"; }
+function fmtDate(d){
+  if(!d) return "-";
+  var p=d.split("-");
+  return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:d;
+}
+function monthsAgo(ds){
+  if(!ds) return 9999;
+  var d=new Date(ds), n=new Date();
+  return (n.getFullYear()-d.getFullYear())*12+(n.getMonth()-d.getMonth());
+}
+function fmtPhone(ddd,tel){
+  if(!tel) return null;
+  return "("+ddd+") "+tel;
+}
+function fmtCapital(v){
+  if(!v||v==0) return null;
+  return "R$ "+Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2});
+}
+function cnpjFmt(c){
+  c=(c||"").replace(/\D/g,"");
+  return c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5");
+}
+function leadScore(d){
+  // Score 0-100 based on company signals
+  var s = 50;
+  var months = monthsAgo(d.data_inicio_atividade);
+  if(months<=6) s+=30;
+  else if(months<=12) s+=20;
+  else if(months<=24) s+=10;
+  else if(months>60) s-=10;
+  if(d.email) s+=10;
+  if(d.ddd_telefone_1) s+=5;
+  if(d.capital_social>100000) s+=5;
+  if(d.descricao_situacao_cadastral==="ATIVA") s+=5;
+  else s-=20;
+  var cnae = (d.cnae_fiscal_descricao||"").toLowerCase();
+  if(cnae.includes("incorpora")) s+=10;
+  else if(cnae.includes("constru")) s+=5;
+  return Math.min(100,Math.max(0,s));
+}
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+var toastTimer;
+function toast(msg,dur){
+  clearTimeout(toastTimer);
+  var t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  toastTimer=setTimeout(function(){t.classList.remove("show");},dur||2200);
+}
+
+// ═══════════════════════════════════════
+// COPY
+// ═══════════════════════════════════════
+function copyEl(id,btn){
+  var el=document.getElementById(id);
+  var text=el.innerText||el.textContent||"";
+  navigator.clipboard.writeText(text.trim()).then(function(){
+    var orig=btn.innerHTML; btn.innerHTML="✓ Copiado!";
+    setTimeout(function(){btn.innerHTML=orig;},1800);
+    toast("📋 Copiado!");
+  }).catch(function(){
+    // fallback
+    var ta=document.createElement("textarea");
+    ta.value=text; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); document.body.removeChild(ta);
+    toast("📋 Copiado!");
+  });
+}
+
+// ═══════════════════════════════════════
+// DOMAIN HINT
+// ═══════════════════════════════════════
+function onDomainInput(inputId,hintId){
+  var raw=document.getElementById(inputId).value;
+  var clean=cleanDomain(raw);
+  var hint=document.getElementById(hintId);
+  if(raw.trim()&&clean!==raw.trim()){
+    hint.textContent="✓ Será usado: "+clean;
+    hint.style.display="block";
+  } else { hint.style.display="none"; }
+}
+
+// ═══════════════════════════════════════
+// CNPJ MASK
+// ═══════════════════════════════════════
+function maskCnpj(input){
+  var v=input.value.replace(/\D/g,"").slice(0,14);
+  v=v.replace(/^(\d{2})(\d)/,"$1.$2");
+  v=v.replace(/^(\d{2})\.(\d{3})(\d)/,"$1.$2.$3");
+  v=v.replace(/\.(\d{3})(\d)/,".$1/$2");
+  v=v.replace(/(\d{4})(\d)/,"$1-$2");
+  input.value=v;
+  var hint=document.getElementById("cnpj-hint");
+  var n=input.value.replace(/\D/g,"").length;
+  if(n===14){ hint.className="field-ok"; hint.textContent="✓ CNPJ válido — pressione Enter ou clique em Buscar"; }
+  else if(n>0){ hint.className="field-err"; hint.textContent=n+"/14 dígitos"; }
+  else{ hint.className="field-hint"; hint.textContent="14 dígitos · Receita Federal via BrasilAPI"; }
+}
+
+// ═══════════════════════════════════════
+// ERROR BOX
+// ═══════════════════════════════════════
+function showError(elId,msg){
+  var el=document.getElementById(elId);
+  el.innerHTML='<div class="card" style="border-color:#fecaca;background:#fff7ed;margin-bottom:14px">'+
+    '<div style="display:flex;gap:10px;align-items:flex-start">'+
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'+
+    '<div><p style="font-size:12px;font-weight:700;color:#c2410c;text-transform:uppercase;margin-bottom:3px">Erro</p>'+
+    '<p style="font-size:14px;color:#9a3412">'+msg+'</p></div></div></div>';
+  el.style.display="block";
+}
+
+// ═══════════════════════════════════════
+// TAB / MODE SWITCHES
+// ═══════════════════════════════════════
+var TABS=["contatos","cnpj","radar","mensagem","empreendimentos","historico"];
+var HEADLINES={
+  contatos:       ["Prospecção inteligente","Encontre decisores. Feche mais projetos."],
+  cnpj:           ["Receita Federal","Busque qualquer CNPJ e veja sócios."],
+  radar:          ["Radar de mercado","Incorporadoras novas = oportunidade certa."],
+  mensagem:       ["Apoio à abordagem","Mensagem certa. Decisor certo."],
+  empreendimentos:["Inteligência de mercado","Conheça a carteira. Chegue na hora certa."],
+  historico:      ["Histórico","Empresas já pesquisadas ficam salvas aqui."],
+};
+function switchTab(tab){
+  TABS.forEach(function(t){
+    document.getElementById("page-"+t).style.display=t===tab?"block":"none";
+    document.getElementById("tab-"+t).classList.toggle("active",t===tab);
+  });
+  document.getElementById("hl-sub").textContent=HEADLINES[tab][0];
+  document.getElementById("hl-main").textContent=HEADLINES[tab][1];
+  if(tab==="historico") renderHistorico();
+}
+function switchMode(m){
+  currentMode=m;
+  document.getElementById("mode-domain").classList.toggle("active",m==="domain");
+  document.getElementById("mode-role").classList.toggle("active",m==="role");
+  document.getElementById("role-filters").style.display=m==="role"?"block":"none";
+  document.getElementById("btn-search").textContent=m==="role"?"Buscar por cargo":"Mapear todos os contatos";
+}
+
+// ═══════════════════════════════════════
+// CHIPS
+// ═══════════════════════════════════════
+function buildChips(){
+  document.getElementById("dept-chips").innerHTML=DEPTS.map(function(d){
+    return '<button class="chip'+(d.id===selectedDept?" active":"")+'" onclick="selectDept(\''+d.id+'\')">'+d.label+'</button>';
+  }).join("");
+  document.getElementById("sen-chips").innerHTML=SENS.map(function(s){
+    return '<button class="chip'+(s.id===selectedSen?" active":"")+'" onclick="selectSen(\''+s.id+'\')">'+s.label+'</button>';
+  }).join("");
+  document.getElementById("estado-chips").innerHTML=ESTADOS.map(function(e){
+    return '<button class="chip'+(e===selectedEstado?" active":"")+'" onclick="selectEstado(\''+e+'\')">'+e+'</button>';
+  }).join("");
+  document.getElementById("seg-chips").innerHTML=SEGS.map(function(s){
+    return '<button class="chip'+(s.id===selectedSeg?" active":"")+'" onclick="selectSeg(\''+s.id+'\')">'+s.label+'</button>';
+  }).join("");
+}
+function selectDept(id){selectedDept=id;buildChips();}
+function selectSen(id){selectedSen=id;buildChips();}
+function selectEstado(id){selectedEstado=id;buildChips();}
+function selectSeg(id){selectedSeg=id;buildChips();}
+function selectCtx(id){
+  selectedCtx=id;
+  ["frio","proposta","followup","recusada","antiga"].forEach(function(x){
+    document.getElementById("ctx-"+x).classList.toggle("active",x===id);
+  });
+}
+buildChips();
+
+// ═══════════════════════════════════════
+// PROGRESS
+// ═══════════════════════════════════════
+function startProgress(steps){
+  progTimers.forEach(clearTimeout); progTimers=[];
+  progTimers=steps.map(function(s){
+    return setTimeout(function(){
+      document.getElementById("prog-fill").style.width=s.pct+"%";
+      document.getElementById("prog-pct").textContent=s.pct+"%";
+      document.getElementById("prog-step").textContent=s.label;
+    },s.delay);
+  });
+}
+function stopProgress(){ progTimers.forEach(clearTimeout); progTimers=[]; }
+
+// ═══════════════════════════════════════
+// HISTÓRICO
+// ═══════════════════════════════════════
+function getHistory(){ try{return JSON.parse(localStorage.getItem(HIST_KEY)||"[]");}catch(e){return[];} }
+function saveHistory(list){ try{localStorage.setItem(HIST_KEY,JSON.stringify(list.slice(0,200)));}catch(e){} }
+function addHistory(item){
+  var list=getHistory().filter(function(h){return h.key!==item.key;});
+  list.unshift(item); saveHistory(list); updateHistCount();
+}
+function updateHistCount(){
+  var n=getHistory().length;
+  var el=document.getElementById("hist-count-top");
+  if(el) el.textContent=n>0?n+" empresa"+(n!==1?"s":"")+" salva"+(n!==1?"s":""):"";
+  var notif=document.getElementById("hist-notif");
+  if(notif) notif.style.display=n>0?"block":"none";
+}
+function filterHistorico(q){
+  var list=getHistory();
+  if(q) list=list.filter(function(h){ return (h.label+h.sublabel).toLowerCase().includes(q.toLowerCase()); });
+  renderHistList(list);
+}
+function renderHistorico(){
+  var list=getHistory();
+  fullHistory=list;
+  var sub=document.getElementById("hist-sub");
+  if(sub) sub.textContent=list.length+" pesquisa"+(list.length!==1?"s":"")+" salva"+(list.length!==1?"s":"");
+  renderHistList(list);
+}
+function renderHistList(list){
+  var el=document.getElementById("hist-list");
+  if(!list.length){
+    el.innerHTML='<div class="card"><div class="empty-state"><p>Nenhuma pesquisa ainda</p><p>As empresas pesquisadas aparecem aqui automaticamente</p></div></div>';
+    return;
+  }
+  var typeIcons={cnpj:"🏢",contatos:"📧",empreendimentos:"🏗️",radar:"📡"};
+  var typeLabels={cnpj:"CNPJ","contatos":"Contatos",empreendimentos:"Empreendimentos",radar:"Radar"};
+  el.innerHTML='<div class="card" style="padding:4px 20px">'+
+    list.map(function(h){
+      var icon=typeIcons[h.type]||"🔍";
+      var ageMs=Date.now()-h.ts;
+      var ageDays=Math.floor(ageMs/86400000);
+      var ageStr=ageDays===0?"Hoje":ageDays===1?"Ontem":ageDays+"d atrás";
+      return '<div class="hist-row" onclick="reabrirPesquisa(\''+encodeURIComponent(JSON.stringify(h))+'\')" title="Clique para reabrir">'+
+        '<div style="width:38px;height:38px;border-radius:9px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">'+icon+'</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<p style="font-size:14px;font-weight:600;color:#111827;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+h.label+'</p>'+
+          '<p style="font-size:12px;color:#9ca3af">'+h.sublabel+'</p>'+
+        '</div>'+
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">'+
+          '<span style="font-size:11px;color:#d1d5db">'+ageStr+'</span>'+
+          '<span class="badge" style="background:#f3f4f6;color:#6b7280;border-color:#e5e7eb;font-size:10px">'+( typeLabels[h.type]||h.type)+'</span>'+
+          (h.isNew?'<span class="tag-hot" style="font-size:10px">🔥 Nova</span>':"")+
+        '</div>'+
+      '</div>';
+    }).join("")+
+  '</div>';
+}
+function reabrirPesquisa(enc){
+  var h=JSON.parse(decodeURIComponent(enc));
+  if(h.type==="cnpj"){ document.getElementById("inp-cnpj").value=h.cnpjFormatted||""; switchTab("cnpj"); setTimeout(buscarCnpj,100); }
+  else if(h.type==="contatos"){ document.getElementById("inp-domain").value=h.domain||""; document.getElementById("inp-company").value=h.company||""; switchTab("contatos"); setTimeout(doSearch,100); }
+}
+function limparHistorico(){
+  if(!confirm("Apagar todo o histórico?")) return;
+  localStorage.removeItem(HIST_KEY); updateHistCount(); renderHistorico();
+}
+function exportHistorico(){
+  var list=getHistory();
+  if(!list.length){ toast("Histórico vazio"); return; }
+  var rows=list.map(function(h){
+    return {"Empresa":h.label,"Detalhe":h.sublabel,"Tipo":h.type,"Data":new Date(h.ts).toLocaleDateString("pt-BR")};
+  });
+  var ws=XLSX.utils.json_to_sheet(rows);
+  ws["!cols"]=[30,40,15,14].map(function(w){return{wch:w};});
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Histórico");
+  XLSX.writeFile(wb,"historico_prospeccao.xlsx");
+  toast("📊 Histórico exportado!");
+}
+updateHistCount();
+
+// ═══════════════════════════════════════
+// CONTATOS (Hunter.io)
+// ═══════════════════════════════════════
+function doSearch(){
+  var domain=cleanDomain(document.getElementById("inp-domain").value);
+  var company=document.getElementById("inp-company").value.trim();
+  if(!domain){ document.getElementById("inp-domain").classList.add("error"); toast("⚠️ Informe o domínio da empresa"); return; }
+  document.getElementById("inp-domain").classList.remove("error");
+  document.getElementById("search-error").style.display="none";
+  document.getElementById("search-results").style.display="none";
+  document.getElementById("search-loader").style.display="block";
+  document.getElementById("btn-search").disabled=true;
+  startProgress([
+    {pct:15,label:"Conectando à Hunter.io...",delay:200},
+    {pct:40,label:"Buscando emails do domínio...",delay:800},
+    {pct:70,label:"Coletando resultados...",delay:2000},
+    {pct:88,label:"Finalizando...",delay:3500},
+  ]);
+  var url="https://api.hunter.io/v2/domain-search?domain="+encodeURIComponent(domain)+"&api_key="+HUNTER_KEY+"&limit=10";
+  if(currentMode==="role"){
+    if(selectedDept) url+="&department="+selectedDept;
+    if(selectedSen)  url+="&seniority="+selectedSen;
+  }
+  fetch(url,{headers:{Accept:"application/json"}})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d};});})
+    .then(function(res){
+      stopProgress();
+      document.getElementById("search-loader").style.display="none";
+      document.getElementById("btn-search").disabled=false;
+      if(!res.ok||res.data.errors){
+        var msg=(res.data.errors&&res.data.errors[0]&&(res.data.errors[0].details||res.data.errors[0].id))||res.data.message||("Erro HTTP "+res.status);
+        showError("search-error",msg);
+        return;
+      }
+      var emails=res.data.data&&res.data.data.emails||[];
+      var pattern=res.data.data&&res.data.data.pattern||null;
+      var org=res.data.data&&res.data.data.organization||null;
+      // Fallback: mínimo 2 contatos
+      if(emails.length<2){
+        var pat=pattern||"{first}.{last}";
+        var inferLocal=function(f,l){return pat.replace("{first}",f).replace("{last}",l).replace("{f}",f[0]||"").replace("{l}",l[0]||"");};
+        var fallbacks=[
+          {first:"diretor",last:"marketing",position:"Diretor de Marketing"},
+          {first:"marketing",last:domain.split(".")[0],position:"Gerente de Marketing"},
+          {first:"ceo",last:domain.split(".")[0],position:"CEO / Presidente"},
+        ];
+        var existing={};
+        emails.forEach(function(e){existing[e.value]=true;});
+        fallbacks.forEach(function(c){
+          if(emails.length>=2) return;
+          var email=inferLocal(c.first,c.last)+"@"+domain;
+          if(!existing[email]){emails.push({value:email,first_name:c.first,last_name:c.last,position:c.position,confidence:35,inferred:true});existing[email]=true;}
+        });
+      }
+      allResults=emails;
+      addHistory({key:"c:"+domain,type:"contatos",label:company||domain,sublabel:emails.length+" contatos · "+domain,domain:domain,company:company,ts:Date.now()});
+      renderContatos(emails,pattern,domain,company,org);
+    })
+    .catch(function(e){
+      stopProgress();
+      document.getElementById("search-loader").style.display="none";
+      document.getElementById("btn-search").disabled=false;
+      showError("search-error","Falha na conexão: "+e.message+". Verifique sua internet.");
+    });
+}
+
+function buildContactRow(r,compOrDomain){
+  var name=[(r.first_name||""),(r.last_name||"")].filter(Boolean).join(" ");
+  var score=r.confidence||0;
+  var hl=isTarget(r.position);
+  var avCol=name?getAvColor(name):"#9ca3af";
+  var avBg2=name?getAvBg(name):"#f3f4f6";
+  var ini=name?initials(r.first_name||"",r.last_name||""):"?";
+  var liUrl="https://www.linkedin.com/search/results/people/?keywords="+encodeURIComponent(name+" "+compOrDomain);
+  var gUrl="https://www.google.com/search?q="+encodeURIComponent('"'+name+'" "'+compOrDomain+'"');
+  return '<div class="result-row row-in">'+
+    '<div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;background:'+avBg2+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:'+avCol+'">'+ini+'</div>'+
+    '<div style="flex:1;min-width:0">'+
+      '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap">'+
+        '<span style="font-size:14px;font-weight:600;color:#111827;word-break:break-all">'+r.value+'</span>'+
+        (hl?'<span class="badge" style="background:#fdf8ee;color:#7a5a1e;border-color:#e8d090;font-size:11px">Decisor</span>':"")+
+        (r.inferred?'<span class="badge" style="background:#f9fafb;color:#9ca3af;border-color:#e5e7eb;font-size:11px">Inferido</span>':"")+
+      '</div>'+
+      (name?'<p style="font-size:13px;color:#6b7280;margin-bottom:2px">'+name+'</p>':"")+
+      (r.position?'<p style="font-size:12px;color:#9ca3af">'+r.position+'</p>':"")+
+    '</div>'+
+    '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">'+
+      '<div style="display:flex;align-items:center;gap:6px">'+
+        '<div style="width:8px;height:8px;border-radius:50%;background:'+scoreColor(score)+';flex-shrink:0"></div>'+
+        '<span class="badge" style="background:'+scoreBg(score)+';color:'+scoreColor(score)+';border-color:'+scoreBd(score)+'">'+scoreLabel(score)+' · '+score+'%</span>'+
+      '</div>'+
+      '<div style="display:flex;gap:5px;flex-wrap:wrap">'+
+        (name?'<a class="link-btn" href="'+liUrl+'" target="_blank">LinkedIn</a><a class="link-btn" href="'+gUrl+'" target="_blank">Google</a>':"")+
+        '<button class="link-btn" onclick="atalhoMensagem(\''+encodeURIComponent(name)+'\',\''+encodeURIComponent(r.position||"")+'\',\''+encodeURIComponent(compOrDomain)+'\')">✉ Msg</button>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+
+function renderContatos(emails,pattern,domain,company,org){
+  var sorted=emails.slice().sort(function(a,b){
+    if(isTarget(a.position)&&!isTarget(b.position)) return -1;
+    if(!isTarget(a.position)&&isTarget(b.position)) return 1;
+    return (b.confidence||0)-(a.confidence||0);
+  });
+  var targets=emails.filter(function(r){return isTarget(r.position);});
+  var avg=emails.length?Math.round(emails.reduce(function(a,r){return a+(r.confidence||0);},0)/emails.length):0;
+  var compOrDomain=company||domain;
+  var html='<div class="fade">';
+  // Company info from Hunter
+  if(org){
+    html+='<div class="card-flat" style="margin-bottom:12px;display:flex;align-items:center;gap:12px">'+
+      '<div style="width:38px;height:38px;border-radius:8px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏢</div>'+
+      '<div style="flex:1">'+
+        '<p style="font-size:15px;font-weight:700;color:#111827;margin-bottom:1px">'+( org.name||compOrDomain)+'</p>'+
+        (org.industry?'<p style="font-size:12px;color:#9ca3af">'+org.industry+(org.country?" · "+org.country:"")+'</p>':"")+
+      '</div>'+
+      (org.linkedin?'<a href="'+org.linkedin+'" target="_blank" class="btn-icon">💼 LinkedIn</a>':"")+
+    '</div>';
+  }
+  // Pattern
+  if(pattern){
+    html+='<div style="background:#fdf8ee;border:1.5px solid #e8d090;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:center">'+
+      '<span style="font-size:18px">⚡</span>'+
+      '<div><p style="font-size:11px;font-weight:700;color:#92700a;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Padrão de email detectado</p>'+
+      '<p style="font-size:14px;font-weight:700;color:#111827"><span style="color:#b89a4e">'+pattern+'</span><span style="color:#9ca3af">@'+domain+'</span></p></div>'+
+    '</div>';
+  }
+  // Stats
+  html+='<div class="grid-3" style="margin-bottom:14px">'+
+    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:#111827;line-height:1;margin-bottom:4px;letter-spacing:-.02em">'+emails.length+'</p><p style="font-size:12px;font-weight:500;color:#9ca3af">Emails mapeados</p></div>'+
+    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:#b89a4e;line-height:1;margin-bottom:4px;letter-spacing:-.02em">'+targets.length+'</p><p style="font-size:12px;font-weight:500;color:#9ca3af">Decisores</p></div>'+
+    '<div class="stat-card"><p style="font-size:28px;font-weight:800;line-height:1;margin-bottom:4px;letter-spacing:-.02em;color:'+scoreColor(avg)+'">'+avg+'%</p><p style="font-size:12px;font-weight:500;color:#9ca3af">Score médio</p></div>'+
+  '</div>';
+  // Toolbar
+  html+='<div style="display:flex;gap:10px;margin-bottom:12px">'+
+    '<div class="search-wrap" style="flex:1">'+
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+
+    '<input class="search-inp" placeholder="Filtrar por nome ou email..." oninput="filterContatos(this.value,\''+encodeURIComponent(compOrDomain)+'\')"/></div>'+
+    '<button class="btn-sm" onclick="exportXlsx()">↓ Excel</button>'+
+  '</div>';
+  // List
+  html+='<div class="card" style="padding:4px 20px" id="contacts-list">';
+  sorted.forEach(function(r){html+=buildContactRow(r,compOrDomain);});
+  html+='</div>';
+  // Legend
+  html+='<div style="margin-top:12px;display:flex;gap:16px;flex-wrap:wrap">'+
+    [["#166534","Confirmado ≥75%"],["#854d0e","Provável ≥45%"],["#9a3412","Incerto <45%"]].map(function(x){
+      return '<div style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:'+x[0]+';display:inline-block;flex-shrink:0"></span><span style="font-size:12px;color:#9ca3af;font-weight:500">'+x[1]+'</span></div>';
+    }).join("")+
+  '</div></div>';
+  var el=document.getElementById("search-results");
+  el.innerHTML=html; el.style.display="block";
+}
+
+function filterContatos(q,enc){
+  var comp=decodeURIComponent(enc);
+  var list=document.getElementById("contacts-list");
+  if(!list) return;
+  var filtered=q?allResults.filter(function(r){
+    return (r.value||"").includes(q.toLowerCase())||((r.first_name||"")+" "+(r.last_name||"")).toLowerCase().includes(q.toLowerCase())||
+      (r.position||"").toLowerCase().includes(q.toLowerCase());
+  }):allResults;
+  var sorted=filtered.slice().sort(function(a,b){
+    if(isTarget(a.position)&&!isTarget(b.position)) return -1;
+    if(!isTarget(a.position)&&isTarget(b.position)) return 1;
+    return (b.confidence||0)-(a.confidence||0);
+  });
+  list.innerHTML=sorted.length?sorted.map(function(r){return buildContactRow(r,comp);}).join(""):
+    '<div class="empty-state"><p>Nenhum resultado</p><p>Tente outro termo de busca</p></div>';
+}
+
+function exportXlsx(){
+  if(!allResults.length){toast("Sem dados para exportar");return;}
+  var company=document.getElementById("inp-company").value.trim();
+  var domain=cleanDomain(document.getElementById("inp-domain").value);
+  var rows=allResults.map(function(r){
+    return {
+      "Nome":((r.first_name||"")+" "+(r.last_name||"")).trim()||"-",
+      "Cargo":r.position||"-","Email":r.value||"",
+      "Confiança (%)":r.confidence||0,"Status":scoreLabel(r.confidence||0),
+      "Inferido":r.inferred?"Sim":"Não",
+      "Empresa":company||domain,"Domínio":domain,
+      "LinkedIn":"https://linkedin.com/search/results/people/?keywords="+encodeURIComponent(((r.first_name||"")+" "+(r.last_name||"")).trim()+" "+(company||domain)),
+    };
+  });
+  var ws=XLSX.utils.json_to_sheet(rows);
+  ws["!cols"]=[24,28,36,14,14,10,24,22,60].map(function(w){return{wch:w};});
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Leads");
+  XLSX.writeFile(wb,"leads_"+(domain||"export").replace(/\./g,"_")+".xlsx");
+  toast("📊 Excel exportado com sucesso!");
+}
+
+function atalhoMensagem(nameEnc,cargoEnc,empresaEnc){
+  var parts=decodeURIComponent(nameEnc).split(" ");
+  document.getElementById("msg-nome").value=parts[0]||"";
+  document.getElementById("msg-cargo").value=decodeURIComponent(cargoEnc)||"Diretor de Marketing";
+  document.getElementById("msg-empresa").value=decodeURIComponent(empresaEnc);
+  switchTab("mensagem"); toast("✅ Dados preenchidos! Clique em Gerar mensagem.",3000);
+}
+
+// ═══════════════════════════════════════
+// CNPJ
+// ═══════════════════════════════════════
+function buscarCnpj(){
+  var raw=document.getElementById("inp-cnpj").value.replace(/\D/g,"");
+  if(raw.length!==14){document.getElementById("inp-cnpj").classList.add("error");toast("⚠️ CNPJ deve ter 14 dígitos");return;}
+  document.getElementById("inp-cnpj").classList.remove("error");
+  document.getElementById("cnpj-error").style.display="none";
+  document.getElementById("cnpj-results").style.display="none";
+  document.getElementById("cnpj-loader").style.display="block";
+  document.getElementById("btn-cnpj").disabled=true;
+  fetch("https://brasilapi.com.br/api/cnpj/v1/"+raw)
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d};});})
+    .then(function(res){
+      document.getElementById("cnpj-loader").style.display="none";
+      document.getElementById("btn-cnpj").disabled=false;
+      if(!res.ok){
+        showError("cnpj-error",res.data.message||"CNPJ não encontrado na Receita Federal.");
+        return;
+      }
+      var d=res.data;
+      var months=monthsAgo(d.data_inicio_atividade);
+      var isNew=months<=12;
+      var fmt=cnpjFmt(raw);
+      addHistory({key:"cnpj:"+raw,type:"cnpj",label:d.nome_fantasia||d.razao_social||raw,sublabel:"CNPJ "+fmt+(isNew?" · 🔥 Nova empresa":""),cnpjFormatted:fmt,isNew:isNew,ts:Date.now()});
+      renderCnpj(d,isNew,months);
+    })
+    .catch(function(e){
+      document.getElementById("cnpj-loader").style.display="none";
+      document.getElementById("btn-cnpj").disabled=false;
+      showError("cnpj-error","Falha na conexão: "+e.message);
+    });
+}
+
+function renderCnpj(d,isNew,months){
+  var score=leadScore(d);
+  var scoreClass=score>=80?"score-90":score>=60?"score-70":score>=40?"score-50":"score-30";
+  var scoreMsg=score>=80?"Lead quente 🔥":score>=60?"Lead promissor ⭐":score>=40?"Lead morno 🔸":"Lead frio ❄️";
+  var phone=fmtPhone(d.ddd_telefone_1,d.telefone_1);
+  var phone2=fmtPhone(d.ddd_telefone_2,d.telefone_2);
+  var capital=fmtCapital(d.capital_social);
+  var html='<div class="fade">';
+  // Score card
+  html+='<div class="score-card '+scoreClass+'" style="margin-bottom:12px">'+
+    '<div style="width:56px;height:56px;border-radius:50%;border:3px solid '+(score>=80?"#16a34a":score>=60?"#b89a4e":score>=40?"#ea580c":"#9ca3af")+';display:flex;align-items:center;justify-content:center;flex-shrink:0">'+
+      '<span style="font-size:16px;font-weight:800;color:'+(score>=80?"#166534":score>=60?"#7a5a1e":score>=40?"#9a3412":"#6b7280")+'">'+score+'</span>'+
+    '</div>'+
+    '<div>'+
+      '<p style="font-size:15px;font-weight:700;color:#111827;margin-bottom:2px">'+scoreMsg+'</p>'+
+      '<p style="font-size:12px;color:#6b7280">Score de oportunidade baseado em sinais da empresa</p>'+
+    '</div>'+
+  '</div>';
+  // Header
+  html+='<div class="card" style="margin-bottom:12px">'+
+    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px">'+
+      '<div style="flex:1">'+
+        '<h2 style="font-size:20px;font-weight:800;color:#111827;margin-bottom:4px;letter-spacing:-.01em">'+d.razao_social+'</h2>'+
+        (d.nome_fantasia&&d.nome_fantasia!==d.razao_social?'<p style="font-size:14px;color:#6b7280;font-weight:500;margin-bottom:4px">'+d.nome_fantasia+'</p>':"")+
+        '<p style="font-size:12px;color:#9ca3af;font-family:monospace">'+cnpjFmt(d.cnpj||"")+'</p>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">'+
+        (isNew?'<span class="tag-hot">🔥 Nova empresa</span>':"")+
+        '<span class="badge" style="background:'+(d.descricao_situacao_cadastral==="ATIVA"?"#f0fdf4":"#fff7ed")+';color:'+(d.descricao_situacao_cadastral==="ATIVA"?"#166534":"#9a3412")+';border-color:'+(d.descricao_situacao_cadastral==="ATIVA"?"#bbf7d0":"#fed7aa")+'">'+( d.descricao_situacao_cadastral||"-")+'</span>'+
+      '</div>'+
+    '</div>'+
+    // Info grid
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid #f3f4f6">'+
+    [
+      ["📅","Fundação",fmtDate(d.data_inicio_atividade)+(isNew?" ("+months+"m)":"")],
+      ["🏭","CNAE",d.cnae_fiscal_descricao||"-"],
+      ["🏢","Porte",d.porte||"-"],
+      ["💰","Capital",capital||"-"],
+      ["📞","Telefone",phone||(phone2||"-")],
+      ["📧","Email",d.email||"-"],
+    ].map(function(row,i){
+      if(!row[2]||row[2]==="-") return "";
+      var isEmail=row[0]==="📧"&&row[2]!=="-";
+      var isPhone=row[0]==="📞"&&row[2]!=="-";
+      return '<div class="info-row" style="grid-column:span 1;margin:0 0;padding:10px 0;border-bottom:1px solid #f9fafb'+(i%2===0?";padding-right:12px":";padding-left:12px;border-left:1px solid #f9fafb")+'"  >'+
+        '<span style="font-size:15px;flex-shrink:0">'+row[0]+'</span>'+
+        '<div style="min-width:0">'+
+          '<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">'+row[1]+'</p>'+
+          '<p style="font-size:13px;color:#374151;word-break:break-all">'+
+          (isEmail?'<a href="mailto:'+row[2]+'" style="color:#b89a4e;text-decoration:none">'+row[2]+'</a>':
+           isPhone?'<a href="tel:'+row[2].replace(/\D/g,"")+'" style="color:#374151;text-decoration:none">'+row[2]+'</a>':row[2])+
+          '</p>'+
+        '</div>'+
+      '</div>';
+    }).join("")+
+    '</div>';
+  // Address
+  var addr=[d.logradouro,d.numero,d.complemento,d.bairro,d.municipio,d.uf].filter(Boolean).join(", ");
+  if(addr){
+    html+='<div style="padding-top:10px;border-top:1px solid #f9fafb;display:flex;gap:8px;align-items:flex-start">'+
+      '<span style="font-size:15px">📍</span>'+
+      '<div><p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Endereço</p>'+
+      '<p style="font-size:13px;color:#374151">'+addr+'</p></div>'+
+    '</div>';
+  }
+  html+='</div>';
+
+  // Sócios
+  if(d.qsa&&d.qsa.length){
+    html+='<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+d.qsa.length+' sócio'+(d.qsa.length!==1?"s":"")+'</p>';
+    d.qsa.forEach(function(s){
+      var nome=s.nome_socio||s.nome||"-";
+      var qual=s.qualificacao_socio||s.descricao_qualificacao_socio||"";
+      var nomeParts=nome.split(" ");
+      var fn=nomeParts[0]||"";
+      var ln=nomeParts[nomeParts.length-1]||"";
+      html+='<div class="socio-card row-in">'+
+        '<div style="display:flex;align-items:center;gap:12px">'+
+          '<div style="width:38px;height:38px;border-radius:9px;background:'+getAvBg(nome)+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:'+getAvColor(nome)+';flex-shrink:0">'+((nome[0]||"").toUpperCase())+'</div>'+
+          '<div style="flex:1;min-width:0">'+
+            '<p style="font-size:14px;font-weight:700;color:#111827;margin-bottom:1px">'+nome+'</p>'+
+            '<p style="font-size:12px;color:#9ca3af">'+qual+'</p>'+
+          '</div>'+
+          '<div style="display:flex;gap:5px;flex-shrink:0">'+
+            '<a class="link-btn" href="https://www.linkedin.com/search/results/people/?keywords='+encodeURIComponent(nome)+'" target="_blank">LinkedIn</a>'+
+            '<button class="link-btn" onclick="atalhoMensagemSocio(\''+encodeURIComponent(fn)+'\',\''+encodeURIComponent(ln)+'\',\''+encodeURIComponent(d.nome_fantasia||d.razao_social||"")+'\')">✉ Msg</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    });
+  }
+
+  // Ações
+  html+='<div style="background:#fdf8ee;border:1px solid #e8d090;border-radius:10px;padding:16px;margin-top:4px">'+
+    '<p style="font-size:12px;font-weight:700;color:#7a5a1e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Ações rápidas</p>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button class="btn-icon" onclick="buscarContatosEmpresa(\''+encodeURIComponent(d.nome_fantasia||d.razao_social||"")+'\')">📧 Buscar contatos</button>'+
+      '<a class="btn-icon" href="https://www.google.com/search?q='+encodeURIComponent((d.nome_fantasia||d.razao_social||"")+" lançamentos imóveis 2025 2026")+'" target="_blank">🏗️ Ver lançamentos</a>'+
+      '<a class="btn-icon" href="https://www.linkedin.com/search/results/companies/?keywords='+encodeURIComponent(d.nome_fantasia||d.razao_social||"")+'" target="_blank">💼 LinkedIn</a>'+
+      (d.email?'<a class="btn-icon" href="mailto:'+d.email+'" target="_blank">📧 Enviar email</a>':"")+
+      (phone?'<a class="btn-icon" href="https://wa.me/55'+d.ddd_telefone_1+(d.telefone_1||"").replace(/\D/g,"")+'" target="_blank">💬 WhatsApp</a>':"")+
+    '</div>'+
+  '</div>';
+
+  html+='</div>';
+  var el=document.getElementById("cnpj-results");
+  el.innerHTML=html; el.style.display="block";
+}
+
+function atalhoMensagemSocio(fnEnc,lnEnc,empresaEnc){
+  document.getElementById("msg-nome").value=decodeURIComponent(fnEnc);
+  document.getElementById("msg-cargo").value="Sócio / Fundador";
+  document.getElementById("msg-empresa").value=decodeURIComponent(empresaEnc);
+  selectCtx("cnpj");
+  switchTab("mensagem"); toast("✅ Sócio preenchido!",2500);
+}
+function buscarContatosEmpresa(nomeEnc){
+  document.getElementById("inp-company").value=decodeURIComponent(nomeEnc);
+  switchTab("contatos"); toast("✅ Empresa preenchida! Informe o domínio e busque.",3000);
+}
+
+// ═══════════════════════════════════════
+// RADAR — CNPJs reais por CNAE/UF
+// ═══════════════════════════════════════
+// ═══════════════════════════════════════
+// RADAR — ranking embutido no app (sem API)
+// ═══════════════════════════════════════
+
+var RANKING_DB = {
+  "SP": {
+    "todas": [
+      {nome:"EZTec",segmento:"Misto",atuacao:"São Paulo, Grande SP",destaques:"Uma das maiores incorporadoras da Bolsa, com forte presença em médio e alto padrão em SP.",site:"eztec.com.br",linkedin:"https://linkedin.com/company/eztec",oportunidade:"Portfolio ativo com múltiplos lançamentos simultâneos — demanda contínua por visual 3D.",score:95},
+      {nome:"Cyrela Brazil Realty",segmento:"Alto padrão",atuacao:"SP, RJ e principais capitais",destaques:"Líder nacional em alto padrão residencial, com marcas como Living e Vivaz para diferentes segmentos.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Lançamentos de alto padrão exigem visualizações impecáveis — é o core da Flying Studio.",score:93},
+      {nome:"Gafisa",segmento:"Médio/Alto padrão",atuacao:"São Paulo e interior",destaques:"Marca histórica em processo de reposicionamento, com novos lançamentos residenciais em SP.",site:"gafisa.com.br",linkedin:"https://linkedin.com/company/gafisa",oportunidade:"Empresa em retomada — momento ideal para firmar parceria e entrar no pipeline.",score:87},
+      {nome:"Helbor",segmento:"Alto padrão",atuacao:"SP, litoral e interior paulista",destaques:"Especialista em alto padrão com projetos diferenciados em arquitetura e localização.",site:"helbor.com.br",linkedin:"https://linkedin.com/company/helbor",oportunidade:"Projetos arquitetonicamente diferenciados precisam de visual que faça jus ao produto.",score:88},
+      {nome:"Trisul",segmento:"Médio padrão",atuacao:"Grande São Paulo",destaques:"Foco em médio padrão residencial na RMSP, com ritmo constante de lançamentos.",site:"trisul.com.br",linkedin:"https://linkedin.com/company/trisul",oportunidade:"Volume alto de lançamentos = demanda recorrente por visualizações.",score:82},
+      {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Todo o Brasil, forte em SP",destaques:"Maior construtora de imóveis populares do país, com aceleração de lançamentos MCMV.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Escala massiva de lançamentos — parceria com volume garantido.",score:80},
+      {nome:"Vitacon",segmento:"Alto padrão / Micro-living",atuacao:"São Paulo capital",destaques:"Pioneira em micro-studios em SP, com projetos urbanos de alto impacto visual.",site:"vitacon.com.br",linkedin:"https://linkedin.com/company/vitacon",oportunidade:"Produtos urbanos inovadores precisam de apresentação visual moderna e impactante.",score:86},
+      {nome:"SKR Incorporações",segmento:"Médio/Alto padrão",atuacao:"São Paulo e RMSP",destaques:"Incorporadora em crescimento com projetos residenciais e mistos na RMSP.",site:"skr.com.br",linkedin:"https://linkedin.com/company/skr-incorporacoes",oportunidade:"Empresa em expansão — boa janela para entrar como parceiro de visual.",score:78},
+      {nome:"Even Construtora",segmento:"Médio/Alto padrão",atuacao:"SP e RS",destaques:"Construtora sólida com foco em qualidade construtiva e design de interiores.",site:"even.com.br",linkedin:"https://linkedin.com/company/even",oportunidade:"Foco em qualidade = cliente valoriza apresentação visual de alto nível.",score:83},
+      {nome:"Plano&Plano",segmento:"MCMV / Econômico",atuacao:"Grande São Paulo",destaques:"Uma das mais ativas no segmento econômico em SP, com ritmo intenso de lançamentos.",site:"plano-plano.com.br",linkedin:"https://linkedin.com/company/plano-e-plano",oportunidade:"Ritmo de lançamentos muito alto — potencial de contrato recorrente.",score:79}
+    ],
+    "alto": [
+      {nome:"Cyrela Brazil Realty",segmento:"Alto padrão",atuacao:"SP, RJ e principais capitais",destaques:"Líder nacional em alto padrão residencial.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Lançamentos de luxo exigem visual impecável — core da Flying Studio.",score:95},
+      {nome:"Helbor",segmento:"Alto padrão",atuacao:"SP, litoral e interior paulista",destaques:"Especialista em alto padrão com projetos diferenciados em localização e arquitetura.",site:"helbor.com.br",linkedin:"https://linkedin.com/company/helbor",oportunidade:"Arquitetura diferenciada precisa de visual que valorize cada detalhe.",score:92},
+      {nome:"Vitacon",segmento:"Alto padrão / Micro-living",atuacao:"São Paulo capital",destaques:"Pioneira em micro-studios urbanos de alto padrão e design.",site:"vitacon.com.br",linkedin:"https://linkedin.com/company/vitacon",oportunidade:"Produto urbano inovador = apresentação visual é diferencial de vendas.",score:89},
+      {nome:"Gafisa",segmento:"Alto padrão",atuacao:"São Paulo e interior",destaques:"Marca histórica em reposicionamento com foco em alto padrão.",site:"gafisa.com.br",linkedin:"https://linkedin.com/company/gafisa",oportunidade:"Reposicionamento de marca = momento ideal para renovar a apresentação visual.",score:87},
+      {nome:"Brookfield",segmento:"Alto padrão",atuacao:"São Paulo",destaques:"Projetos residenciais e comerciais de alto padrão em SP.",site:"brookfield.com.br",linkedin:"https://linkedin.com/company/brookfield-incorporacoes",oportunidade:"Segmento premium sempre investe em apresentação visual de qualidade.",score:84},
+      {nome:"Tegra Incorporadora",segmento:"Alto padrão",atuacao:"SP e RJ",destaques:"Foco exclusivo em alto padrão residencial com design premiado.",site:"tegra.com.br",linkedin:"https://linkedin.com/company/tegra",oportunidade:"Empresa com foco em qualidade visual — fit perfeito com Flying Studio.",score:88},
+      {nome:"EZTec",segmento:"Misto/Alto padrão",atuacao:"São Paulo e Grande SP",destaques:"Forte em alto padrão em SP, com landbank privilegiado.",site:"eztec.com.br",linkedin:"https://linkedin.com/company/eztec",oportunidade:"Portfolio diversificado com lançamentos constantes.",score:90},
+      {nome:"Klabin Segall",segmento:"Alto padrão",atuacao:"São Paulo",destaques:"Projetos residenciais de alto padrão com foco em experiência do morador.",site:"klabinsegall.com.br",linkedin:"https://linkedin.com/company/klabin-segall",oportunidade:"Alto padrão com foco em experiência — visual 3D é ferramenta de venda essencial.",score:83},
+      {nome:"REM Incorporações",segmento:"Alto padrão",atuacao:"São Paulo capital",destaques:"Incorporadora boutique com projetos exclusivos no Jardins e Itaim.",site:"rem.com.br",linkedin:"https://linkedin.com/company/rem-incorporacoes",oportunidade:"Projetos boutique exigem apresentação visual de nível internacional.",score:82},
+      {nome:"Multiplan",segmento:"Comercial/Misto alto padrão",atuacao:"SP e principais capitais",destaques:"Referência em empreendimentos mistos e de uso misto premium.",site:"multiplan.com.br",linkedin:"https://linkedin.com/company/multiplan",oportunidade:"Projetos mistos com alto padrão de acabamento precisam de visual sofisticado.",score:81}
+    ],
+    "medio": [
+      {nome:"EZTec",segmento:"Médio padrão",atuacao:"São Paulo e Grande SP",destaques:"Forte presença em médio padrão residencial em SP.",site:"eztec.com.br",linkedin:"https://linkedin.com/company/eztec",oportunidade:"Volume de lançamentos no segmento médio = demanda recorrente por visual.",score:88},
+      {nome:"Trisul",segmento:"Médio padrão",atuacao:"Grande São Paulo",destaques:"Especialista em médio padrão residencial na RMSP.",site:"trisul.com.br",linkedin:"https://linkedin.com/company/trisul",oportunidade:"Ritmo constante de lançamentos = parceria de longo prazo.",score:85},
+      {nome:"Even Construtora",segmento:"Médio padrão",atuacao:"SP e RS",destaques:"Qualidade construtiva acima da média no segmento médio.",site:"even.com.br",linkedin:"https://linkedin.com/company/even",oportunidade:"Valoriza qualidade — cliente receptivo a visual diferenciado.",score:83},
+      {nome:"Tecnisa",segmento:"Médio padrão",atuacao:"São Paulo e capitais",destaques:"Incorporadora experiente em médio padrão com projetos sustentáveis.",site:"tecnisa.com.br",linkedin:"https://linkedin.com/company/tecnisa",oportunidade:"Projetos sustentáveis precisam de visual que comunique o diferencial.",score:80},
+      {nome:"PDG Realty",segmento:"Médio padrão",atuacao:"São Paulo e capitais",destaques:"Empresa em recuperação com novos projetos de médio padrão.",site:"pdg.com.br",linkedin:"https://linkedin.com/company/pdg",oportunidade:"Empresa em retomada — boa janela para entrar como parceiro.",score:75},
+      {nome:"Rossi Residencial",segmento:"Médio padrão",atuacao:"SP, RS, SC",destaques:"Construtora com forte presença regional e foco em médio padrão.",site:"rossi.com.br",linkedin:"https://linkedin.com/company/rossi-residencial",oportunidade:"Marca reconhecida com lançamentos regulares.",score:76},
+      {nome:"Diálogo Engenharia",segmento:"Médio padrão",atuacao:"Grande São Paulo",destaques:"Incorporadora regional sólida com projetos residenciais na RMSP.",site:"dialogoengenharia.com.br",linkedin:"https://linkedin.com/company/dialogo-engenharia",oportunidade:"Regional com volume interessante de lançamentos.",score:74},
+      {nome:"SKR Incorporações",segmento:"Médio padrão",atuacao:"SP e RMSP",destaques:"Em expansão com projetos residenciais de médio padrão.",site:"skr.com.br",linkedin:"https://linkedin.com/company/skr-incorporacoes",oportunidade:"Empresa em crescimento — parceria estratégica agora.",score:78},
+      {nome:"Kallas",segmento:"Médio padrão",atuacao:"Grande São Paulo",destaques:"Incorporadora familiar com trajetória sólida no médio padrão paulistano.",site:"kallas.com.br",linkedin:"https://linkedin.com/company/kallas",oportunidade:"Tradição no segmento + lançamentos regulares = parceria de valor.",score:77},
+      {nome:"Setin Incorporadora",segmento:"Médio padrão",atuacao:"São Paulo capital",destaques:"Foco em médio padrão urbano com bons projetos de localização.",site:"setin.com.br",linkedin:"https://linkedin.com/company/setin",oportunidade:"Projetos bem localizados precisam de visual que valorize a posição.",score:76}
+    ],
+    "mcmv": [
+      {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Todo o Brasil",destaques:"Maior construtora MCMV do país, com centenas de lançamentos por ano.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Escala enorme — mesmo pequena participação resulta em grande volume.",score:90},
+      {nome:"Plano&Plano",segmento:"MCMV",atuacao:"Grande São Paulo",destaques:"Líder regional MCMV na RMSP com ritmo intenso de lançamentos.",site:"plano-plano.com.br",linkedin:"https://linkedin.com/company/plano-e-plano",oportunidade:"Alta frequência de lançamentos = contrato recorrente.",score:85},
+      {nome:"Direcional Engenharia",segmento:"MCMV",atuacao:"SP, Centro-Oeste, Norte",destaques:"Especialista em MCMV com forte presença em regiões emergentes.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"Empresa listada em bolsa com crescimento acelerado.",score:83},
+      {nome:"Cury Construtora",segmento:"MCMV",atuacao:"São Paulo e capitais",destaques:"Uma das mais ativas no MCMV em SP, com forte crescimento pós-pandemia.",site:"construtora.com.br",linkedin:"https://linkedin.com/company/cury",oportunidade:"Crescimento acelerado = novas demandas por visual.",score:82},
+      {nome:"Tegra / Yuny",segmento:"MCMV/Econômico",atuacao:"São Paulo",destaques:"Projetos econômicos com foco em localização e infraestrutura.",site:"tegra.com.br",linkedin:"https://linkedin.com/company/tegra",oportunidade:"Posicionamento por localização precisa de visual que comunique valor.",score:75},
+      {nome:"Tenda",segmento:"MCMV",atuacao:"SP, RJ, MG, RS",destaques:"Construtora com foco exclusivo em econômico e MCMV.",site:"tenda.com",linkedin:"https://linkedin.com/company/tenda",oportunidade:"Foco exclusivo no segmento = parceiro estratégico de visual.",score:78},
+      {nome:"Melnick",segmento:"MCMV/Médio",atuacao:"RS e SP",destaques:"Forte no Sul, em expansão para SP com projetos econômicos.",site:"melnick.com.br",linkedin:"https://linkedin.com/company/melnick",oportunidade:"Expansão para SP = momento para entrar antes da concorrência.",score:77},
+      {nome:"Patriani Construtora",segmento:"MCMV",atuacao:"Interior de SP",destaques:"Construtora regional ativa no interior paulista com MCMV.",site:"patriani.com.br",linkedin:"https://linkedin.com/company/patriani",oportunidade:"Interior de SP com MCMV aquecido e demanda crescente.",score:72},
+      {nome:"Albuquerque Construtora",segmento:"MCMV",atuacao:"Grande SP",destaques:"Construtora ativa em MCMV na região metropolitana.",site:"albuquerque.com.br",linkedin:"https://linkedin.com/company/albuquerque-construtora",oportunidade:"Volume de lançamentos MCMV na RMSP.",score:70},
+      {nome:"Método Engenharia",segmento:"MCMV",atuacao:"São Paulo",destaques:"Construtora com experiência em empreendimentos populares em SP.",site:"metodoengenharia.com.br",linkedin:"https://linkedin.com/company/metodo-engenharia",oportunidade:"Lançamentos populares em SP com boa demanda.",score:68}
+    ],
+    "comercial": [
+      {nome:"Brookfield Asset Management",segmento:"Comercial/Corporativo",atuacao:"São Paulo",destaques:"Referência em lajes corporativas AAA no eixo Faria Lima-Itaim.",site:"brookfield.com.br",linkedin:"https://linkedin.com/company/brookfield-asset-management",oportunidade:"Empreendimentos corporativos de alto padrão precisam de visual sofisticado.",score:90},
+      {nome:"Multiplan",segmento:"Comercial/Misto",atuacao:"SP e principais capitais",destaques:"Referência em empreendimentos mistos com shoppings e torres comerciais.",site:"multiplan.com.br",linkedin:"https://linkedin.com/company/multiplan",oportunidade:"Projetos de uso misto com lajes corporativas precisam de visualização completa.",score:88},
+      {nome:"SYN Prop e Tech",segmento:"Comercial",atuacao:"São Paulo",destaques:"Especialista em empreendimentos corporativos no eixo Paulista-Faria Lima.",site:"syn.com.br",linkedin:"https://linkedin.com/company/syn-prop",oportunidade:"Portfolio de escritórios premium que valorizam apresentação visual.",score:85},
+      {nome:"BR Properties",segmento:"Comercial/Logístico",atuacao:"SP e capitais",destaques:"Portfólio diversificado entre lajes, galpões e ativos logísticos.",site:"brproperties.com.br",linkedin:"https://linkedin.com/company/br-properties",oportunidade:"Lajes e galpões premium precisam de visual para captação de locatários.",score:82},
+      {nome:"WTorre",segmento:"Comercial/Corporativo",atuacao:"São Paulo",destaques:"Grandes projetos corporativos e multiuso em SP, incluindo o WTC.",site:"wtorre.com.br",linkedin:"https://linkedin.com/company/wtorre",oportunidade:"Projetos icônicos precisam de apresentação visual de nível internacional.",score:87},
+      {nome:"GOR Properties",segmento:"Comercial",atuacao:"São Paulo",destaques:"Incorporadora focada em lajes corporativas e imóveis de renda.",site:"gorproperties.com.br",linkedin:"https://linkedin.com/company/gor-properties",oportunidade:"Foco em produto comercial premium com boa demanda por visual.",score:78},
+      {nome:"Ático Incorporações",segmento:"Comercial/Misto",atuacao:"São Paulo capital",destaques:"Projetos comerciais e mistos no centro expandido de SP.",site:"atico.com.br",linkedin:"https://linkedin.com/company/atico-incorporacoes",oportunidade:"Projetos mistos no centro expandido com grande visibilidade.",score:76},
+      {nome:"Inpar",segmento:"Comercial",atuacao:"São Paulo e capitais",destaques:"Empreendimentos corporativos e comerciais em localizações estratégicas.",site:"inpar.com.br",linkedin:"https://linkedin.com/company/inpar",oportunidade:"Portfólio comercial em boas localizações com demanda por visual de qualidade.",score:75},
+      {nome:"Ancar Ivanhoe",segmento:"Comercial/Shopping",atuacao:"SP, RJ e capitais",destaques:"Gestora de shoppings e empreendimentos de uso misto no Brasil.",site:"ancarivanhoe.com.br",linkedin:"https://linkedin.com/company/ancar-ivanhoe",oportunidade:"Expansões e revitalizações de shoppings precisam de visual 3D atualizado.",score:80},
+      {nome:"Jhsf Participações",segmento:"Comercial/Luxo",atuacao:"São Paulo e capitais",destaques:"Grupo de luxo com shoppings, hotéis e escritórios premium.",site:"jhsf.com.br",linkedin:"https://linkedin.com/company/jhsf",oportunidade:"Projetos de luxo e lifestyle precisam de visual à altura da marca.",score:83}
+    ]
+  },
+  "RJ": {
+    "todas": [
+      {nome:"Cyrela",segmento:"Alto padrão",atuacao:"Rio de Janeiro e Niterói",destaques:"Forte presença no RJ com projetos na Barra da Tijuca e Zona Sul.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Alto padrão carioca com apelo visual forte para vendas.",score:90},
+      {nome:"Tegra Incorporadora",segmento:"Alto padrão",atuacao:"Rio de Janeiro",destaques:"Focada em alto padrão residencial no RJ com projetos em Ipanema e Leblon.",site:"tegra.com.br",linkedin:"https://linkedin.com/company/tegra",oportunidade:"Projetos em endereços nobres do RJ precisam de visual que valorize a localização.",score:88},
+      {nome:"Carvalho Hosken",segmento:"Alto padrão",atuacao:"Rio de Janeiro — Barra da Tijuca",destaques:"Maior incorporadora da Barra da Tijuca, com megaprojetos como o Ilha Pura.",site:"carvalhohosken.com.br",linkedin:"https://linkedin.com/company/carvalho-hosken",oportunidade:"Megaprojetos na Barra precisam de apresentação visual completa e imersiva.",score:92},
+      {nome:"Multiplan",segmento:"Comercial/Misto",atuacao:"Rio de Janeiro e capitais",destaques:"BarraShopping e projetos mistos de alto padrão no RJ.",site:"multiplan.com.br",linkedin:"https://linkedin.com/company/multiplan",oportunidade:"Projetos mistos com shoppings precisam de visual corporativo de alto nível.",score:85},
+      {nome:"Odebrecht Realizações",segmento:"Misto",atuacao:"Rio de Janeiro",destaques:"Grandes projetos urbanos e residenciais no RJ.",site:"odebrechtr.com.br",linkedin:"https://linkedin.com/company/odebrecht-realizacoes",oportunidade:"Projetos de grande porte precisam de visualização de impacto.",score:82},
+      {nome:"RJZ Cyrela",segmento:"Médio/Alto padrão",atuacao:"Rio de Janeiro",destaques:"Joint venture especializada no mercado carioca com lançamentos frequentes.",site:"rjzcyrela.com.br",linkedin:"https://linkedin.com/company/rjz-cyrela",oportunidade:"Parceria consolidada no RJ com alto volume de lançamentos.",score:87},
+      {nome:"EBM Incorporadora",segmento:"Médio padrão",atuacao:"Rio de Janeiro",destaques:"Construtora ativa no médio padrão carioca.",site:"ebm.com.br",linkedin:"https://linkedin.com/company/ebm-incorporadora",oportunidade:"Volume de lançamentos no médio padrão do RJ.",score:75},
+      {nome:"Calçada",segmento:"Alto padrão",atuacao:"Rio de Janeiro — Zona Sul",destaques:"Boutique de alto padrão na Zona Sul com projetos exclusivos.",site:"calcadario.com.br",linkedin:"https://linkedin.com/company/calcada-incorporacoes",oportunidade:"Projetos boutique na Zona Sul precisam de visual de altíssimo nível.",score:84},
+      {nome:"Direcional",segmento:"MCMV",atuacao:"Rio de Janeiro e Norte/CO",destaques:"Forte em MCMV no RJ e regiões emergentes.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"MCMV no RJ com demanda crescente.",score:78},
+      {nome:"MRV",segmento:"MCMV",atuacao:"Rio de Janeiro e região",destaques:"Lançamentos MCMV constantes na RMRJ.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Volume garantido em MCMV na região metropolitana do RJ.",score:80}
+    ]
+  },
+  "MG": {
+    "todas": [
+      {nome:"Direcional Engenharia",segmento:"MCMV/Médio",atuacao:"BH, Contagem, Betim",destaques:"Origem mineira, líder em MCMV em MG e referência nacional no segmento.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"Empresa listada em bolsa com crescimento acelerado em MG.",score:90},
+      {nome:"Cyrela",segmento:"Alto padrão",atuacao:"Belo Horizonte",destaques:"Forte em alto padrão em BH com projetos nos bairros mais valorizados.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Alto padrão em BH com demanda crescente por visual impactante.",score:86},
+      {nome:"Patrimar Engenharia",segmento:"Médio/Alto padrão",atuacao:"Belo Horizonte e RMBH",destaques:"Construtora mineira sólida com foco em qualidade e bom ritmo de lançamentos.",site:"patrimar.com.br",linkedin:"https://linkedin.com/company/patrimar",oportunidade:"Empresa local consolidada com portfólio diversificado.",score:84},
+      {nome:"Bairro Novo",segmento:"MCMV",atuacao:"Minas Gerais",destaques:"Especialista em MCMV em MG com projetos em cidades do interior.",site:"bairronovo.com.br",linkedin:"https://linkedin.com/company/bairro-novo",oportunidade:"MCMV em MG com forte expansão no interior.",score:76},
+      {nome:"Baldan Incorporações",segmento:"Médio padrão",atuacao:"Belo Horizonte",destaques:"Incorporadora BH com foco em médio padrão e bairros em valorização.",site:"baldan.com.br",linkedin:"https://linkedin.com/company/baldan",oportunidade:"Projetos em bairros em valorização — visual forte acelera vendas.",score:77},
+      {nome:"Construtora Barbosa Mello",segmento:"Comercial",atuacao:"Belo Horizonte e BH",destaques:"Construtora de grande porte com projetos comerciais e residenciais em MG.",site:"cbm.com.br",linkedin:"https://linkedin.com/company/cbm",oportunidade:"Portfólio comercial e residencial com demanda por visual variado.",score:79},
+      {nome:"Habitare Incorporadora",segmento:"Médio padrão",atuacao:"Belo Horizonte",destaques:"Incorporadora regional ativa no médio padrão BH.",site:"habitare.com.br",linkedin:"https://linkedin.com/company/habitare",oportunidade:"Mercado de médio padrão em BH com boa demanda.",score:74},
+      {nome:"Invent Construtora",segmento:"Médio/Alto padrão",atuacao:"Belo Horizonte e Sul de MG",destaques:"Construtora com projetos diferenciados em BH e sul mineiro.",site:"invent.com.br",linkedin:"https://linkedin.com/company/invent",oportunidade:"Projetos diferenciados com necessidade de visual que valorize o produto.",score:76},
+      {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Toda Minas Gerais",destaques:"Presença massiva em MG com origem em BH.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Origem em MG = forte presença e volume de lançamentos.",score:85},
+      {nome:"Kauffmann Construtora",segmento:"Médio padrão",atuacao:"Uberlândia e Triângulo Mineiro",destaques:"Referência no mercado imobiliário de Uberlândia e região.",site:"kauffmann.com.br",linkedin:"https://linkedin.com/company/kauffmann",oportunidade:"Mercado de Uberlândia em expansão acelerada.",score:75}
+    ]
+  },
+  "GO": {
+    "todas": [
+      {nome:"Residencial Eldorado",segmento:"Médio/Alto padrão",atuacao:"Goiânia e Aparecida de Goiânia",destaques:"Uma das maiores incorporadoras de Goiânia, com forte presença no Setor Bueno e Marista.",site:"eldorado.com.br",linkedin:"https://linkedin.com/company/eldorado-goiania",oportunidade:"Mercado de Goiânia em forte expansão — parceiro de visual pode crescer junto.",score:86},
+      {nome:"Rodobens Negócios Imobiliários",segmento:"MCMV/Médio",atuacao:"Goiás e interior do Brasil",destaques:"Especialista em loteamentos e condomínios fechados em GO e interior.",site:"rodobens.com.br",linkedin:"https://linkedin.com/company/rodobens",oportunidade:"Loteamentos em GO com alta demanda por visualização de produto.",score:83},
+      {nome:"Bairro Novo / Cyrela",segmento:"MCMV",atuacao:"Goiânia e Anápolis",destaques:"Projetos MCMV em GO através da plataforma de MCMV da Cyrela.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"MCMV em GO com volume crescente de lançamentos.",score:78},
+      {nome:"Goiás Construtora",segmento:"Médio padrão",atuacao:"Goiânia e região metropolitana",destaques:"Construtora goiana sólida com projetos residenciais de médio padrão.",site:"goiasconstrutora.com.br",linkedin:"https://linkedin.com/company/goias-construtora",oportunidade:"Construtora regional com portfólio ativo em GO.",score:75},
+      {nome:"Patriani",segmento:"MCMV",atuacao:"Goiás e SP interior",destaques:"Ativa em MCMV no interior de GO e SP.",site:"patriani.com.br",linkedin:"https://linkedin.com/company/patriani",oportunidade:"Presença em GO com projetos MCMV em cidades do interior.",score:72},
+      {nome:"Direcional",segmento:"MCMV",atuacao:"Goiás e Centro-Oeste",destaques:"Forte presença em MCMV no Centro-Oeste, especialmente em GO.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"Líder MCMV no Centro-Oeste com muitos lançamentos em GO.",score:84},
+      {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Goiás",destaques:"Presente em Goiânia e cidades do interior de GO.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Volume garantido em MCMV em GO.",score:80},
+      {nome:"Incomfort Incorporações",segmento:"Médio/Alto padrão",atuacao:"Goiânia",destaques:"Incorporadora goiana com foco em médio e alto padrão na capital.",site:"incomfort.com.br",linkedin:"https://linkedin.com/company/incomfort",oportunidade:"Médio e alto padrão em Goiânia com demanda crescente.",score:77},
+      {nome:"Construmax",segmento:"Médio padrão",atuacao:"Goiânia e Aparecida de Goiânia",destaques:"Construtora ativa na região metropolitana de Goiânia.",site:"construmax.com.br",linkedin:"https://linkedin.com/company/construmax",oportunidade:"Região metropolitana de GO com projetos ativos.",score:72},
+      {nome:"PHV Engenharia",segmento:"MCMV/Médio",atuacao:"Goiás",destaques:"Construtora com projetos em cidades polo de GO.",site:"phvengenharia.com.br",linkedin:"https://linkedin.com/company/phv",oportunidade:"Cidades polo de GO com mercado imobiliário em crescimento.",score:70}
+    ]
+  },
+  "DF": {
+    "todas": [
+      {nome:"GDF/Terracap parceiros",segmento:"Misto",atuacao:"Brasília e entorno do DF",destaques:"Mercado imobiliário do DF tem dinâmica única com parcerias com a Terracap.",site:"terracap.df.gov.br",linkedin:"https://linkedin.com/company/terracap",oportunidade:"Parcerias com Terracap geram grandes projetos com necessidade de visual 3D.",score:80},
+      {nome:"Direcional Engenharia",segmento:"MCMV",atuacao:"Distrito Federal e entorno",destaques:"Forte em MCMV no DF e cidades do entorno como Luziânia e Águas Lindas.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"MCMV no DF e entorno com alto volume de lançamentos.",score:85},
+      {nome:"Construtora Andrade Mendonça",segmento:"Médio/Alto padrão",atuacao:"Brasília",destaques:"Construtora brasiliense com projetos no Lago Sul, Noroeste e Águas Claras.",site:"andrademendoca.com.br",linkedin:"https://linkedin.com/company/andrade-mendonca",oportunidade:"Alto padrão em Brasília com demanda por visual impactante.",score:84},
+      {nome:"Grupo Serveng",segmento:"Médio padrão",atuacao:"DF e entorno",destaques:"Grupo com diversas incorporações no DF em médio padrão.",site:"serveng.com.br",linkedin:"https://linkedin.com/company/serveng",oportunidade:"Portfólio diversificado no DF com projetos regulares.",score:77},
+      {nome:"Plano&Plano DF",segmento:"MCMV",atuacao:"Cidades satélites do DF",destaques:"Ativa em MCMV nas cidades satélites e entorno do DF.",site:"plano-plano.com.br",linkedin:"https://linkedin.com/company/plano-e-plano",oportunidade:"MCMV nas cidades satélites do DF com alta demanda.",score:78},
+      {nome:"GP Empreendimentos",segmento:"Alto padrão",atuacao:"Brasília — Lago Sul e Noroeste",destaques:"Projetos de alto padrão nos bairros mais valorizados de Brasília.",site:"gpempreendimentos.com.br",linkedin:"https://linkedin.com/company/gp-empreendimentos",oportunidade:"Alto padrão em Brasília com visual que valoriza a arquitetura modernista.",score:83},
+      {nome:"Cyrela",segmento:"Alto padrão",atuacao:"Brasília",destaques:"Cyrela presente no DF com projetos de alto padrão no Noroeste.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Alto padrão em Brasília com demanda crescente.",score:82},
+      {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Distrito Federal e entorno",destaques:"Presente no DF com lançamentos MCMV no entorno.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Volume MCMV garantido no DF e entorno.",score:79},
+      {nome:"Habitar Construtora",segmento:"Médio padrão",atuacao:"Taguatinga e Ceilândia",destaques:"Construtora regional ativa no médio padrão nas regiões administrativas.",site:"habitar.com.br",linkedin:"https://linkedin.com/company/habitar",oportunidade:"Médio padrão nas RAs com projetos ativos.",score:73},
+      {nome:"Emplavi",segmento:"Médio/Alto padrão",atuacao:"Brasília — Asa Norte e Sul",destaques:"Incorporadora com projetos nas asas norte e sul de Brasília.",site:"emplavi.com.br",linkedin:"https://linkedin.com/company/emplavi",oportunidade:"Projetos nas asas de Brasília com boa demanda.",score:76}
+    ]
+  }
+};
+
+// Default para estados não mapeados
+var RANKING_DEFAULT = {
+  "todas": [
+    {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Todo o Brasil",destaques:"Maior construtora MCMV do país com presença em todos os estados.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Presença nacional — demanda constante por visual em todos os estados.",score:88},
+    {nome:"Cyrela Brazil Realty",segmento:"Alto padrão",atuacao:"Capitais e grandes cidades",destaques:"Líder nacional em alto padrão com expansão contínua para novos mercados.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Cyrela em expansão para novas praças — janela para entrar como parceiro.",score:85},
+    {nome:"Direcional Engenharia",segmento:"MCMV/Médio",atuacao:"Todo o Brasil, forte no CO/N/NE",destaques:"Forte presença em mercados emergentes e MCMV em todo o Brasil.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"Expansão para mercados emergentes = demanda crescente por visual.",score:83},
+    {nome:"Cury Construtora",segmento:"MCMV",atuacao:"SP, RJ e expansão nacional",destaques:"Uma das mais ativas no MCMV com expansão nacional acelerada.",site:"construtora.com.br",linkedin:"https://linkedin.com/company/cury",oportunidade:"Expansão nacional com novos mercados a conquistar.",score:80},
+    {nome:"Tenda",segmento:"MCMV",atuacao:"SP, RJ, MG, RS e expansão",destaques:"Especialista em MCMV com foco em digitalização do processo de compra.",site:"tenda.com",linkedin:"https://linkedin.com/company/tenda",oportunidade:"Foco em digital = receptiva a visualizações de alto impacto.",score:78},
+    {nome:"Helbor",segmento:"Alto padrão",atuacao:"SP e expansão para outras capitais",destaques:"Alto padrão com expansão para novas praças além de SP.",site:"helbor.com.br",linkedin:"https://linkedin.com/company/helbor",oportunidade:"Alto padrão em novas praças = oportunidade de ser o parceiro pioneiro.",score:82},
+    {nome:"Even Construtora",segmento:"Médio/Alto padrão",atuacao:"SP e RS",destaques:"Qualidade acima da média com projetos diferenciados.",site:"even.com.br",linkedin:"https://linkedin.com/company/even",oportunidade:"Foco em qualidade = cliente receptivo a visual diferenciado.",score:79},
+    {nome:"PDG Realty",segmento:"Médio padrão",atuacao:"Diversas regiões do Brasil",destaques:"Construtora em recuperação com retomada de lançamentos.",site:"pdg.com.br",linkedin:"https://linkedin.com/company/pdg",oportunidade:"Empresa em retomada — boa janela para entrar.",score:72},
+    {nome:"Rodobens",segmento:"MCMV/Loteamentos",atuacao:"Interior do Brasil",destaques:"Especialista em loteamentos e condomínios no interior.",site:"rodobens.com.br",linkedin:"https://linkedin.com/company/rodobens",oportunidade:"Loteamentos em cidades do interior com demanda crescente.",score:76},
+    {nome:"Trisul",segmento:"Médio padrão",atuacao:"São Paulo — referência para outros mercados",destaques:"Modelo de negócio de médio padrão bem-sucedido em SP.",site:"trisul.com.br",linkedin:"https://linkedin.com/company/trisul",oportunidade:"Empresa que pode expandir para outros mercados.",score:74}
+  ]
+};
+
+function gerarRadar(){
+  var uf   = selectedEstado;
+  var tipo = selectedTipoRadar || "todas";
+  var el   = document.getElementById("radar-results");
+
+  var tipoLabel = {todas:"Incorporadoras e Construtoras",alto:"Alto padrão",medio:"Médio padrão",mcmv:"MCMV / Econômico",comercial:"Comercial / Lajes"}[tipo] || "Todas";
+
+  // Busca no DB embutido
+  var regDB  = RANKING_DB[uf] || {};
+  var lista  = regDB[tipo] || regDB["todas"] || RANKING_DEFAULT["todas"];
+
+  // Ordena por score
+  lista = lista.slice().sort(function(a,b){ return b.score - a.score; }).slice(0,10);
+
+  renderRankingIA({empresas: lista, resumo: "Top 10 "+tipoLabel+" em "+uf+" com maior potencial de prospecção para a Flying Studio."}, uf, tipoLabel);
+}
+
+var selectedTipoRadar = "todas";
+function selectTipoRadar(id){
+  selectedTipoRadar = id;
+  ["todas","alto","medio","mcmv","comercial"].forEach(function(x){
+    var el = document.getElementById("tipo-"+x);
+    if(el) el.classList.toggle("active", x===id);
+  });
+}
+
+
+
+function renderRankingIA(data, uf, tipoLabel){
+  var el = document.getElementById("radar-results");
+  var empresas = data.empresas || [];
+  var html = '<div class="fade">';
+
+  // Header
+  html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px">' +
+    '<div>' +
+      '<h2 style="font-size:18px;font-weight:800;color:#111827;margin-bottom:4px">Top 10 · '+tipoLabel+' · '+uf+'</h2>' +
+      (data.resumo ? '<p style="font-size:13px;color:#6b7280;line-height:1.5">'+data.resumo+'</p>' : "") +
+    '</div>' +
+    '<span class="badge" style="background:#fdf8ee;color:#7a5a1e;border-color:#e8d090;flex-shrink:0;font-size:12px">Powered by IA</span>' +
+  '</div>';
+
+  // Ranking list
+  empresas.forEach(function(emp, i){
+    var score = emp.score || 70;
+    var scoreCol = score>=80?"#166534":score>=60?"#854d0e":"#9a3412";
+    var scoreBg2  = score>=80?"#f0fdf4":score>=60?"#fefce8":"#fff7ed";
+    var scoreBd2  = score>=80?"#bbf7d0":score>=60?"#fde68a":"#fed7aa";
+
+    html += '<div class="card" style="margin-bottom:10px;position:relative;overflow:hidden">';
+
+    // Rank badge
+    html += '<div style="position:absolute;top:0;left:0;width:32px;height:32px;background:'+(i===0?"#b89a4e":i===1?"#9ca3af":i===2?"#b45309":"#f3f4f6")+';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:'+(i<3?"#fff":"#6b7280")+';border-radius:0 0 8px 0">'+( i+1)+'</div>';
+
+    html += '<div style="padding-left:36px">';
+
+    // Company header
+    html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px">';
+    html += '<div style="flex:1"><p style="font-size:15px;font-weight:700;color:#111827;margin-bottom:2px">'+emp.nome+'</p>';
+    if (emp.atuacao) html += '<p style="font-size:12px;color:#9ca3af;display:flex;align-items:center;gap:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#b89a4e" stroke-width="2.5" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+emp.atuacao+'</p>';
+    html += '</div>';
+    html += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">';
+    html += '<span class="badge" style="background:'+scoreBg2+';color:'+scoreCol+';border-color:'+scoreBd2+'">'+score+' pts</span>';
+    if (emp.segmento) html += '<span class="badge" style="background:#f9fafb;color:#6b7280;border-color:#e5e7eb;font-size:10px">'+emp.segmento+'</span>';
+    html += '</div></div>';
+
+    // Destaque e oportunidade
+    if (emp.destaques) html += '<p style="font-size:13px;color:#374151;line-height:1.5;margin-bottom:6px">'+emp.destaques+'</p>';
+    if (emp.oportunidade) html += '<div style="background:#fdf8ee;border-left:3px solid #b89a4e;padding:8px 12px;border-radius:0 6px 6px 0;margin-bottom:8px"><p style="font-size:12px;font-weight:600;color:#7a5a1e;margin-bottom:1px">Oportunidade Flying Studio</p><p style="font-size:12px;color:#92700a;line-height:1.5">'+emp.oportunidade+'</p></div>';
+
+    // Actions
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    if (emp.site) {
+      html += '<button class="btn-icon" data-domain="'+encodeURIComponent(emp.site)+'" data-nome="'+encodeURIComponent(emp.nome)+'" onclick="usarEmpresaRadar(this.dataset.nome,this.dataset.domain)">📧 Buscar contatos</button>';
+      html += '<button class="btn-icon" data-domain="'+encodeURIComponent(emp.site)+'" data-nome="'+encodeURIComponent(emp.nome)+'" onclick="buscarEmpRadar(this.dataset.nome,this.dataset.domain)">🏗️ Empreendimentos</button>';
+    }
+    html += '<button class="btn-icon" data-nome="'+encodeURIComponent(emp.nome)+'" onclick="usarEmpresaMensagem(this.dataset.nome,\'\')">✉️ Gerar mensagem</button>';
+    if (emp.linkedin) html += '<a class="btn-icon" href="'+emp.linkedin+'" target="_blank">💼 LinkedIn</a>';
+    html += '</div>';
+
+    html += '</div></div>';
+  });
+
+  html += '<div class="card-flat tip-green" style="margin-top:4px">' +
+    '<p style="font-size:12px;font-weight:700;color:#166534;margin-bottom:6px">🔄 Próximos passos</p>' +
+    '<p style="font-size:13px;color:#15803d;line-height:1.8">' +
+      '<strong>1.</strong> "Buscar contatos" → mapeia emails do domínio da empresa<br>' +
+      '<strong>2.</strong> "✉ Gerar mensagem" → abre aba Mensagem com contexto preenchido<br>' +
+      '<strong>3.</strong> "Empreendimentos" → abre aba Empreendimentos com o site da empresa' +
+    '</p></div>';
+  html += '</div>';
+  el.innerHTML = html; el.style.display = "block";
+}
+
+function usarEmpresaRadar(nomeEnc, domainEnc){
+  document.getElementById("inp-company").value = decodeURIComponent(nomeEnc);
+  document.getElementById("inp-domain").value  = decodeURIComponent(domainEnc);
+  onDomainInput("inp-domain","domain-hint");
+  switchTab("contatos"); toast("✅ Empresa preenchida! Clique em Mapear contatos.",3000);
+}
+function buscarEmpRadar(nomeEnc, domainEnc){
+  document.getElementById("emp-company").value = decodeURIComponent(nomeEnc);
+  document.getElementById("emp-domain").value  = decodeURIComponent(domainEnc);
+  switchTab("empreendimentos"); setTimeout(buscarEmp, 100);
+}
+function usarCnpjRadar(cnpj){
+  var fmt=cnpjFmt(cnpj.replace(/\D/g,""));
+  document.getElementById("inp-cnpj").value=fmt;
+  maskCnpj(document.getElementById("inp-cnpj"));
+  switchTab("cnpj"); setTimeout(buscarCnpj,150);
+}
+
+
+
+
+// ═══════════════════════════════════════
+// MENSAGEM
+// ═══════════════════════════════════════
+function gerarMensagem(){
+  var nome    =document.getElementById("msg-nome").value.trim();
+  var cargo   =document.getElementById("msg-cargo").value;
+  var empresa =document.getElementById("msg-empresa").value.trim();
+  var seg     =document.getElementById("msg-segmento").value;
+  var lanc    =document.getElementById("msg-lancamento").value.trim();
+  var cidade  =document.getElementById("msg-cidade").value.trim();
+
+  if(!nome||!empresa){
+    if(!nome) document.getElementById("msg-nome").classList.add("error");
+    if(!empresa) document.getElementById("msg-empresa").classList.add("error");
+    toast("⚠️ Preencha nome e empresa"); return;
+  }
+  document.getElementById("msg-nome").classList.remove("error");
+  document.getElementById("msg-empresa").classList.remove("error");
+
+  var fn  = nome.split(" ")[0];
+  var hora= new Date().getHours();
+  var saud= hora<12?"Bom dia":hora<18?"Boa tarde":"Boa noite";
+  var ctx = selectedCtx;
+  var wpp = "", assunto = "", email = "";
+
+  // ── PRIMEIRO CONTATO ──────────────────────────────────────────────────────
+  if(ctx==="frio"){
+    if(lanc){
+      wpp = saud+", "+fn+"!\n\n";
+      wpp+= "Meu nome é Lucas, da Flying Studio — somos especialistas em visualização 3D para incorporadoras e construtoras";
+      if(cidade) wpp+=" em "+cidade;
+      wpp+= ".\n\n";
+      wpp+= "Vi que a "+empresa+" está com o *"+lanc+"* no ar. ";
+      if(seg==="alto padrão")       wpp+="Um produto de alto padrão com apresentação visual forte fecha em menos tempo — é o que a gente entrega. ";
+      else if(seg==="econômico / MCMV") wpp+="Mesmo no segmento econômico, uma visualização bem feita acelera as vendas e reduz custo de marketing. ";
+      else                          wpp+="Uma boa visualização nesse segmento faz diferença real na velocidade de vendas. ";
+      wpp+= "\n\nFalei com o Max, meu CEO, e ele abriu agenda essa semana pra uma conversa rápida.\n\nQual o melhor dia pra você? 🙏";
+
+      assunto = empresa+" | "+lanc+" — Visualização 3D";
+      email = saud+", "+fn+",\n\n";
+      email+= "Lucas Leal aqui, da Flying Studio. Assumi o atendimento de vocês e queria me apresentar.\n\n";
+      email+= "Acompanhei o lançamento do "+lanc+" e identifiquei pontos onde a apresentação visual pode ser ainda mais impactante — tanto no site quanto nos materiais de vendas e no book do produto.\n\n";
+      email+= "Trabalhamos com incorporadoras de "+seg+(cidade?" em "+cidade:"")+", e os resultados em velocidade de vendas falam por si.\n\n";
+      email+= "O Max Barbosa, nosso CEO, tem disponibilidade ainda essa semana para uma conversa de 15 minutos — sem compromisso.\n\n";
+      email+= "Qual dia funciona melhor pra você?\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+    } else {
+      wpp = saud+", "+fn+"!\n\n";
+      wpp+= "Meu nome é Lucas, da Flying Studio — somos especialistas em imagens e filmes 3D para o mercado imobiliário.\n\n";
+      wpp+= "Acompanho o portfólio da "+empresa+" e acredito que posso agregar bastante na apresentação visual dos próximos projetos";
+      if(cidade) wpp+=" em "+cidade;
+      wpp+= ".\n\nFalei com o Max, meu CEO, e ele tem agenda livre essa semana pra uma conversa de 15 minutos.\n\nQual o melhor dia pra você? 🙏";
+
+      assunto = empresa+" | Flying Studio — Apresentação";
+      email = saud+", "+fn+",\n\n";
+      email+= "Lucas Leal aqui, da Flying Studio. Assumi o atendimento da sua região e queria me apresentar.\n\n";
+      email+= "Somos especialistas em imagens e filmes 3D para incorporadoras e construtoras"+(cidade?" — com projetos em "+cidade+" e em mais de 9 estados do Brasil":"")+". Nosso diferencial está na qualidade visual e no envolvimento direto do nosso CEO Max Barbosa em cada projeto.\n\n";
+      email+= "Gostaria de apresentar cases do segmento "+seg+" e entender como podemos contribuir com os próximos lançamentos da "+empresa+".\n\n";
+      email+= "Tem disponibilidade para uma conversa de 15 minutos essa semana?\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+    }
+  }
+
+  // ── PROPOSTA JÁ ENVIADA ───────────────────────────────────────────────────
+  else if(ctx==="proposta"){
+    wpp = saud+", "+fn+"!\n\n";
+    wpp+= "Tudo bem por aí? Passando pra saber se conseguiu dar uma olhada na proposta que enviei";
+    if(lanc) wpp+=" para o "+lanc;
+    wpp+= ".\n\n";
+    wpp+= "Caso tenha alguma dúvida ou queira ajustar algum ponto — prazo, escopo, formato de entrega — é só me falar. O Max também está disponível pra conversar diretamente, se preferir.\n\nAguardo o retorno! 🙏";
+
+    assunto = empresa+(lanc?" | "+lanc:"")+' | Proposta — Flying Studio';
+    email = saud+", "+fn+",\n\n";
+    email+= "Tudo bem? Acompanhando o andamento da proposta que enviei"+(lanc?" para o "+lanc:"")+", queria ver se ficou alguma dúvida ou se há algo que prefira ajustar.\n\n";
+    email+= "Estamos flexíveis em relação ao escopo, prazo de entrega e formato dos materiais. O Max Barbosa pode participar diretamente da conversa se houver pontos técnicos ou estratégicos a alinhar.\n\n";
+    email+= "Me fala o que está pendendo para fecharmos?\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+  }
+
+  // ── FOLLOW UP ─────────────────────────────────────────────────────────────
+  else if(ctx==="followup"){
+    wpp = saud+", "+fn+"!\n\n";
+    wpp+= "Passando pra dar um alô — sei que a rotina de lançamento é intensa e pode ter ficado algo pra trás.\n\n";
+    if(lanc) wpp+= "O "+lanc+" ainda está no radar. ";
+    wpp+= "Se fizer sentido, podemos bater um papo rápido de 10 minutinhos essa semana pra eu entender melhor o momento de vocês.\n\nQual o melhor horário? 🙏";
+
+    assunto = empresa+(lanc?" | "+lanc:"")+' | Follow up — Flying Studio';
+    email = saud+", "+fn+",\n\n";
+    email+= "Sei que a agenda de uma incorporadora não para, então vou ser breve.\n\n";
+    if(lanc) email+= "Estava acompanhando o andamento do "+lanc+" e ";
+    else email+= "Estava pensando na "+empresa+" e ";
+    email+= "queria checar se ainda há interesse em conversar sobre como a Flying Studio pode contribuir com a apresentação visual dos projetos de vocês.\n\n";
+    email+= "Se o timing ainda não é o certo, me diz — assim consigo encaminhar melhor a conversa.\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+  }
+
+  // ── PROPOSTA RECUSADA ─────────────────────────────────────────────────────
+  else if(ctx==="recusada"){
+    wpp = saud+", "+fn+"! Tudo bem?\n\n";
+    wpp+= "Sem problemas com o retorno — entendo que nem sempre o timing bate.\n\n";
+    wpp+= "Só queria deixar aberta a porta: se surgir um novo projeto, uma dúvida ou quiser ver algum case novo que fizemos, é só me chamar. A Flying Studio vai continuar por aqui. 😊\n\nForça aí, "+fn+"!";
+
+    assunto = empresa+' | Obrigado pelo retorno — Flying Studio';
+    email = saud+", "+fn+",\n\n";
+    email+= "Obrigado pelo retorno — respeito muito quando a resposta é direta, independente do resultado.\n\n";
+    email+= "Entendo que o momento ou a proposta não encaixaram agora. Mas gostaria de manter contato: se surgir um novo lançamento, uma segunda opinião sobre apresentação visual ou simplesmente quiserem ver o que estamos fazendo de novo, pode me chamar.\n\n";
+    email+= "Foi um prazer conversar, "+fn+". Boa sorte com os próximos projetos.\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+  }
+
+  // ── PROPOSTA ANTIGA ───────────────────────────────────────────────────────
+  else if(ctx==="antiga"){
+    wpp = saud+", "+fn+"! Tudo bem?\n\n";
+    wpp+= "Faz um tempinho que não nos falamos — a última vez foi sobre";
+    if(lanc) wpp+=" o "+lanc;
+    else wpp+=" uma possível parceria com a "+empresa;
+    wpp+= ".\n\nO mercado de "+seg+(cidade?" em "+cidade:"")+" está aquecido e temos cases novos que acho que vão chamar a atenção. Daria pra retomar a conversa?\n\nTem 15 minutos essa semana? 🙏";
+
+    assunto = empresa+(lanc?" | "+lanc:"")+' | Retomando contato — Flying Studio';
+    email = saud+", "+fn+",\n\n";
+    email+= "Espero que esteja tudo bem! Faz algum tempo desde nossa última conversa";
+    if(lanc) email+=" sobre o "+lanc;
+    email+= ", e queria retomar o contato.\n\n";
+    email+= "Desde então, fizemos novos projetos no segmento "+seg+(cidade?" em "+cidade:"")+" com resultados expressivos — e acredito que vale a pena apresentar o que está saindo da nossa equipe.\n\n";
+    email+= "O Max Barbosa, nosso CEO, tem agenda disponível essa semana caso queira evoluir em 4 mãos.\n\n";
+    email+= "Qual dia fica melhor?\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+  }
+
+  renderMensagens({wpp:wpp,assunto:assunto,email:email},fn,empresa);}
+
+function renderMensagens(msgs,fn,empresa){
+  var html='<div class="fade">';
+  function card(id,titulo,icon,body,subject){
+    return '<div class="card" style="margin-bottom:12px">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
+        '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:17px">'+icon+'</span>'+
+        '<p style="font-size:14px;font-weight:700;color:#111827">'+titulo+'</p></div>'+
+      '</div>'+
+      (subject?'<div style="background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;padding:8px 12px;margin-bottom:10px">'+
+        '<span style="font-size:12px;color:#9ca3af;font-weight:600">Assunto: </span>'+
+        '<span style="font-size:13px;color:#374151;font-weight:600">'+subject+'</span></div>':"")+
+      '<div class="msg-editable" id="msg-'+id+'" contenteditable="true">'+body.replace(/\n/g,"<br>")+'</div>'+
+      '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
+        '<button class="btn-copy" data-id="msg-'+id+'" onclick="copyEl(this.dataset.id,this)">📋 Copiar</button>'+
+        (id==="wpp"?'<a class="btn-wpp" href="https://wa.me/?text='+encodeURIComponent(msgs.wpp||"")+'" target="_blank">📱 Abrir WhatsApp</a>':"")+
+        (id==="email"?'<a class="btn-icon" href="mailto:?subject='+encodeURIComponent(msgs.assunto||"")+'&body='+encodeURIComponent(msgs.email||"")+'" target="_blank">📤 Abrir email</a>':"")+
+      '</div>'+
+    '</div>';
+  }
+  if(msgs.wpp)  html+=card("wpp",  "WhatsApp","💬",msgs.wpp);
+  if(msgs.email) html+=card("email","Email",   "📧",msgs.email,msgs.assunto);
+  html+='<div class="card-flat tip-gold">'+
+    '<p style="font-size:12px;font-weight:700;color:#7a5a1e;margin-bottom:6px">✏️ Textos editáveis</p>'+
+    '<p style="font-size:13px;color:#92700a;line-height:1.5">Clique direto no texto para ajustar antes de enviar. Adapte o tom conforme o relacionamento com o contato.</p>'+
+  '</div>';
+  html+='</div>';
+  var el=document.getElementById("msg-results");
+  el.innerHTML=html; el.style.display="block";
+}
+
+// ═══════════════════════════════════════
+// EMPREENDIMENTOS — scrape site real
+// ═══════════════════════════════════════
+function buscarEmp(){
+  var company=document.getElementById("emp-company").value.trim();
+  var domain=cleanDomain(document.getElementById("emp-domain").value);
+  var nome=company||domain;
+  if(!nome){document.getElementById("emp-company").classList.add("error");toast("⚠️ Preencha o nome da empresa");return;}
+  document.getElementById("emp-company").classList.remove("error");
+  document.getElementById("emp-error").style.display="none";
+  var el=document.getElementById("emp-results");
+  el.innerHTML='<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;color:#9ca3af;margin-top:12px">Buscando empreendimentos de '+nome+'...</p></div>';
+  el.style.display="block";
+  addHistory({key:"emp:"+nome,type:"empreendimentos",label:nome,sublabel:"Pesquisa de empreendimentos",ts:Date.now()});
+  if(!domain){renderEmpSemDominio(nome);return;}
+  // Scrape site via allorigins
+  var proxyUrl="https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain);
+  fetch(proxyUrl,{headers:{Accept:"application/json"}})
+    .then(function(r){return r.json();})
+    .then(function(proxy){
+      var raw=proxy.contents||"";
+      if(!raw){renderEmpSemDominio(nome);return;}
+      var doc=new DOMParser().parseFromString(raw,"text/html");
+      var siteTitle=(doc.querySelector("title")||{textContent:""}).textContent.trim();
+      var metaDesc=doc.querySelector('meta[name="description"]')||doc.querySelector('meta[property="og:description"]');
+      var desc=metaDesc?(metaDesc.getAttribute("content")||"").trim():"";
+      // Extract relevant links
+      var links=[], seen={};
+      doc.querySelectorAll("a[href]").forEach(function(a){
+        var href=(a.getAttribute("href")||"").trim();
+        var text=(a.textContent||"").replace(/\s+/g," ").trim();
+        if(!text||text.length<4||text.length>100||seen[text]) return;
+        var lh=href.toLowerCase(), lt=text.toLowerCase();
+        if(!lh.match(/empreend|lanc|imovel|im.vel|residenc|comercial|projeto|apart|cond|tower|park|garden|plaza|vila|reserva|living/)&&
+           !lt.match(/empreend|lançam|residenc|comercial|apartam|condom|torre|park|garden|plaza|vila|reserva/)) return;
+        if(href.match(/^(#|javascript|mailto|tel)/)) return;
+        var full=href.startsWith("http")?href:"https://"+domain+(href.startsWith("/")?href:"/"+href);
+        seen[text]=true; links.push({href:full,text:text});
+      });
+      // Extract headings that look like product names
+      var cards=[], seenC={};
+      doc.querySelectorAll("h1,h2,h3,h4").forEach(function(h){
+        var text=(h.textContent||"").replace(/\s+/g," ").trim();
+        if(text.length<4||text.length>100||seenC[text]) return;
+        if(text.toLowerCase().match(/residenc|comercial|apartam|condom|lançam|torre|park|garden|plaza|vila|empreend/)){
+          seenC[text]=true; cards.push(text);
+        }
+      });
+      renderEmpResultados({nome:nome,domain:domain,siteTitle:siteTitle,desc:desc,links:links.slice(0,14),cards:cards.slice(0,10)});
+    })
+    .catch(function(){renderEmpSemDominio(nome);});
+}
+function renderEmpResultados(info){
+  var el=document.getElementById("emp-results");
+  var html='<div class="fade">';
+  html+='<div class="card" style="margin-bottom:12px">'+
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:'+(info.desc?'12':'0')+'px">'+
+      '<div style="width:38px;height:38px;background:#fdf8ee;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏢</div>'+
+      '<div><h2 style="font-size:17px;font-weight:700;color:#111827;margin-bottom:1px">'+info.nome+'</h2>'+
+      '<a href="https://'+info.domain+'" target="_blank" style="font-size:12px;color:#b89a4e;text-decoration:none;font-weight:500">'+info.domain+' ↗</a></div>'+
+    '</div>'+
+    (info.desc?'<p style="font-size:13px;color:#6b7280;line-height:1.6;padding-top:12px;border-top:1px solid #f3f4f6">'+info.desc+'</p>':"")+
+  '</div>';
+  if(info.cards.length){
+    html+='<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Empreendimentos identificados</p>';
+    html+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">';
+    info.cards.forEach(function(c){
+      html+='<div class="card-flat" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px">'+
+        '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:16px">🏗️</span>'+
+        '<p style="font-size:14px;font-weight:600;color:#111827">'+c+'</p></div>'+
+        '<button class="btn-icon" data-nome="\'+encodeURIComponent(info.nome)+\'" data-lanc="\'+encodeURIComponent(c)+\'" onclick="usarEmpresaMensagem(this.dataset.nome,this.dataset.lanc)">✉ Abordagem</button>';
+      '</div>';
+    });
+    html+='</div>';
+  }
+  if(info.links.length){
+    html+='<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Páginas do site</p>';
+    html+='<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">';
+    info.links.forEach(function(l){
+      html+='<a href="'+l.href+'" target="_blank" class="portal-link" style="padding:10px 14px">'+
+        '<span style="font-size:14px;flex-shrink:0">🔗</span>'+
+        '<span style="font-size:13px;font-weight:600;color:#374151;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+l.text+'</span>'+
+        '<svg style="flex-shrink:0" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'+
+      '</a>';
+    });
+    html+='</div>';
+  }
+  if(!info.cards.length&&!info.links.length){
+    html+='<div class="card"><div class="empty-state"><p>Site encontrado, mas sem empreendimentos identificados automaticamente</p><p>Acesse '+info.domain+' diretamente ou informe o domínio correto</p></div></div>';
+  }
+  html+='<div class="card-flat tip-gold">'+
+    '<p style="font-size:12px;font-weight:700;color:#7a5a1e;margin-bottom:6px">💡 Dica</p>'+
+    '<p style="font-size:13px;color:#92700a;line-height:1.5">Clique em <strong>"✉ Abordagem"</strong> para gerar mensagem com o nome do empreendimento. Clique nos links para ver as páginas do site.</p>'+
+  '</div></div>';
+  el.innerHTML=html; el.style.display="block";
+}
+function renderEmpSemDominio(nome){
+  var q=encodeURIComponent(nome);
+  var el=document.getElementById("emp-results");
+  var portais=[
+    {icon:"🔑",label:"Viva Real — imóveis de "+nome,url:"https://www.vivareal.com.br/venda/?q="+q},
+    {icon:"🏠",label:"Zap Imóveis — "+nome,url:"https://www.zapimoveis.com.br/venda/imoveis/?q="+q},
+    {icon:"🏗️",label:"Imovelweb — lançamentos "+nome,url:"https://www.imovelweb.com.br/imoveis-venda/?q="+q},
+    {icon:"💼",label:"LinkedIn — perfil de "+nome,url:"https://www.linkedin.com/search/results/companies/?keywords="+q},
+  ];
+  var html='<div class="fade"><div class="card" style="margin-bottom:12px">'+
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'+
+      '<span style="font-size:20px">🏢</span>'+
+      '<div><h2 style="font-size:17px;font-weight:700;color:#111827">'+nome+'</h2>'+
+      '<p style="font-size:12px;color:#9ca3af">Informe o domínio para busca direta no site da empresa</p></div>'+
+    '</div>'+
+    '<div class="tip-box tip-gold"><span style="font-size:14px;flex-shrink:0">💡</span>'+
+    '<p style="font-size:12px;color:#92700a;font-weight:500">Com o domínio preenchido, o app acessa o site e extrai os empreendimentos automaticamente.</p></div>'+
+  '</div>'+
+  '<div style="display:flex;flex-direction:column;gap:8px">';
+  portais.forEach(function(p){
+    html+='<a href="'+p.url+'" target="_blank" class="portal-link" style="padding:12px 16px">'+
+      '<span style="font-size:18px;flex-shrink:0">'+p.icon+'</span>'+
+      '<span style="font-size:13px;font-weight:600;color:#374151;flex:1">'+p.label+'</span>'+
+      '<svg style="flex-shrink:0" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'+
+    '</a>';
+  });
+  html+='</div></div>';
+  el.innerHTML=html; el.style.display="block";
+}
+function usarEmpresaMensagem(nomeEnc,lancEnc){
+  document.getElementById("msg-empresa").value=decodeURIComponent(nomeEnc);
+  if(lancEnc) document.getElementById("msg-lancamento").value=decodeURIComponent(lancEnc||"");
+  selectCtx("frio"); switchTab("mensagem");
+  toast("✅ Empreendimento preenchido na aba Mensagem!",3000);
+}
+
+</script>
+</body>
+</html>
