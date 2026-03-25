@@ -1514,62 +1514,149 @@ function renderMensagens(msgs,fn,empresa){
 // EMPREENDIMENTOS — scrape site real
 // ═══════════════════════════════════════
 function buscarEmp(){
-  var company=document.getElementById("emp-company").value.trim();
-  var domain=cleanDomain(document.getElementById("emp-domain").value);
-  var nome=company||domain;
-  if(!nome){document.getElementById("emp-company").classList.add("error");toast("⚠️ Preencha o nome da empresa");return;}
+  var company = document.getElementById("emp-company").value.trim();
+  var domain  = cleanDomain(document.getElementById("emp-domain").value);
+  var nome    = company || domain;
+  if(!nome){ document.getElementById("emp-company").classList.add("error"); toast("⚠️ Preencha o nome da empresa"); return; }
   document.getElementById("emp-company").classList.remove("error");
   document.getElementById("emp-error").style.display="none";
-  var el=document.getElementById("emp-results");
-  el.innerHTML='<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;color:#9ca3af;margin-top:12px">Buscando empreendimentos de '+nome+'...</p></div>';
-  el.style.display="block";
   addHistory({key:"emp:"+nome,type:"empreendimentos",label:nome,sublabel:"Pesquisa de empreendimentos",ts:Date.now()});
-  if(!domain){renderEmpSemDominio(nome);return;}
 
-  // Usa Claude sem web_search (rápido, baseado em conhecimento de treinamento)
-  if (!domain && !company) { renderEmpSemDominio(nome); return; }
-  
-  var prompt = 'Liste os empreendimentos imobiliários da empresa "'+nome+'" que você conhece do seu treinamento. Inclua lançamentos, obras e projetos entregues. Retorne SOMENTE JSON válido: {"empresa":"'+nome+'","descricao":"breve descrição da empresa","segmento":"string","atuacao":"cidades","empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras|Pronto para morar","cidade":"string","bairro":"string","tipo":"Residencial|Comercial|Misto","tipologia":"string","destaque":"string"}],"totalLancamentos":0}';
-  
-  callClaude({
-    model:"claude-sonnet-4-20250514",
-    max_tokens:2000,
-    messages:[{role:"user",content:prompt}]
-  })
+  var el = document.getElementById("emp-results");
+  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">Buscando empreendimentos...</p><p style="font-size:12px;color:#9ca3af;margin-top:4px">'+nome+'</p></div>';
+  el.style.display = "block";
+
+  // Sempre tenta Claude primeiro (conhecimento de treinamento)
+  var nomeEmpresa = company || nome.split(".")[0];
+  var prompt = 'Quais são os empreendimentos imobiliários da empresa "'+nomeEmpresa+'"'+(domain?' (site: '+domain+')':'')+' que você conhece? Liste todos que souber — lançamentos, em obras e entregues. Retorne SOMENTE JSON: {"empresa":"'+nomeEmpresa+'","descricao":"1 frase sobre a empresa","segmento":"Alto padrao|Medio padrao|MCMV|Comercial|Misto","atuacao":"cidades onde atua","empreendimentos":[{"nome":"string","status":"Em lancamento|Em obras|Pronto para morar","cidade":"string","bairro":"string","tipo":"Residencial|Comercial|Misto","tipologia":"Apartamentos|Casas|Lajes|Studios","destaque":"1 frase"}],"totalLancamentos":0}';
+
+  callClaude({model:"claude-sonnet-4-20250514", max_tokens:2000, messages:[{role:"user",content:prompt}]})
   .then(function(text){
-    var match=text.match(/\{[\s\S]*\}/);
-    if(!match) throw new Error("sem JSON");
-    var d=JSON.parse(match[0]);
-    if(!d.empreendimentos||!d.empreendimentos.length) throw new Error("vazio");
-    renderEmpAI(d,nome,domain);
+    var match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("sem JSON");
+    var d = JSON.parse(match[0]);
+    if (!d.empreendimentos || d.empreendimentos.length === 0) throw new Error("vazio");
+    renderEmpAI(d, nome, domain);
   })
   .catch(function(){
-    // Fallback: scrape via allorigins se tem domínio
-    if(!domain){renderEmpSemDominio(nome);return;}
-    fetch("https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain),{headers:{Accept:"application/json"}})
-      .then(function(r){return r.json();})
-      .then(function(proxy){
-        var raw=proxy.contents||"";
-        if(!raw){renderEmpSemDominio(nome);return;}
-        var doc=new DOMParser().parseFromString(raw,"text/html");
-        var siteTitle=(doc.querySelector("title")||{textContent:""}).textContent.trim();
-        var metaDesc=doc.querySelector('meta[name="description"]')||doc.querySelector('meta[property="og:description"]');
-        var desc=metaDesc?(metaDesc.getAttribute("content")||"").trim():"";
-        var links=[],seen={};
-        doc.querySelectorAll("a[href]").forEach(function(a){
-          var href=(a.getAttribute("href")||"").trim();
-          var text=(a.textContent||"").replace(/\s+/g," ").trim();
-          if(!text||text.length<4||text.length>100||seen[text]) return;
-          if(!(href+text).toLowerCase().match(/empreend|lanc|residenc|comercial|apart|cond|tower|park|vila/)) return;
-          if(href.match(/^(#|javascript|mailto|tel)/)) return;
-          var full=href.startsWith("http")?href:"https://"+domain+(href.startsWith("/")?href:"/"+href);
-          seen[text]=true; links.push({href:full,text:text});
-        });
-        renderEmpResultados({nome:nome,domain:domain,siteTitle:siteTitle,desc:desc,links:links.slice(0,14),cards:[]});
-      })
-      .catch(function(){renderEmpSemDominio(nome);});
+    // Fallback: scrapa o site da empresa via allorigins e extrai dados reais
+    if (domain) {
+      buscarEmpNoSite(nome, domain);
+    } else {
+      renderEmpVazio(nome);
+    }
   });
 }
+
+function buscarEmpNoSite(nome, domain) {
+  var el = document.getElementById("emp-results");
+  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;color:#9ca3af;margin-top:12px">Acessando o site da empresa...</p></div>';
+
+  fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://"+domain), {headers:{Accept:"application/json"}})
+    .then(function(r){ return r.json(); })
+    .then(function(proxy){
+      var raw = proxy.contents || "";
+      if (!raw) { renderEmpVazio(nome); return; }
+      var doc = new DOMParser().parseFromString(raw, "text/html");
+
+      var siteTitle = (doc.querySelector("title")||{textContent:""}).textContent.trim();
+      var metaDesc  = doc.querySelector('meta[name="description"]') || doc.querySelector('meta[property="og:description"]');
+      var desc = metaDesc ? (metaDesc.getAttribute("content")||"").trim() : "";
+
+      // Extrai empreendimentos dos headings e parágrafos
+      var emps = [], seenE = {};
+      var empPatterns = /residenc|comercial|apartam|condom|lançam|torre|park|garden|plaza|vila|empreend|living|home|prime|reserva|parque|jardim/i;
+      doc.querySelectorAll("h1,h2,h3,h4,.title,.name,[class*='empreend'],[class*='product'],[class*='launch']").forEach(function(h){
+        var text = (h.textContent||"").replace(/\s+/g," ").trim();
+        if (text.length < 5 || text.length > 80 || seenE[text]) return;
+        if (empPatterns.test(text)) { seenE[text]=true; emps.push(text); }
+      });
+
+      // Extrai links de empreendimentos
+      var links = [], seenL = {};
+      doc.querySelectorAll("a[href]").forEach(function(a){
+        var href = (a.getAttribute("href")||"").trim();
+        var text = (a.textContent||"").replace(/\s+/g," ").trim();
+        if (!text||text.length<4||text.length>80||seenL[text]) return;
+        if (!empPatterns.test(href+text)) return;
+        if (href.match(/^(#|javascript|mailto|tel)/)) return;
+        var full = href.startsWith("http") ? href : "https://"+domain+(href.startsWith("/")?href:"/"+href);
+        seenL[text]=true; links.push({href:full,text:text});
+      });
+
+      renderEmpSiteData({
+        nome:nome, domain:domain,
+        siteTitle:siteTitle, desc:desc,
+        emps:emps.slice(0,12), links:links.slice(0,12)
+      });
+    })
+    .catch(function(){ renderEmpVazio(nome); });
+}
+
+function renderEmpSiteData(info){
+  var el = document.getElementById("emp-results");
+  var html = '<div class="fade">';
+
+  // Header com info da empresa
+  html += '<div class="card" style="margin-bottom:12px">'+
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:'+(info.desc?'12':'0')+'px">'+
+      '<div style="width:40px;height:40px;background:#F3F0FF;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏢</div>'+
+      '<div><h2 style="font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:2px">'+info.nome+'</h2>'+
+      '<a href="https://'+info.domain+'" target="_blank" style="font-size:12px;color:#7C5CFC;text-decoration:none;font-weight:500">'+info.domain+' ↗</a></div>'+
+    '</div>'+
+    (info.desc?'<p style="font-size:13px;color:#6b7280;line-height:1.6;padding-top:12px;border-top:1px solid #f3f4f6">'+info.desc+'</p>':"")+
+  '</div>';
+
+  // Empreendimentos extraídos do site
+  if (info.emps.length) {
+    html += '<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+info.emps.length+' empreendimento'+(info.emps.length!==1?"s":"")+" extraído"+(info.emps.length!==1?"s":"")+" do site</p>";
+    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">';
+    info.emps.forEach(function(e){
+      html += '<div class="card-flat" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px">'+
+        '<div style="display:flex;align-items:center;gap:10px">'+
+          '<span style="font-size:16px">🏗️</span>'+
+          '<p style="font-size:14px;font-weight:600;color:#1a1a2e">'+e+'</p>'+
+        '</div>'+
+        '<button class="btn-icon" data-nome="'+encodeURIComponent(info.nome)+'" data-lanc="'+encodeURIComponent(e)+'" onclick="usarEmpresaMensagem(this.dataset.nome,this.dataset.lanc)">✉ Abordagem</button>'+
+      '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Páginas relevantes do site (não Google!)
+  if (info.links.length) {
+    html += '<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Páginas encontradas no site</p>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">';
+    info.links.forEach(function(l){
+      html += '<a href="'+l.href+'" target="_blank" class="portal-link" style="padding:10px 14px">'+
+        '<span style="font-size:14px;flex-shrink:0">🔗</span>'+
+        '<span style="font-size:13px;font-weight:600;color:#374151;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+l.text+'</span>'+
+        '<svg style="flex-shrink:0" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'+
+      '</a>';
+    });
+    html += '</div>';
+  }
+
+  if (!info.emps.length && !info.links.length) {
+    html += '<div class="card"><div class="empty-state"><p>Site acessado, mas sem empreendimentos identificados automaticamente</p><p>O site pode usar JavaScript dinâmico que o extrator não consegue ler</p></div></div>';
+  }
+
+  html += '<div class="card-flat tip-gold">'+
+    '<p style="font-size:12px;font-weight:700;color:#5a3dd4;margin-bottom:4px">💡 Dica</p>'+
+    '<p style="font-size:13px;color:#5a3dd4;line-height:1.5">Clique em <strong>"✉ Abordagem"</strong> para gerar mensagem personalizada com o empreendimento.</p>'+
+  '</div>';
+  html += '</div>';
+  el.innerHTML = html; el.style.display = "block";
+}
+
+function renderEmpVazio(nome){
+  document.getElementById("emp-results").innerHTML =
+    '<div class="card"><div class="empty-state">'+
+    '<p>Não foi possível encontrar empreendimentos de "'+nome+'"</p>'+
+    '<p>Tente preencher o domínio do site para busca direta</p>'+
+    '</div></div>';
+}
+
 function renderEmpAI(d,nome,domain){
   var el=document.getElementById("emp-results");
   var stMap={"Em lancamento":{bg:"#f0fdf4",c:"#166534",b:"#bbf7d0"},"Em lançamento":{bg:"#f0fdf4",c:"#166534",b:"#bbf7d0"},"Em obras":{bg:"#eff6ff",c:"#1e40af",b:"#bfdbfe"},"Pronto para morar":{bg:"#f5f3ff",c:"#5b21b6",b:"#ddd6fe"}};
