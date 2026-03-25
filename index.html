@@ -1523,28 +1523,62 @@ function buscarEmp(){
   addHistory({key:"emp:"+nome,type:"empreendimentos",label:nome,sublabel:"Pesquisa de empreendimentos",ts:Date.now()});
 
   var el = document.getElementById("emp-results");
-  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">Buscando empreendimentos...</p><p style="font-size:12px;color:#9ca3af;margin-top:4px">'+nome+'</p></div>';
   el.style.display = "block";
 
-  // Sempre tenta Claude primeiro (conhecimento de treinamento)
-  var nomeEmpresa = company || nome.split(".")[0];
-  var prompt = 'Quais são os empreendimentos imobiliários da empresa "'+nomeEmpresa+'"'+(domain?' (site: '+domain+')':'')+' que você conhece? Liste todos que souber — lançamentos, em obras e entregues. Retorne SOMENTE JSON: {"empresa":"'+nomeEmpresa+'","descricao":"1 frase sobre a empresa","segmento":"Alto padrao|Medio padrao|MCMV|Comercial|Misto","atuacao":"cidades onde atua","empreendimentos":[{"nome":"string","status":"Em lancamento|Em obras|Pronto para morar","cidade":"string","bairro":"string","tipo":"Residencial|Comercial|Misto","tipologia":"Apartamentos|Casas|Lajes|Studios","destaque":"1 frase"}],"totalLancamentos":0}';
+  if (!domain) {
+    // Sem domínio: Claude analisa pelo nome da empresa
+    analisarEmpresaComClaude(nome, domain, null, el);
+    return;
+  }
 
-  callClaude({model:"claude-sonnet-4-20250514", max_tokens:2000, messages:[{role:"user",content:prompt}]})
+  // Com domínio: busca o site e manda o HTML para o Claude analisar
+  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">Acessando o site...</p><p style="font-size:12px;color:#9ca3af;margin-top:4px">'+domain+'</p></div>';
+
+  fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://"+domain), {headers:{Accept:"application/json"}})
+    .then(function(r){ return r.json(); })
+    .then(function(proxy){
+      var html_raw = proxy.contents || "";
+      // Extrai texto limpo do HTML (remove scripts/styles)
+      var doc = new DOMParser().parseFromString(html_raw, "text/html");
+      doc.querySelectorAll("script,style,nav,footer,header").forEach(function(el){ el.remove(); });
+      var textoLimpo = (doc.body ? doc.body.innerText || doc.body.textContent : "").replace(/\s+/g," ").trim().slice(0, 8000);
+
+      el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">IA analisando o site...</p><p style="font-size:12px;color:#9ca3af;margin-top:4px">Identificando empreendimentos</p></div>';
+
+      analisarEmpresaComClaude(nome, domain, textoLimpo, el);
+    })
+    .catch(function(){
+      // Site inacessível: Claude analisa pelo nome
+      analisarEmpresaComClaude(nome, domain, null, el);
+    });
+}
+
+function analisarEmpresaComClaude(nome, domain, textoSite, el) {
+  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">IA analisando...</p><p style="font-size:12px;color:#9ca3af;margin-top:4px">Identificando lançamentos</p></div>';
+
+  var contexto = textoSite
+    ? 'Analise o conteúdo do site da empresa "'+nome+'" abaixo e extraia todos os empreendimentos imobiliários mencionados:\n\n'+textoSite
+    : 'Liste os empreendimentos imobiliários da empresa "'+nome+'" que você conhece do seu treinamento.';
+
+  var prompt = contexto + '\n\nRetorne SOMENTE JSON válido: {"empresa":"'+nome+'","descricao":"1 frase sobre a empresa","segmento":"Alto padrao|Medio padrao|MCMV|Comercial|Misto","atuacao":"cidades onde atua","empreendimentos":[{"nome":"nome do empreendimento","status":"Em lancamento|Em obras|Pronto para morar","cidade":"cidade","bairro":"bairro se souber","tipo":"Residencial|Comercial|Misto","tipologia":"Apartamentos|Casas|Lajes|Studios","destaque":"1 frase sobre o produto"}],"totalLancamentos":0}';
+
+  callClaude({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 2000,
+    messages: [{role:"user", content: prompt}]
+  })
   .then(function(text){
     var match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("sem JSON");
+    if (!match) throw new Error("JSON não encontrado");
     var d = JSON.parse(match[0]);
-    if (!d.empreendimentos || d.empreendimentos.length === 0) throw new Error("vazio");
     renderEmpAI(d, nome, domain);
   })
-  .catch(function(){
-    // Fallback: scrapa o site da empresa via allorigins e extrai dados reais
-    if (domain) {
-      buscarEmpNoSite(nome, domain);
-    } else {
-      renderEmpVazio(nome);
-    }
+  .catch(function(e){
+    el.innerHTML = '<div class="card"><div class="empty-state">'+
+      '<p>Não foi possível analisar os empreendimentos</p>'+
+      '<p style="font-size:12px;color:#ef4444;margin-top:6px">'+e.message+'</p>'+
+      '<p style="margin-top:8px">Verifique se o domínio está correto e tente novamente</p>'+
+    '</div></div>';
   });
 }
 
