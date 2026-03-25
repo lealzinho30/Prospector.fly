@@ -1224,40 +1224,17 @@ function gerarRadar(){
   var uf   = selectedEstado;
   var tipo = selectedTipoRadar || "todas";
   var el   = document.getElementById("radar-results");
-  var tipoLabel = {todas:"Incorporadoras e Construtoras",alto:"Alto padrão",medio:"Médio padrão",mcmv:"MCMV / Econômico",comercial:"Comercial / Lajes"}[tipo]||"Todas";
-  var tipoStr   = {todas:"incorporadoras e construtoras residenciais e comerciais",alto:"incorporadoras de alto padrão residencial",medio:"incorporadoras de médio padrão residencial",mcmv:"construtoras MCMV e econômico",comercial:"incorporadoras de imóveis comerciais e lajes corporativas"}[tipo]||"incorporadoras";
 
-  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div>'+
-    '<p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">Consultando IA com busca na web...</p>'+
-    '<p style="font-size:12px;color:#9ca3af;margin-top:4px">Buscando top 10 de '+tipoLabel+' em '+uf+'</p></div>';
-  el.style.display="block";
+  var tipoLabel = {todas:"Incorporadoras e Construtoras",alto:"Alto padrão",medio:"Médio padrão",mcmv:"MCMV / Econômico",comercial:"Comercial / Lajes"}[tipo] || "Todas";
 
-  var prompt = 'Liste as 10 melhores '+tipoStr+' do estado de '+uf+' no Brasil em 2025/2026, considerando volume de lançamentos, market share regional, reputação e relevância para o mercado de visualização 3D. Pesquise na web para dados atualizados.\n\nRetorne SOMENTE JSON válido:\n{"empresas":[{"nome":"string","segmento":"string","atuacao":"string","destaques":"string","site":"string","linkedin":"string","oportunidade":"string","score":85}],"resumo":"string"}\n\nCampos: segmento (Alto padrão/Médio padrão/MCMV/Comercial/Misto), atuacao (cidades), destaques (momento atual em 1 frase), site (domínio ex: eztec.com.br), linkedin (URL), oportunidade (por que prospectar agora para Flying Studio), score (0-100 potencial de prospecção), resumo (panorama do mercado em 1 frase).';
+  // Busca no DB embutido
+  var regDB  = RANKING_DB[uf] || {};
+  var lista  = regDB[tipo] || regDB["todas"] || RANKING_DEFAULT["todas"];
 
-  fetch("/api/claude",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      model:"claude-sonnet-4-20250514",
-      max_tokens:3000,
-      tools:[{type:"web_search_20250305",name:"web_search"}],
-      messages:[{role:"user",content:prompt}]
-    })
-  })
-  .then(function(r){return r.json();})
-  .then(function(data){
-    if(data.error) throw new Error(data.error.message);
-    var text=(data.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("");
-    var match=text.match(/\{[\s\S]*\}/);
-    if(!match) throw new Error("Resposta inesperada.");
-    renderRankingIA(JSON.parse(match[0]),uf,tipoLabel);
-  })
-  .catch(function(e){
-    // Fallback to embedded DB
-    var regDB=RANKING_DB[uf]||{};
-    var lista=(regDB[tipo]||regDB["todas"]||RANKING_DEFAULT["todas"]).slice().sort(function(a,b){return b.score-a.score;}).slice(0,10);
-    renderRankingIA({empresas:lista,resumo:"Top 10 "+tipoLabel+" em "+uf+" (dados offline — erro: "+e.message+")"},uf,tipoLabel);
-  });
+  // Ordena por score
+  lista = lista.slice().sort(function(a,b){ return b.score - a.score; }).slice(0,10);
+
+  renderRankingIA({empresas: lista, resumo: "Top 10 "+tipoLabel+" em "+uf+" com maior potencial de prospecção para a Flying Studio."}, uf, tipoLabel);
 }
 
 var selectedTipoRadar = "todas";
@@ -1527,41 +1504,14 @@ function buscarEmp(){
   el.innerHTML='<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;color:#9ca3af;margin-top:12px">Buscando empreendimentos de '+nome+'...</p></div>';
   el.style.display="block";
   addHistory({key:"emp:"+nome,type:"empreendimentos",label:nome,sublabel:"Pesquisa de empreendimentos",ts:Date.now()});
-  // Use AI with web search for rich results
-  var prompt2="Pesquise na web os empreendimentos imobiliários da empresa \""+nome+"\""+( domain?" (site: "+domain+")":"")+". Liste os lançamentos ativos, em obras e recentes de 2024-2026.\n\nRetorne SOMENTE JSON:\n{\"empreendimentos\":[{\"nome\":\"string\",\"status\":\"Em lançamento|Em obras|Pronto para morar\",\"cidade\":\"string\",\"bairro\":\"string\",\"tipo\":\"Residencial|Comercial|Misto\",\"tipologia\":\"string\",\"destaque\":\"string\"}],\"empresa\":\"string\",\"descricao\":\"string\",\"totalLancamentos\":0,\"segmento\":\"string\",\"atuacao\":\"string\"}\n\nSe não encontrar, retorne empreendimentos:[].";
-
-  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div>'+
-    '<p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">Pesquisando na web...</p>'+
-    '<p style="font-size:12px;color:#9ca3af;margin-top:4px">Buscando empreendimentos de '+nome+'</p></div>';
-
-  fetch("/api/claude",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      model:"claude-sonnet-4-20250514",
-      max_tokens:3000,
-      tools:[{type:"web_search_20250305",name:"web_search"}],
-      messages:[{role:"user",content:prompt2}]
-    })
-  })
-  .then(function(r){return r.json();})
-  .then(function(data){
-    if(data.error) throw new Error(data.error.message);
-    var text=(data.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("");
-    var match=text.match(/\{[\s\S]*\}/);
-    if(!match) throw new Error("Sem dados.");
-    var parsed=JSON.parse(match[0]);
-    renderEmpIA(parsed, nome, domain);
-  })
-  .catch(function(e){
-    // Fallback: scrape via allorigins
-    if(!domain){renderEmpSemDominio(nome);return;}
-    var proxyUrl="https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain);
-    fetch(proxyUrl,{headers:{Accept:"application/json"}})
-      .then(function(r){return r.json();})
-      .then(function(proxy){
-        var raw=proxy.contents||"";
-        if(!raw){renderEmpSemDominio(nome);return;}
+  if(!domain){renderEmpSemDominio(nome);return;}
+  // Scrape site via allorigins
+  var proxyUrl="https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain);
+  fetch(proxyUrl,{headers:{Accept:"application/json"}})
+    .then(function(r){return r.json();})
+    .then(function(proxy){
+      var raw=proxy.contents||"";
+      if(!raw){renderEmpSemDominio(nome);return;}
       var doc=new DOMParser().parseFromString(raw,"text/html");
       var siteTitle=(doc.querySelector("title")||{textContent:""}).textContent.trim();
       var metaDesc=doc.querySelector('meta[name="description"]')||doc.querySelector('meta[property="og:description"]');
@@ -1591,67 +1541,7 @@ function buscarEmp(){
       renderEmpResultados({nome:nome,domain:domain,siteTitle:siteTitle,desc:desc,links:links.slice(0,14),cards:cards.slice(0,10)});
     })
     .catch(function(){renderEmpSemDominio(nome);});
-  });  // end allorigins fallback
-  });  // end .catch(function(e))
 }
-function renderEmpIA(data, nome, domain){
-  var el = document.getElementById("emp-results");
-  var emps = data.empreendimentos || [];
-  var html = '<div class="fade">';
-
-  // Header card
-  html += '<div class="card" style="margin-bottom:12px">';
-  html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px">';
-  html += '<div style="flex:1"><h2 style="font-size:18px;font-weight:700;color:#111827;margin-bottom:4px">'+(data.empresa||nome)+'</h2>';
-  if(data.descricao) html += '<p style="font-size:13px;color:#6b7280;line-height:1.6">'+data.descricao+'</p>';
-  html += '</div>';
-  if(data.totalLancamentos>0){
-    html += '<div style="background:#fdf8ee;border:1.5px solid #e8d090;border-radius:10px;padding:12px 18px;text-align:center;flex-shrink:0">';
-    html += '<p style="font-size:30px;font-weight:800;color:#b89a4e;line-height:1">'+data.totalLancamentos+'</p>';
-    html += '<p style="font-size:10px;font-weight:700;color:#92700a;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">Em lançamento</p></div>';
-  }
-  html += '</div>';
-  var badges = [];
-  if(data.segmento) badges.push('<span class="badge" style="background:#fdf8ee;color:#7a5a1e;border-color:#e8d090">'+data.segmento+'</span>');
-  if(data.atuacao)  badges.push('<span class="badge" style="background:#f9fafb;color:#374151;border-color:#e5e7eb">📍 '+data.atuacao+'</span>');
-  if(domain)        badges.push('<a href="https://'+domain+'" target="_blank" class="badge" style="background:#eff6ff;color:#1e40af;border-color:#bfdbfe;text-decoration:none">🌐 '+domain+'</a>');
-  if(badges.length) html += '<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid #f3f4f6">'+badges.join("")+'</div>';
-  html += '</div>';
-
-  var statusStyles2={
-    "Em lançamento":{bg:"#f0fdf4",color:"#166534",border:"#bbf7d0"},
-    "Em obras":{bg:"#eff6ff",color:"#1e40af",border:"#bfdbfe"},
-    "Pronto para morar":{bg:"#f5f3ff",color:"#5b21b6",border:"#ddd6fe"}
-  };
-
-  if(!emps.length){
-    html += '<div class="card"><div class="empty-state"><p>Nenhum empreendimento encontrado publicamente</p><p>Tente informar o domínio correto do site</p></div></div>';
-  } else {
-    html += '<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+emps.length+' empreendimento'+(emps.length!==1?"s":"")+'</p>';
-    emps.forEach(function(emp){
-      var st2=statusStyles2[emp.status]||{bg:"#f9fafb",color:"#374151",border:"#e5e7eb"};
-      html += '<div class="card" style="margin-bottom:10px">';
-      html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">';
-      html += '<h3 style="font-size:16px;font-weight:700;color:#111827;line-height:1.3">'+emp.nome+'</h3>';
-      html += '<span class="badge" style="background:'+st2.bg+';color:'+st2.color+';border-color:'+st2.border+';flex-shrink:0">'+emp.status+'</span>';
-      html += '</div>';
-      var details = [];
-      if(emp.cidade) details.push('📍 '+emp.cidade+(emp.bairro?' · '+emp.bairro:''));
-      if(emp.tipo)   details.push(emp.tipo);
-      if(emp.tipologia) details.push(emp.tipologia);
-      if(details.length) html += '<p style="font-size:13px;color:#6b7280;margin-bottom:8px">'+details.join(' &nbsp;·&nbsp; ')+'</p>';
-      if(emp.destaque) html += '<p style="font-size:13px;color:#6b7280;border-left:3px solid #e8d090;padding-left:10px;font-style:italic;line-height:1.5;margin-bottom:8px">'+emp.destaque+'</p>';
-      html += '<button class="btn-icon" data-nome="'+encodeURIComponent(nome)+'" data-lanc="'+encodeURIComponent(emp.nome)+'" onclick="usarEmpresaMensagem(this.dataset.nome,this.dataset.lanc)">✉ Gerar abordagem</button>';
-      html += '</div>';
-    });
-  }
-
-  html += '<div class="card-flat tip-gold"><p style="font-size:12px;font-weight:700;color:#7a5a1e;margin-bottom:5px">💡 Dica</p>';
-  html += '<p style="font-size:13px;color:#92700a;line-height:1.5">Clique em <strong>"✉ Gerar abordagem"</strong> para criar uma mensagem personalizada com o nome do empreendimento na aba Mensagem.</p></div>';
-  html += '</div>';
-  el.innerHTML = html; el.style.display = "block";
-}
-
 function renderEmpResultados(info){
   var el=document.getElementById("emp-results");
   var html='<div class="fade">';
