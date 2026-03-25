@@ -386,6 +386,22 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6
 
 <script>
 // ═══════════════════════════════════════
+// PROXY — chama /api/claude (Vercel)
+// ═══════════════════════════════════════
+function callClaude(body) {
+  return fetch("/api/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    return (data.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("");
+  });
+}
+
+// ═══════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════
 var HUNTER_KEY = "8f122be7c8440172a49875acc9356073cb141ce2";
@@ -1221,20 +1237,29 @@ var RANKING_DEFAULT = {
 };
 
 function gerarRadar(){
-  var uf   = selectedEstado;
-  var tipo = selectedTipoRadar || "todas";
-  var el   = document.getElementById("radar-results");
+  var uf       = selectedEstado;
+  var tipo     = selectedTipoRadar || "todas";
+  var el       = document.getElementById("radar-results");
+  var tipoLabel= {todas:"Incorporadoras e Construtoras",alto:"Alto padrão",medio:"Médio padrão",mcmv:"MCMV / Econômico",comercial:"Comercial / Lajes"}[tipo]||"Todas";
+  var tipoTerm = {todas:"incorporadoras e construtoras",alto:"incorporadoras de alto padrão",medio:"incorporadoras de médio padrão",mcmv:"construtoras MCMV e econômico",comercial:"incorporadoras comerciais e de lajes corporativas"}[tipo]||"incorporadoras";
 
-  var tipoLabel = {todas:"Incorporadoras e Construtoras",alto:"Alto padrão",medio:"Médio padrão",mcmv:"MCMV / Econômico",comercial:"Comercial / Lajes"}[tipo] || "Todas";
+  el.innerHTML='<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">Consultando IA com web search...</p><p style="font-size:12px;color:#9ca3af;margin-top:4px">Top 10 de '+tipoLabel+' em '+uf+'</p></div>';
+  el.style.display="block";
 
-  // Busca no DB embutido
-  var regDB  = RANKING_DB[uf] || {};
-  var lista  = regDB[tipo] || regDB["todas"] || RANKING_DEFAULT["todas"];
+  var prompt='Liste as 10 melhores '+tipoTerm+' do estado de '+uf+' no Brasil em 2025-2026, ordenadas por potencial de prospecção para a Flying Studio (empresa de visualização 3D imobiliária). Use web search para confirmar lançamentos ativos. Retorne SOMENTE JSON valido sem texto: {"empresas":[{"nome":"string","segmento":"Alto padrao|Medio padrao|MCMV|Comercial|Misto","atuacao":"cidades","destaques":"frase sobre momento atual","site":"dominio.com.br","linkedin":"url","oportunidade":"por que e boa oportunidade agora","score":85}],"resumo":"frase sobre o mercado"}';
 
-  // Ordena por score
-  lista = lista.slice().sort(function(a,b){ return b.score - a.score; }).slice(0,10);
-
-  renderRankingIA({empresas: lista, resumo: "Top 10 "+tipoLabel+" em "+uf+" com maior potencial de prospecção para a Flying Studio."}, uf, tipoLabel);
+  callClaude({model:"claude-sonnet-4-20250514",max_tokens:3000,tools:[{type:"web_search_20250305",name:"web_search"}],messages:[{role:"user",content:prompt}]})
+  .then(function(text){
+    var match=text.match(/\{[\s\S]*\}/);
+    if(!match) throw new Error("JSON não encontrado");
+    renderRankingIA(JSON.parse(match[0]),uf,tipoLabel);
+  })
+  .catch(function(e){
+    console.warn("IA falhou, usando DB:", e.message);
+    var regDB=RANKING_DB[uf]||{};
+    var lista=(regDB[tipo]||regDB["todas"]||RANKING_DEFAULT["todas"]).slice().sort(function(a,b){return b.score-a.score;}).slice(0,10);
+    renderRankingIA({empresas:lista,resumo:"Top 10 "+tipoLabel+" em "+uf+" (base interna)."},uf,tipoLabel);
+  });
 }
 
 var selectedTipoRadar = "todas";
@@ -1505,42 +1530,41 @@ function buscarEmp(){
   el.style.display="block";
   addHistory({key:"emp:"+nome,type:"empreendimentos",label:nome,sublabel:"Pesquisa de empreendimentos",ts:Date.now()});
   if(!domain){renderEmpSemDominio(nome);return;}
-  // Scrape site via allorigins
-  var proxyUrl="https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain);
-  fetch(proxyUrl,{headers:{Accept:"application/json"}})
-    .then(function(r){return r.json();})
-    .then(function(proxy){
-      var raw=proxy.contents||"";
-      if(!raw){renderEmpSemDominio(nome);return;}
-      var doc=new DOMParser().parseFromString(raw,"text/html");
-      var siteTitle=(doc.querySelector("title")||{textContent:""}).textContent.trim();
-      var metaDesc=doc.querySelector('meta[name="description"]')||doc.querySelector('meta[property="og:description"]');
-      var desc=metaDesc?(metaDesc.getAttribute("content")||"").trim():"";
-      // Extract relevant links
-      var links=[], seen={};
-      doc.querySelectorAll("a[href]").forEach(function(a){
-        var href=(a.getAttribute("href")||"").trim();
-        var text=(a.textContent||"").replace(/\s+/g," ").trim();
-        if(!text||text.length<4||text.length>100||seen[text]) return;
-        var lh=href.toLowerCase(), lt=text.toLowerCase();
-        if(!lh.match(/empreend|lanc|imovel|im.vel|residenc|comercial|projeto|apart|cond|tower|park|garden|plaza|vila|reserva|living/)&&
-           !lt.match(/empreend|lançam|residenc|comercial|apartam|condom|torre|park|garden|plaza|vila|reserva/)) return;
-        if(href.match(/^(#|javascript|mailto|tel)/)) return;
-        var full=href.startsWith("http")?href:"https://"+domain+(href.startsWith("/")?href:"/"+href);
-        seen[text]=true; links.push({href:full,text:text});
-      });
-      // Extract headings that look like product names
-      var cards=[], seenC={};
-      doc.querySelectorAll("h1,h2,h3,h4").forEach(function(h){
-        var text=(h.textContent||"").replace(/\s+/g," ").trim();
-        if(text.length<4||text.length>100||seenC[text]) return;
-        if(text.toLowerCase().match(/residenc|comercial|apartam|condom|lançam|torre|park|garden|plaza|vila|empreend/)){
-          seenC[text]=true; cards.push(text);
-        }
-      });
-      renderEmpResultados({nome:nome,domain:domain,siteTitle:siteTitle,desc:desc,links:links.slice(0,14),cards:cards.slice(0,10)});
-    })
-    .catch(function(){renderEmpSemDominio(nome);});
+
+  // Usa IA com web search (Vercel proxy) como primário
+  var prompt='Pesquise os empreendimentos imobiliários da empresa "'+nome+'"'+(domain?' site:'+domain:'')+' lançados ou em obras em 2025-2026. Retorne SOMENTE JSON: {"empresa":"string","descricao":"string","segmento":"string","atuacao":"string","empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras|Pronto para morar","cidade":"string","bairro":"string","tipo":"Residencial|Comercial|Misto","tipologia":"string","destaque":"string"}],"totalLancamentos":0}';
+  callClaude({model:"claude-sonnet-4-20250514",max_tokens:2000,tools:[{type:"web_search_20250305",name:"web_search"}],messages:[{role:"user",content:prompt}]})
+  .then(function(text){
+    var match=text.match(/\{[\s\S]*\}/);
+    if(!match) throw new Error("sem JSON");
+    renderEmpAI(JSON.parse(match[0]),nome,domain);
+  })
+  .catch(function(){
+    if(!domain){renderEmpSemDominio(nome);return;}
+    var proxyUrl="https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain);
+    fetch(proxyUrl,{headers:{Accept:"application/json"}})
+      .then(function(r){return r.json();})
+      .then(function(proxy){
+        var raw=proxy.contents||"";
+        if(!raw){renderEmpSemDominio(nome);return;}
+        var doc=new DOMParser().parseFromString(raw,"text/html");
+        var siteTitle=(doc.querySelector("title")||{textContent:""}).textContent.trim();
+        var metaDesc=doc.querySelector('meta[name="description"]')||doc.querySelector('meta[property="og:description"]');
+        var desc=metaDesc?(metaDesc.getAttribute("content")||"").trim():"";
+        var links=[],seen={};
+        doc.querySelectorAll("a[href]").forEach(function(a){
+          var href=(a.getAttribute("href")||"").trim();
+          var text=(a.textContent||"").replace(/\s+/g," ").trim();
+          if(!text||text.length<4||text.length>100||seen[text]) return;
+          if(!(href+text).toLowerCase().match(/empreend|lanc|residenc|comercial|apart|cond|tower|park|vila/)) return;
+          if(href.match(/^(#|javascript|mailto|tel)/)) return;
+          var full=href.startsWith("http")?href:"https://"+domain+(href.startsWith("/")?href:"/"+href);
+          seen[text]=true; links.push({href:full,text:text});
+        });
+        renderEmpResultados({nome:nome,domain:domain,siteTitle:siteTitle,desc:desc,links:links.slice(0,14),cards:[]});
+      })
+      .catch(function(){renderEmpSemDominio(nome);});
+  });
 }
 function renderEmpResultados(info){
   var el=document.getElementById("emp-results");
@@ -1586,6 +1610,50 @@ function renderEmpResultados(info){
   '</div></div>';
   el.innerHTML=html; el.style.display="block";
 }
+function renderEmpAI(d,nome,domain){
+  var el=document.getElementById("emp-results");
+  var stMap={"Em lancamento":{bg:"#f0fdf4",c:"#166534",b:"#bbf7d0"},"Em lançamento":{bg:"#f0fdf4",c:"#166534",b:"#bbf7d0"},"Em obras":{bg:"#eff6ff",c:"#1e40af",b:"#bfdbfe"},"Pronto para morar":{bg:"#f5f3ff",c:"#5b21b6",b:"#ddd6fe"}};
+  var getSt=function(s){return stMap[s]||{bg:"#f9fafb",c:"#374151",b:"#e5e7eb"};};
+  var html='<div class="fade">';
+  html+='<div class="card" style="margin-bottom:12px">'+
+    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">'+
+      '<div><h2 style="font-size:18px;font-weight:700;color:#111827;margin-bottom:4px">'+(d.empresa||nome)+'</h2>'+
+      (d.descricao?'<p style="font-size:13px;color:#6b7280;line-height:1.5">'+d.descricao+'</p>':"")+
+      '</div>'+
+      (d.totalLancamentos>0?'<div style="background:#fdf8ee;border:1.5px solid #e8d090;border-radius:10px;padding:12px 18px;text-align:center;flex-shrink:0"><p style="font-size:28px;font-weight:800;color:#b89a4e;line-height:1">'+d.totalLancamentos+'</p><p style="font-size:10px;font-weight:700;color:#92700a;text-transform:uppercase;margin-top:3px">Em lançamento</p></div>':"")+
+    '</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid #f3f4f6">'+
+      (d.segmento?'<span class="badge" style="background:#fdf8ee;color:#7a5a1e;border-color:#e8d090">'+d.segmento+'</span>':"")+
+      (d.atuacao?'<span class="badge" style="background:#f9fafb;color:#374151;border-color:#e5e7eb">📍 '+d.atuacao+'</span>':"")+
+      '<span class="badge" style="background:#eff6ff;color:#1e40af;border-color:#bfdbfe">🤖 IA + web search</span>'+
+    '</div>'+
+  '</div>';
+  var emps=d.empreendimentos||[];
+  if(emps.length){
+    html+='<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+emps.length+' empreendimento'+(emps.length!==1?"s":"")+'</p>';
+    emps.forEach(function(emp){
+      var st=getSt(emp.status);
+      html+='<div class="card" style="margin-bottom:10px">'+
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">'+
+          '<h3 style="font-size:16px;font-weight:700;color:#111827;line-height:1.3">'+emp.nome+'</h3>'+
+          '<span class="badge" style="background:'+st.bg+';color:'+st.c+';border-color:'+st.b+';flex-shrink:0">'+emp.status+'</span>'+
+        '</div>'+
+        (emp.cidade?'<p style="font-size:13px;color:#6b7280;margin-bottom:8px">📍 '+(emp.cidade||"")+(emp.bairro?" · "+emp.bairro:"")+'</p>':"")+
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">'+
+          (emp.tipo?'<span class="badge" style="background:#f9fafb;color:#374151;border-color:#e5e7eb">'+emp.tipo+'</span>':"")+
+          (emp.tipologia?'<span class="badge" style="background:#f9fafb;color:#374151;border-color:#e5e7eb">'+emp.tipologia+'</span>':"")+
+          '<button class="btn-icon" style="margin-left:auto" data-nome="'+encodeURIComponent(nome)+'" data-lanc="'+encodeURIComponent(emp.nome)+'" onclick="usarEmpresaMensagem(this.dataset.nome,this.dataset.lanc)">✉ Abordagem</button>'+
+        '</div>'+
+        (emp.destaque?'<p style="font-size:12px;color:#6b7280;border-left:3px solid #e8d090;padding-left:10px;font-style:italic;margin-top:8px">'+emp.destaque+'</p>':"")+
+      '</div>';
+    });
+  } else {
+    html+='<div class="card"><div class="empty-state"><p>Nenhum empreendimento encontrado</p><p>Tente informar o domínio para busca direta</p></div></div>';
+  }
+  html+='</div>';
+  el.innerHTML=html; el.style.display="block";
+}
+
 function renderEmpSemDominio(nome){
   var q=encodeURIComponent(nome);
   var el=document.getElementById("emp-results");
