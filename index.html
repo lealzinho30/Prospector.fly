@@ -397,7 +397,11 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6
 // PROXY — chama /api/claude (Vercel)
 // ═══════════════════════════════════════
 function callClaude(body) {
-  return fetch("/api/claude", {
+  // Timeout de 25 segundos
+  var timeoutPromise = new Promise(function(_, reject){
+    setTimeout(function(){ reject(new Error("Timeout — usando dados internos.")); }, 25000);
+  });
+  var fetchPromise = fetch("/api/claude", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -405,8 +409,18 @@ function callClaude(body) {
   .then(function(r){ return r.json(); })
   .then(function(data){
     if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-    return (data.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("");
+    // Extrai texto de todos os blocos content (incluindo tool_result)
+    var texts = [];
+    (data.content||[]).forEach(function(b){
+      if (b.type==="text") texts.push(b.text);
+      // web_search retorna tool_result com content
+      if (b.type==="tool_result" && Array.isArray(b.content)){
+        b.content.forEach(function(c){ if(c.type==="text") texts.push(c.text); });
+      }
+    });
+    return texts.join("\n");
   });
+  return Promise.race([fetchPromise, timeoutPromise]);
 }
 
 // ═══════════════════════════════════════
