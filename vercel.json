@@ -6,9 +6,6 @@
   ],
   "routes": [
     { "src": "/api/claude", "dest": "/api/claude.js" },
-    { "src": "/(.*)",       "dest": "/index.html"    }
-  ],
-  "functions": {
-    "api/claude.js": { "maxDuration": 30 }
-  }
+    { "src": "/(.*)",       "dest": "/index.html" }
+  ]
 }

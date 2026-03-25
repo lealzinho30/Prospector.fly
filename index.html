@@ -397,31 +397,18 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6
 // PROXY — chama /api/claude (Vercel)
 // ═══════════════════════════════════════
 function callClaude(body) {
-  // Timeout de 25 segundos
-  var timeoutPromise = new Promise(function(_, reject){
-    setTimeout(function(){ reject(new Error("Timeout — usando dados internos.")); }, 25000);
-  });
-  var fetchPromise = fetch("/api/claude", {
+  return fetch("/api/claude", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {"Content-Type":"application/json"},
     body: JSON.stringify(body)
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
     if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-    // Extrai texto de todos os blocos content (incluindo tool_result)
-    var texts = [];
-    (data.content||[]).forEach(function(b){
-      if (b.type==="text") texts.push(b.text);
-      // web_search retorna tool_result com content
-      if (b.type==="tool_result" && Array.isArray(b.content)){
-        b.content.forEach(function(c){ if(c.type==="text") texts.push(c.text); });
-      }
-    });
-    return texts.join("\n");
+    return (data.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("");
   });
-  return Promise.race([fetchPromise, timeoutPromise]);
 }
+
 
 // ═══════════════════════════════════════
 // CONSTANTES
@@ -1263,25 +1250,11 @@ function gerarRadar(){
   var tipo     = selectedTipoRadar || "todas";
   var el       = document.getElementById("radar-results");
   var tipoLabel= {todas:"Incorporadoras e Construtoras",alto:"Alto padrão",medio:"Médio padrão",mcmv:"MCMV / Econômico",comercial:"Comercial / Lajes"}[tipo]||"Todas";
-  var tipoTerm = {todas:"incorporadoras e construtoras",alto:"incorporadoras de alto padrão",medio:"incorporadoras de médio padrão",mcmv:"construtoras MCMV e econômico",comercial:"incorporadoras comerciais e de lajes corporativas"}[tipo]||"incorporadoras";
 
-  el.innerHTML='<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">Consultando IA com web search...</p><p style="font-size:12px;color:#9ca3af;margin-top:4px">Top 10 de '+tipoLabel+' em '+uf+'</p></div>';
-  el.style.display="block";
-
-  var prompt='Liste as 10 melhores '+tipoTerm+' do estado de '+uf+' no Brasil em 2025-2026, ordenadas por potencial de prospecção para a Flying Studio (empresa de visualização 3D imobiliária). Use web search para confirmar lançamentos ativos. Retorne SOMENTE JSON valido sem texto: {"empresas":[{"nome":"string","segmento":"Alto padrao|Medio padrao|MCMV|Comercial|Misto","atuacao":"cidades","destaques":"frase sobre momento atual","site":"dominio.com.br","linkedin":"url","oportunidade":"por que e boa oportunidade agora","score":85}],"resumo":"frase sobre o mercado"}';
-
-  callClaude({model:"claude-sonnet-4-20250514",max_tokens:3000,tools:[{type:"web_search_20250305",name:"web_search"}],messages:[{role:"user",content:prompt}]})
-  .then(function(text){
-    var match=text.match(/\{[\s\S]*\}/);
-    if(!match) throw new Error("JSON não encontrado");
-    renderRankingIA(JSON.parse(match[0]),uf,tipoLabel);
-  })
-  .catch(function(e){
-    console.warn("IA falhou, usando DB:", e.message);
-    var regDB=RANKING_DB[uf]||{};
-    var lista=(regDB[tipo]||regDB["todas"]||RANKING_DEFAULT["todas"]).slice().sort(function(a,b){return b.score-a.score;}).slice(0,10);
-    renderRankingIA({empresas:lista,resumo:"Top 10 "+tipoLabel+" em "+uf+" (base interna)."},uf,tipoLabel);
-  });
+  // Usa banco de dados embutido (instantâneo)
+  var regDB = RANKING_DB[uf]||{};
+  var lista = (regDB[tipo]||regDB["todas"]||RANKING_DEFAULT["todas"]).slice().sort(function(a,b){return b.score-a.score;}).slice(0,10);
+  renderRankingIA({empresas:lista, resumo:"Top 10 "+tipoLabel+" em "+uf+" — maior potencial de prospecção para a Flying Studio."}, uf, tipoLabel);
 }
 
 var selectedTipoRadar = "todas";
@@ -1553,18 +1526,27 @@ function buscarEmp(){
   addHistory({key:"emp:"+nome,type:"empreendimentos",label:nome,sublabel:"Pesquisa de empreendimentos",ts:Date.now()});
   if(!domain){renderEmpSemDominio(nome);return;}
 
-  // Usa IA com web search (Vercel proxy) como primário
-  var prompt='Pesquise os empreendimentos imobiliários da empresa "'+nome+'"'+(domain?' site:'+domain:'')+' lançados ou em obras em 2025-2026. Retorne SOMENTE JSON: {"empresa":"string","descricao":"string","segmento":"string","atuacao":"string","empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras|Pronto para morar","cidade":"string","bairro":"string","tipo":"Residencial|Comercial|Misto","tipologia":"string","destaque":"string"}],"totalLancamentos":0}';
-  callClaude({model:"claude-sonnet-4-20250514",max_tokens:2000,tools:[{type:"web_search_20250305",name:"web_search"}],messages:[{role:"user",content:prompt}]})
+  // Usa Claude sem web_search (rápido, baseado em conhecimento de treinamento)
+  if (!domain && !company) { renderEmpSemDominio(nome); return; }
+  
+  var prompt = 'Liste os empreendimentos imobiliários da empresa "'+nome+'" que você conhece do seu treinamento. Inclua lançamentos, obras e projetos entregues. Retorne SOMENTE JSON válido: {"empresa":"'+nome+'","descricao":"breve descrição da empresa","segmento":"string","atuacao":"cidades","empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras|Pronto para morar","cidade":"string","bairro":"string","tipo":"Residencial|Comercial|Misto","tipologia":"string","destaque":"string"}],"totalLancamentos":0}';
+  
+  callClaude({
+    model:"claude-sonnet-4-20250514",
+    max_tokens:2000,
+    messages:[{role:"user",content:prompt}]
+  })
   .then(function(text){
     var match=text.match(/\{[\s\S]*\}/);
     if(!match) throw new Error("sem JSON");
-    renderEmpAI(JSON.parse(match[0]),nome,domain);
+    var d=JSON.parse(match[0]);
+    if(!d.empreendimentos||!d.empreendimentos.length) throw new Error("vazio");
+    renderEmpAI(d,nome,domain);
   })
   .catch(function(){
+    // Fallback: scrape via allorigins se tem domínio
     if(!domain){renderEmpSemDominio(nome);return;}
-    var proxyUrl="https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain);
-    fetch(proxyUrl,{headers:{Accept:"application/json"}})
+    fetch("https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain),{headers:{Accept:"application/json"}})
       .then(function(r){return r.json();})
       .then(function(proxy){
         var raw=proxy.contents||"";
@@ -1587,50 +1569,6 @@ function buscarEmp(){
       })
       .catch(function(){renderEmpSemDominio(nome);});
   });
-}
-function renderEmpResultados(info){
-  var el=document.getElementById("emp-results");
-  var html='<div class="fade">';
-  html+='<div class="card" style="margin-bottom:12px">'+
-    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:'+(info.desc?'12':'0')+'px">'+
-      '<div style="width:38px;height:38px;background:#F3F0FF;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏢</div>'+
-      '<div><h2 style="font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:1px">'+info.nome+'</h2>'+
-      '<a href="https://'+info.domain+'" target="_blank" style="font-size:12px;color:#7C5CFC;text-decoration:none;font-weight:500">'+info.domain+' ↗</a></div>'+
-    '</div>'+
-    (info.desc?'<p style="font-size:13px;color:#6b7280;line-height:1.6;padding-top:12px;border-top:1px solid #f3f4f6">'+info.desc+'</p>':"")+
-  '</div>';
-  if(info.cards.length){
-    html+='<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Empreendimentos identificados</p>';
-    html+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">';
-    info.cards.forEach(function(c){
-      html+='<div class="card-flat" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px">'+
-        '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:16px">🏗️</span>'+
-        '<p style="font-size:14px;font-weight:600;color:#1a1a2e">'+c+'</p></div>'+
-        '<button class="btn-icon" data-nome="\'+encodeURIComponent(info.nome)+\'" data-lanc="\'+encodeURIComponent(c)+\'" onclick="usarEmpresaMensagem(this.dataset.nome,this.dataset.lanc)">✉ Abordagem</button>';
-      '</div>';
-    });
-    html+='</div>';
-  }
-  if(info.links.length){
-    html+='<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Páginas do site</p>';
-    html+='<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">';
-    info.links.forEach(function(l){
-      html+='<a href="'+l.href+'" target="_blank" class="portal-link" style="padding:10px 14px">'+
-        '<span style="font-size:14px;flex-shrink:0">🔗</span>'+
-        '<span style="font-size:13px;font-weight:600;color:#374151;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+l.text+'</span>'+
-        '<svg style="flex-shrink:0" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'+
-      '</a>';
-    });
-    html+='</div>';
-  }
-  if(!info.cards.length&&!info.links.length){
-    html+='<div class="card"><div class="empty-state"><p>Site encontrado, mas sem empreendimentos identificados automaticamente</p><p>Acesse '+info.domain+' diretamente ou informe o domínio correto</p></div></div>';
-  }
-  html+='<div class="card-flat tip-gold">'+
-    '<p style="font-size:12px;font-weight:700;color:#5a3dd4;margin-bottom:6px">💡 Dica</p>'+
-    '<p style="font-size:13px;color:#5a3dd4;line-height:1.5">Clique em <strong>"✉ Abordagem"</strong> para gerar mensagem com o nome do empreendimento. Clique nos links para ver as páginas do site.</p>'+
-  '</div></div>';
-  el.innerHTML=html; el.style.display="block";
 }
 function renderEmpAI(d,nome,domain){
   var el=document.getElementById("emp-results");
