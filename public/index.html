@@ -1526,129 +1526,118 @@ function buscarEmp(){
   el.style.display = "block";
 
   if (!domain) {
-    // Sem domínio: Claude analisa pelo nome da empresa
-    analisarEmpresaComClaude(nome, domain, null, el);
+    el.innerHTML = '<div class="card"><div class="empty-state"><p>Informe o domínio do site para buscar os empreendimentos</p><p>Ex: eztec.com.br</p></div></div>';
     return;
   }
 
-  // Com domínio: busca o site e manda o HTML para o Claude analisar
-  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">Acessando o site...</p><p style="font-size:12px;color:#9ca3af;margin-top:4px">'+domain+'</p></div>';
+  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">Acessando '+domain+'...</p></div>';
 
-  fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://"+domain), {headers:{Accept:"application/json"}})
-    .then(function(r){ return r.json(); })
-    .then(function(proxy){
-      var html_raw = proxy.contents || "";
-      // Extrai texto limpo do HTML (remove scripts/styles)
-      var doc = new DOMParser().parseFromString(html_raw, "text/html");
-      doc.querySelectorAll("script,style,nav,footer,header").forEach(function(el){ el.remove(); });
-      var textoLimpo = (doc.body ? doc.body.innerText || doc.body.textContent : "").replace(/\s+/g," ").trim().slice(0, 8000);
+  // Tenta a página principal e também páginas de empreendimentos/lançamentos
+  var urls = [
+    "https://"+domain,
+    "https://"+domain+"/empreendimentos",
+    "https://"+domain+"/lancamentos",
+    "https://"+domain+"/imoveis",
+  ];
 
-      el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">IA analisando o site...</p><p style="font-size:12px;color:#9ca3af;margin-top:4px">Identificando empreendimentos</p></div>';
+  var allEmps = [], allLinks = [], siteTitle = "", siteDesc = "", done = 0;
 
-      analisarEmpresaComClaude(nome, domain, textoLimpo, el);
-    })
-    .catch(function(){
-      // Site inacessível: Claude analisa pelo nome
-      analisarEmpresaComClaude(nome, domain, null, el);
-    });
-}
+  function tryUrl(url) {
+    return fetch("https://api.allorigins.win/get?url="+encodeURIComponent(url), {headers:{Accept:"application/json"}})
+      .then(function(r){ return r.json(); })
+      .then(function(proxy){
+        var raw = proxy.contents || "";
+        if (!raw) return;
+        var doc = new DOMParser().parseFromString(raw, "text/html");
 
-function analisarEmpresaComClaude(nome, domain, textoSite, el) {
-  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">IA analisando...</p><p style="font-size:12px;color:#9ca3af;margin-top:4px">Identificando lançamentos</p></div>';
+        // Título e descrição (só da primeira página)
+        if (!siteTitle) {
+          siteTitle = (doc.querySelector("title")||{textContent:""}).textContent.trim();
+          var md = doc.querySelector('meta[name="description"]')||doc.querySelector('meta[property="og:description"]');
+          siteDesc = md ? (md.getAttribute("content")||"").trim() : "";
+        }
 
-  var contexto = textoSite
-    ? 'Analise o conteúdo do site da empresa "'+nome+'" abaixo e extraia todos os empreendimentos imobiliários mencionados:\n\n'+textoSite
-    : 'Liste os empreendimentos imobiliários da empresa "'+nome+'" que você conhece do seu treinamento.';
+        // Padrões de nome de empreendimento
+        var empRe = /residenc|condomin|lançam|lanc|apart|torre|park|garden|plaza|vila|living|home|prime|reserva|parque|jardim|comercial|corporat|studios?|flat|loft|empreend/i;
+        var seen = {};
 
-  var prompt = contexto + '\n\nRetorne SOMENTE JSON válido: {"empresa":"'+nome+'","descricao":"1 frase sobre a empresa","segmento":"Alto padrao|Medio padrao|MCMV|Comercial|Misto","atuacao":"cidades onde atua","empreendimentos":[{"nome":"nome do empreendimento","status":"Em lancamento|Em obras|Pronto para morar","cidade":"cidade","bairro":"bairro se souber","tipo":"Residencial|Comercial|Misto","tipologia":"Apartamentos|Casas|Lajes|Studios","destaque":"1 frase sobre o produto"}],"totalLancamentos":0}';
+        // Extrai de headings, cards, títulos
+        doc.querySelectorAll("h1,h2,h3,h4,h5,[class*='title'],[class*='name'],[class*='empreend'],[class*='product'],[class*='imovel'],[class*='lancam'],[class*='card']").forEach(function(el){
+          var text = (el.textContent||"").replace(/\s+/g," ").trim();
+          if (text.length < 4 || text.length > 80 || seen[text.toLowerCase()]) return;
+          if (empRe.test(text)) { seen[text.toLowerCase()]=true; allEmps.push(text); }
+        });
 
-  callClaude({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 2000,
-    messages: [{role:"user", content: prompt}]
-  })
-  .then(function(text){
-    var match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("JSON não encontrado");
-    var d = JSON.parse(match[0]);
-    renderEmpAI(d, nome, domain);
-  })
-  .catch(function(e){
-    el.innerHTML = '<div class="card"><div class="empty-state">'+
-      '<p>Não foi possível analisar os empreendimentos</p>'+
-      '<p style="font-size:12px;color:#ef4444;margin-top:6px">'+e.message+'</p>'+
-      '<p style="margin-top:8px">Verifique se o domínio está correto e tente novamente</p>'+
-    '</div></div>';
+        // Extrai links internos relevantes
+        doc.querySelectorAll("a[href]").forEach(function(a){
+          var href = (a.getAttribute("href")||"").trim();
+          var text = (a.textContent||"").replace(/\s+/g," ").trim();
+          if (!text || text.length < 4 || text.length > 80) return;
+          var lh = href.toLowerCase(), lt = text.toLowerCase();
+          var isRelevant = empRe.test(lt) || lh.match(/empreend|lanc|imovel|residenc|comercial|apart|cond|tower|park|vila|reserva/);
+          if (!isRelevant) return;
+          if (href.match(/^(#|javascript|mailto|tel)/)) return;
+          var full = href.startsWith("http") ? href : "https://"+domain+(href.startsWith("/")?href:"/"+href);
+          if (!allLinks.find(function(l){return l.href===full;})) {
+            allLinks.push({href:full, text:text});
+          }
+        });
+
+        // Extrai meta og:title de cards de produto
+        doc.querySelectorAll("[class*='empreend'] [class*='title'], [class*='product'] [class*='title'], [class*='card'] h3, [class*='card'] h4").forEach(function(el){
+          var text = (el.textContent||"").replace(/\s+/g," ").trim();
+          if (text.length < 4 || text.length > 80 || seen[text.toLowerCase()]) return;
+          seen[text.toLowerCase()]=true; allEmps.push(text);
+        });
+      })
+      .catch(function(){});
+  }
+
+  // Busca todas as URLs em paralelo, depois renderiza
+  Promise.all(urls.map(tryUrl)).then(function(){
+    // Dedup emps
+    var unique = [], seenU = {};
+    allEmps.forEach(function(e){ if(!seenU[e.toLowerCase()]){seenU[e.toLowerCase()]=true;unique.push(e);} });
+    allEmps = unique.slice(0, 20);
+    allLinks = allLinks.slice(0, 16);
+    renderEmpScrape({nome:nome, domain:domain, siteTitle:siteTitle, siteDesc:siteDesc, emps:allEmps, links:allLinks});
   });
+
+  // Timeout 12s
+  setTimeout(function(){
+    if (el.innerHTML.includes("loader-box")) {
+      var unique = [], seenU = {};
+      allEmps.forEach(function(e){ if(!seenU[e.toLowerCase()]){seenU[e.toLowerCase()]=true;unique.push(e);} });
+      renderEmpScrape({nome:nome, domain:domain, siteTitle:siteTitle, siteDesc:siteDesc, emps:unique.slice(0,20), links:allLinks.slice(0,16)});
+    }
+  }, 12000);
 }
 
-function buscarEmpNoSite(nome, domain) {
-  var el = document.getElementById("emp-results");
-  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;color:#9ca3af;margin-top:12px">Acessando o site da empresa...</p></div>';
-
-  fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://"+domain), {headers:{Accept:"application/json"}})
-    .then(function(r){ return r.json(); })
-    .then(function(proxy){
-      var raw = proxy.contents || "";
-      if (!raw) { renderEmpVazio(nome); return; }
-      var doc = new DOMParser().parseFromString(raw, "text/html");
-
-      var siteTitle = (doc.querySelector("title")||{textContent:""}).textContent.trim();
-      var metaDesc  = doc.querySelector('meta[name="description"]') || doc.querySelector('meta[property="og:description"]');
-      var desc = metaDesc ? (metaDesc.getAttribute("content")||"").trim() : "";
-
-      // Extrai empreendimentos dos headings e parágrafos
-      var emps = [], seenE = {};
-      var empPatterns = /residenc|comercial|apartam|condom|lançam|torre|park|garden|plaza|vila|empreend|living|home|prime|reserva|parque|jardim/i;
-      doc.querySelectorAll("h1,h2,h3,h4,.title,.name,[class*='empreend'],[class*='product'],[class*='launch']").forEach(function(h){
-        var text = (h.textContent||"").replace(/\s+/g," ").trim();
-        if (text.length < 5 || text.length > 80 || seenE[text]) return;
-        if (empPatterns.test(text)) { seenE[text]=true; emps.push(text); }
-      });
-
-      // Extrai links de empreendimentos
-      var links = [], seenL = {};
-      doc.querySelectorAll("a[href]").forEach(function(a){
-        var href = (a.getAttribute("href")||"").trim();
-        var text = (a.textContent||"").replace(/\s+/g," ").trim();
-        if (!text||text.length<4||text.length>80||seenL[text]) return;
-        if (!empPatterns.test(href+text)) return;
-        if (href.match(/^(#|javascript|mailto|tel)/)) return;
-        var full = href.startsWith("http") ? href : "https://"+domain+(href.startsWith("/")?href:"/"+href);
-        seenL[text]=true; links.push({href:full,text:text});
-      });
-
-      renderEmpSiteData({
-        nome:nome, domain:domain,
-        siteTitle:siteTitle, desc:desc,
-        emps:emps.slice(0,12), links:links.slice(0,12)
-      });
-    })
-    .catch(function(){ renderEmpVazio(nome); });
-}
-
-function renderEmpSiteData(info){
+function renderEmpScrape(info){
   var el = document.getElementById("emp-results");
   var html = '<div class="fade">';
 
-  // Header com info da empresa
+  // Header
   html += '<div class="card" style="margin-bottom:12px">'+
-    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:'+(info.desc?'12':'0')+'px">'+
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:'+(info.siteDesc?'12':'0')+'px">'+
       '<div style="width:40px;height:40px;background:#F3F0FF;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏢</div>'+
-      '<div><h2 style="font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:2px">'+info.nome+'</h2>'+
-      '<a href="https://'+info.domain+'" target="_blank" style="font-size:12px;color:#7C5CFC;text-decoration:none;font-weight:500">'+info.domain+' ↗</a></div>'+
+      '<div>'+
+        '<h2 style="font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:2px">'+info.nome+'</h2>'+
+        '<a href="https://'+info.domain+'" target="_blank" style="font-size:12px;color:#7C5CFC;text-decoration:none;font-weight:500">'+info.domain+' ↗</a>'+
+      '</div>'+
     '</div>'+
-    (info.desc?'<p style="font-size:13px;color:#6b7280;line-height:1.6;padding-top:12px;border-top:1px solid #f3f4f6">'+info.desc+'</p>':"")+
+    (info.siteDesc?'<p style="font-size:13px;color:#6b7280;line-height:1.6;padding-top:10px;border-top:1px solid #f3f4f6">'+info.siteDesc+'</p>':"")+
   '</div>';
 
-  // Empreendimentos extraídos do site
+  // Empreendimentos identificados
   if (info.emps.length) {
-    html += '<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+info.emps.length+' empreendimento'+(info.emps.length!==1?"s":"")+" extraído"+(info.emps.length!==1?"s":"")+" do site</p>";
+    html += '<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+
+      info.emps.length+' empreendimento'+(info.emps.length!==1?"s":"")+" identificado"+(info.emps.length!==1?"s":"")+" no site</p>";
     html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">';
     info.emps.forEach(function(e){
-      html += '<div class="card-flat" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px">'+
+      html += '<div class="card-flat" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px">'+
         '<div style="display:flex;align-items:center;gap:10px">'+
-          '<span style="font-size:16px">🏗️</span>'+
+          '<div style="width:34px;height:34px;border-radius:8px;background:#F3F0FF;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">🏗️</div>'+
           '<p style="font-size:14px;font-weight:600;color:#1a1a2e">'+e+'</p>'+
         '</div>'+
         '<button class="btn-icon" data-nome="'+encodeURIComponent(info.nome)+'" data-lanc="'+encodeURIComponent(e)+'" onclick="usarEmpresaMensagem(this.dataset.nome,this.dataset.lanc)">✉ Abordagem</button>'+
@@ -1657,9 +1646,9 @@ function renderEmpSiteData(info){
     html += '</div>';
   }
 
-  // Páginas relevantes do site (não Google!)
+  // Páginas do site
   if (info.links.length) {
-    html += '<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Páginas encontradas no site</p>';
+    html += '<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Páginas de empreendimentos</p>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">';
     info.links.forEach(function(l){
       html += '<a href="'+l.href+'" target="_blank" class="portal-link" style="padding:10px 14px">'+
@@ -1672,23 +1661,22 @@ function renderEmpSiteData(info){
   }
 
   if (!info.emps.length && !info.links.length) {
-    html += '<div class="card"><div class="empty-state"><p>Site acessado, mas sem empreendimentos identificados automaticamente</p><p>O site pode usar JavaScript dinâmico que o extrator não consegue ler</p></div></div>';
+    html += '<div class="card" style="text-align:center;padding:32px">'+
+      '<p style="font-size:14px;font-weight:600;color:#6b7280;margin-bottom:6px">Site acessado, mas sem empreendimentos identificados</p>'+
+      '<p style="font-size:13px;color:#9ca3af">O site pode carregar conteúdo via JavaScript dinâmico.</p>'+
+      '<a href="https://'+info.domain+'" target="_blank" class="btn-icon" style="display:inline-flex;margin-top:14px">🌐 Abrir site direto</a>'+
+    '</div>';
   }
 
-  html += '<div class="card-flat tip-gold">'+
-    '<p style="font-size:12px;font-weight:700;color:#5a3dd4;margin-bottom:4px">💡 Dica</p>'+
-    '<p style="font-size:13px;color:#5a3dd4;line-height:1.5">Clique em <strong>"✉ Abordagem"</strong> para gerar mensagem personalizada com o empreendimento.</p>'+
-  '</div>';
+  if (info.emps.length || info.links.length) {
+    html += '<div class="card-flat" style="background:#F3F0FF;border-color:#c4b5fd;margin-top:4px">'+
+      '<p style="font-size:12px;font-weight:700;color:#5a3dd4;margin-bottom:4px">💡 Dica</p>'+
+      '<p style="font-size:13px;color:#5a3dd4;line-height:1.5">Clique em <strong>"✉ Abordagem"</strong> para gerar mensagem personalizada com o empreendimento já preenchido.</p>'+
+    '</div>';
+  }
+
   html += '</div>';
   el.innerHTML = html; el.style.display = "block";
-}
-
-function renderEmpVazio(nome){
-  document.getElementById("emp-results").innerHTML =
-    '<div class="card"><div class="empty-state">'+
-    '<p>Não foi possível encontrar empreendimentos de "'+nome+'"</p>'+
-    '<p>Tente preencher o domínio do site para busca direta</p>'+
-    '</div></div>';
 }
 
 function renderEmpAI(d,nome,domain){
