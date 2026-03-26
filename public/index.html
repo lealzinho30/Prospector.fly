@@ -1074,49 +1074,6 @@ function renderSocios(data, compOrDomain){
 }
 
 
-function renderContatosApollo(people, domain, company){
-  var compOrDomain = company||domain||"";
-
-  // Ordena: decisores primeiro
-  var sorted = people.slice().sort(function(a,b){
-    var aT = isTarget(a.title||""), bT = isTarget(b.title||"");
-    if(aT&&!bT) return -1; if(!aT&&bT) return 1; return 0;
-  });
-
-  var decisores = sorted.filter(function(p){return isTarget(p.title||"");});
-  var html = '<div class="fade">';
-
-  // Stats
-  html += '<div class="grid-3" style="margin-bottom:14px">'+
-    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:var(--navy);line-height:1;margin-bottom:4px;font-family:Syne,sans-serif">'+sorted.length+'</p><p style="font-size:12px;color:var(--gray-4);font-weight:500">Contatos</p></div>'+
-    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:var(--purple);line-height:1;margin-bottom:4px;font-family:Syne,sans-serif">'+decisores.length+'</p><p style="font-size:12px;color:var(--gray-4);font-weight:500">Decisores</p></div>'+
-    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:#166534;line-height:1;margin-bottom:4px;font-family:Syne,sans-serif">'+sorted.filter(function(p){return p.email;}).length+'</p><p style="font-size:12px;color:var(--gray-4);font-weight:500">Com email</p></div>'+
-  '</div>';
-
-  // Toolbar
-  html += '<div style="display:flex;gap:10px;margin-bottom:12px">'+
-    '<div class="search-wrap" style="flex:1">'+
-      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+
-      '<input class="search-inp" placeholder="Filtrar..." data-comp="'+encodeURIComponent(compOrDomain)+'" oninput="filterContatos(this.value,this.dataset.comp)"/>'+ 
-    '</div>'+
-    '<button class="btn-sm" onclick="exportXlsx()">↓ Excel</button>'+
-  '</div>';
-
-  // List
-  html += '<div class="card" style="padding:4px 20px" id="contacts-list">';
-  sorted.forEach(function(p){ html += buildContactRowApollo(p, compOrDomain); });
-  html += '</div>';
-
-  html += '<div style="margin-top:10px;display:flex;align-items:center;gap:8px">'+
-    '<div style="width:8px;height:8px;border-radius:50%;background:var(--purple);flex-shrink:0"></div>'+
-    '<span style="font-size:12px;color:var(--gray-4);font-weight:500">Dados via Apollo.io — nome, email, cargo e telefone direto</span>'+
-  '</div>';
-  html += '</div>';
-
-  var el = document.getElementById("search-results");
-  el.innerHTML = html; el.style.display = "block";
-}
-
 
 function buildContactRow(p, compOrDomain){
   // Delegates to Apollo version
