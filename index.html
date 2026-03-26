@@ -4,132 +4,160 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Flying Studio · Prospector</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:'Plus Jakarta Sans',sans-serif}
-body{background:#f5f5f0;min-height:100vh;color:#1a1a2e}
+:root{
+  --purple:#7C5CFC;--purple-d:#6344E0;--purple-l:#F3F0FF;--purple-m:#c4b5fd;
+  --green:#A8E63D;--green-d:#7fb82e;
+  --navy:#1a1a2e;--navy-2:#252545;
+  --gray-1:#f8f8f6;--gray-2:#f0efe9;--gray-3:#e5e4dd;--gray-4:#9ca3af;--gray-5:#6b7280;
+  --white:#ffffff;
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;
+  --shadow:0 1px 4px rgba(26,26,46,.07);--shadow-md:0 4px 16px rgba(26,26,46,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'DM Sans',sans-serif}
+body{background:var(--gray-1);min-height:100vh;color:var(--navy)}
+h1,h2,h3,.display{font-family:'Syne',sans-serif}
+
+/* ─── ANIMATIONS ─── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes slideRight{from{transform:translateX(-6px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes popIn{0%{transform:scale(.94);opacity:0}100%{transform:scale(1);opacity:1}}
 .fade{animation:fadeUp .22s ease both}
+.pop{animation:popIn .18s ease both}
 .row-in{animation:fadeUp .18s ease both}
 .row-in:nth-child(1){animation-delay:.03s}.row-in:nth-child(2){animation-delay:.06s}
-.row-in:nth-child(3){animation-delay:.09s}.row-in:nth-child(n+4){animation-delay:.11s}
-/* INPUTS */
-input,select,textarea{background:#fff;border:1.5px solid #e5e7eb;color:#1a1a2e;font-size:14px;width:100%;outline:none;padding:11px 14px;transition:all .15s;border-radius:8px;font-family:inherit;line-height:1.5}
-input:focus,select:focus,textarea:focus{border-color:#7C5CFC;box-shadow:0 0 0 3px rgba(124,92,252,.1)}
-input:hover:not(:focus),select:hover:not(:focus){border-color:#d1d5db}
-input::placeholder,textarea::placeholder{color:#9ca3af}
-input.error{border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.1)}
-textarea{resize:vertical;line-height:1.7;min-height:100px}
+.row-in:nth-child(3){animation-delay:.09s}.row-in:nth-child(n+4){animation-delay:.12s}
+
+/* ─── INPUTS ─── */
+input,select,textarea{
+  background:var(--white);border:1.5px solid var(--gray-3);color:var(--navy);
+  font-size:14px;width:100%;outline:none;padding:11px 14px;
+  transition:all .15s;border-radius:var(--radius-sm);font-family:inherit;line-height:1.5
+}
+input:focus,select:focus,textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,92,252,.1)}
+input:hover:not(:focus),select:hover:not(:focus){border-color:#bbb}
+input::placeholder,textarea::placeholder{color:var(--gray-4)}
+input.error{border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.08)}
 select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
-label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px}
-.field-hint{font-size:11px;color:#9ca3af;margin-top:4px}
-.field-ok{font-size:11px;color:#7C5CFC;margin-top:4px;font-weight:600}
-.field-err{font-size:11px;color:#ef4444;margin-top:4px;font-weight:600}
-/* BUTTONS */
-.btn{border:none;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:8px}
-.btn-dark{background:#1a1a2e;color:#fff;width:100%;letter-spacing:.01em}.btn-dark:hover{background:#252545}
-.btn-gold{background:#7C5CFC;color:#fff;width:100%;letter-spacing:.01em}.btn-gold:hover{background:#6344E0}
-.btn-outline{background:#fff;border:1.5px solid #e5e7eb;color:#374151}.btn-outline:hover{border-color:#7C5CFC;color:#5a3dd4;background:#F3F0FF}
-.btn-red{background:#fff;border:1.5px solid #fecaca;color:#ef4444;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}.btn-red:hover{background:#fef2f2}
-.btn-sm{background:#fff;border:1.5px solid #e5e7eb;color:#374151;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
-.btn-sm:hover{border-color:#7C5CFC;color:#5a3dd4;background:#F3F0FF}
-.btn-icon{background:#f9fafb;border:1.5px solid #e5e7eb;color:#374151;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
-.btn-icon:hover{border-color:#7C5CFC;color:#5a3dd4;background:#F3F0FF}
-.btn:disabled,.btn-sm:disabled,.btn-icon:disabled{opacity:.35;cursor:not-allowed!important}
-.btn-copy{background:#7C5CFC;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
-.btn-copy:hover{background:#6344E0}
-.btn-wpp{background:#25d366;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px;text-decoration:none}
+textarea{resize:vertical;line-height:1.75;min-height:100px}
+label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bottom:5px;letter-spacing:.02em;text-transform:uppercase}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:none;border-radius:var(--radius-sm);padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;letter-spacing:.01em}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn-primary{background:var(--purple);color:#fff;width:100%}.btn-primary:hover{background:var(--purple-d);transform:translateY(-1px);box-shadow:0 4px 12px rgba(124,92,252,.3)}
+.btn-dark{background:var(--navy);color:#fff;width:100%}.btn-dark:hover{background:var(--navy-2);transform:translateY(-1px)}
+.btn-green{background:var(--green);color:var(--navy);width:100%;font-weight:700}.btn-green:hover{background:var(--green-d);transform:translateY(-1px)}
+.btn-ghost{background:transparent;border:1.5px solid var(--gray-3);color:var(--gray-5)}.btn-ghost:hover{border-color:var(--purple-m);color:var(--purple);background:var(--purple-l)}
+.btn-sm{background:var(--white);border:1.5px solid var(--gray-3);color:var(--gray-5);border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:all .14s;font-family:inherit}
+.btn-sm:hover{border-color:var(--purple-m);color:var(--purple);background:var(--purple-l)}
+.btn-icon{background:var(--gray-1);border:1.5px solid var(--gray-3);color:var(--gray-5);border-radius:var(--radius-sm);padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:all .13s;font-family:inherit;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-icon:hover{border-color:var(--purple-m);color:var(--purple);background:var(--purple-l)}
+.btn-copy{background:var(--navy);color:#fff;border:none;border-radius:var(--radius-xs);padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn-copy:hover{background:var(--navy-2)}
+.btn-wpp{background:#25d366;color:#fff;border:none;border-radius:var(--radius-xs);padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px;text-decoration:none}
 .btn-wpp:hover{background:#1da851}
-/* TABS */
-.tab-btn{background:transparent;border:none;padding:14px 10px;cursor:pointer;font-size:13px;font-weight:600;color:#6b7280;transition:all .15s;position:relative;border-bottom:2px solid transparent;font-family:inherit;white-space:nowrap;flex-shrink:0}
-.tab-btn.active{color:#1a1a2e;border-bottom-color:#7C5CFC;font-weight:700}
-.tab-btn:hover:not(.active){color:#374151}
-.tab-btn .notif{position:absolute;top:8px;right:-4px;width:7px;height:7px;background:#ef4444;border-radius:50%;border:1.5px solid #fff}
-/* CHIPS */
-.chip{display:inline-flex;padding:6px 13px;border:1.5px solid #e5e7eb;border-radius:20px;font-size:13px;font-weight:500;color:#6b7280;cursor:pointer;transition:all .12s;background:#fff;font-family:inherit}
-.chip.active{border-color:#7C5CFC;color:#5a3dd4;background:#F3F0FF;font-weight:600}
-.chip:hover:not(.active){border-color:#d1c090;color:#4b3a18}
-/* CARDS */
-.card{background:#fff;border:1.5px solid #ebebeb;border-radius:12px;padding:24px;box-shadow:0 1px 4px rgba(26,26,46,.06)}
-.card-flat{background:#fff;border:1.5px solid #f3f4f6;border-radius:10px;padding:18px 20px}
-.stat-card{background:#f9fafb;border:1.5px solid #f3f4f6;border-radius:10px;padding:16px 18px;transition:border-color .15s}
-.stat-card:hover{border-color:#c4b5fd}
-.info-row{display:flex;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f9fafb;gap:12px}
-.info-row:last-child{border-bottom:none}
-.result-row{border-bottom:1px solid #f9fafb;padding:14px 0;display:flex;align-items:center;gap:12px}
-.result-row:last-child{border-bottom:none}
-.result-row:hover{background:#fdfcfb;margin:0 -6px;padding-left:6px;padding-right:6px;border-radius:8px}
-/* BADGES */
+.btn-danger{background:var(--white);border:1.5px solid #fecaca;color:#ef4444;border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .14s}
+.btn-danger:hover{background:#fff5f5}
+
+/* ─── CHIPS ─── */
+.chip{display:inline-flex;align-items:center;padding:7px 14px;border:1.5px solid var(--gray-3);border-radius:20px;font-size:13px;font-weight:500;color:var(--gray-5);cursor:pointer;transition:all .12s;background:var(--white);font-family:inherit}
+.chip.active{border-color:var(--purple);color:var(--purple-d);background:var(--purple-l);font-weight:600}
+.chip:hover:not(.active){border-color:var(--purple-m);color:var(--purple-d)}
+
+/* ─── CARDS ─── */
+.card{background:var(--white);border:1.5px solid var(--gray-3);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+.card-flat{background:var(--white);border:1.5px solid #ebebeb;border-radius:10px;padding:14px 16px}
+.card-purple{background:var(--purple-l);border:1.5px solid var(--purple-m);border-radius:var(--radius);padding:20px}
+.card-dark{background:var(--navy);border-radius:var(--radius);padding:22px;color:#fff}
+.stat-card{background:var(--gray-1);border:1.5px solid #ebebeb;border-radius:10px;padding:16px 18px;transition:border-color .15s}
+.stat-card:hover{border-color:var(--purple-m)}
+
+/* ─── BADGES ─── */
 .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;border-width:1px;border-style:solid}
 .tag-hot{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
-.tag-warm{background:#F3F0FF;color:#5a3dd4;border:1px solid #c4b5fd;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
-.tag-new{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
-.tag-blue{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
-/* LINKS */
-.link-btn{color:#9ca3af;font-size:11px;font-weight:600;text-decoration:none;padding:4px 9px;border:1px solid #f3f4f6;border-radius:6px;transition:all .12s;display:inline-block}
-.link-btn:hover{color:#7C5CFC;border-color:#c4b5fd;background:#F3F0FF}
-/* SEARCH */
+.tag-ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
+.tag-warn{background:#fffbeb;color:#854d0e;border:1px solid #fde68a;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
+.tag-purple{background:var(--purple-l);color:var(--purple-d);border:1px solid var(--purple-m);border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
+
+/* ─── LAYOUT ─── */
+.topbar{background:var(--white);border-bottom:1.5px solid var(--gray-3);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:30;box-shadow:0 2px 8px rgba(26,26,46,.05)}
+.tabs{background:var(--white);border-bottom:1.5px solid var(--gray-3);padding:0 20px;display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:60px;z-index:29}
+.tabs::-webkit-scrollbar{height:0}
+.content{max-width:680px;margin:0 auto;padding:28px 18px 80px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+/* ─── TABS NAV ─── */
+.tab-btn{background:transparent;border:none;padding:12px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray-4);transition:all .15s;position:relative;font-family:'DM Sans',sans-serif;white-space:nowrap;border-radius:var(--radius-sm) var(--radius-sm) 0 0;flex-shrink:0}
+.tab-btn::after{content:"";position:absolute;bottom:-1.5px;left:0;right:0;height:2px;background:var(--purple);border-radius:2px;transform:scaleX(0);transition:transform .2s ease}
+.tab-btn.active{color:var(--navy);font-weight:700}
+.tab-btn.active::after{transform:scaleX(1)}
+.tab-btn:hover:not(.active){color:var(--navy);background:var(--gray-1)}
+.tab-btn .notif{position:absolute;top:9px;right:7px;width:6px;height:6px;background:#ef4444;border-radius:50%;border:1.5px solid var(--white)}
+
+/* ─── MISC ─── */
+.dot{width:5px;height:5px;background:var(--purple);border-radius:50%;display:inline-block;margin:0 3px;animation:pulse 1.4s ease infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+.loader-box{text-align:center;padding:44px 0}
+.progress-bar{background:#eee;border-radius:99px;height:4px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--purple),var(--green));transition:width .5s ease}
+.result-row{border-bottom:1px solid var(--gray-2);padding:14px 4px;display:flex;align-items:flex-start;gap:12px;transition:background .12s;border-radius:var(--radius-sm);cursor:default}
+.result-row:last-child{border-bottom:none}
+.result-row:hover{background:var(--gray-1);padding:14px 10px;margin:0 -6px}
+.hist-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--gray-2);cursor:pointer;transition:all .12s}
+.hist-row:last-child{border-bottom:none}
+.hist-row:hover{background:var(--gray-1);padding:12px 8px;margin:0 -8px;border-radius:var(--radius-sm)}
+.info-row{display:flex;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--gray-2);gap:12px}
+.info-row:last-child{border-bottom:none}
+.msg-editable{background:var(--gray-1);border:1.5px solid var(--gray-3);border-radius:10px;padding:16px;font-size:14px;line-height:1.8;color:#374151;white-space:pre-wrap;min-height:120px;outline:none;transition:border-color .15s}
+.msg-editable:focus{border-color:var(--purple);background:var(--white)}
 .search-wrap{position:relative}
 .search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none}
-.search-inp{background:#f9fafb;border:1.5px solid #e5e7eb;color:#1a1a2e;font-size:14px;width:100%;outline:none;padding:10px 14px 10px 38px;border-radius:8px;transition:all .15s;font-family:inherit}
-.search-inp:focus{border-color:#7C5CFC;background:#fff;box-shadow:0 0 0 3px rgba(124,92,252,.1)}
-.search-inp::placeholder{color:#9ca3af}
-/* LOADER */
-.dot{width:4px;height:4px;background:#7C5CFC;border-radius:50%;display:inline-block;margin:0 3px;animation:pulse 1.4s ease infinite}
-.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
-.loader-box{text-align:center;padding:40px 0}
-.progress-bar{background:#f3f4f6;border-radius:99px;height:5px;overflow:hidden;margin-top:8px}
-.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#7C5CFC,#d4b46a);transition:width .5s ease}
-/* SCORE */
-.score-ring{width:52px;height:52px;flex-shrink:0}
-/* MISC */
-.socio-card{background:#f9fafb;border:1px solid #f3f4f6;border-radius:8px;padding:14px 16px;margin-bottom:8px;transition:border-color .15s}
-.socio-card:hover{border-color:#c4b5fd}
-.msg-editable{background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:16px;font-size:14px;line-height:1.8;color:#374151;white-space:pre-wrap;min-height:120px;outline:none;transition:border-color .15s}
-.msg-editable:focus{border-color:#7C5CFC;background:#fff}
-.hist-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f9fafb;cursor:pointer;transition:all .12s}
-.hist-row:last-child{border-bottom:none}
-.hist-row:hover{background:#fdfcfb;margin:0 -6px;padding-left:6px;padding-right:6px;border-radius:8px}
-.portal-link{background:#fff;border:1.5px solid #f3f4f6;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;text-decoration:none;transition:all .15s}
-.portal-link:hover{border-color:#c4b5fd;background:#fdfaf4}
-/* LAYOUT */
-.topbar{background:#fff;border-bottom:2px solid #f0ede5;padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:20;box-shadow:0 2px 12px rgba(26,26,46,.06)}
-.tabs{background:#fff;border-bottom:2px solid #f0ede5;padding:0 24px;display:flex;gap:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:64px;z-index:19}
-.tabs::-webkit-scrollbar{height:0}.tabs::after{content:"";position:absolute;right:0;top:0;height:100%;width:32px;background:linear-gradient(to right,transparent,#fff);pointer-events:none}
-.content{max-width:720px;margin:0 auto;padding:32px 20px 80px}
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
-.grid-portal{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-/* TOAST */
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:12px 22px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;z-index:200;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2)}
-#toast.show{opacity:1}
-/* SCORE CARD */
-.score-card{border-radius:10px;padding:16px 18px;display:flex;align-items:center;gap:14px}
-.score-90{background:#f0fdf4;border:1.5px solid #bbf7d0}
-.score-70{background:#F3F0FF;border:1.5px solid #c4b5fd}
-.score-50{background:#fff7ed;border:1.5px solid #fed7aa}
-.score-30{background:#f9fafb;border:1.5px solid #e5e7eb}
-/* EMPTY */
-.empty-state{text-align:center;padding:48px 20px}
-.empty-state p:first-child{font-size:14px;font-weight:600;color:#6b7280;margin-bottom:6px}
-.empty-state p:last-child{font-size:13px;color:#d1d5db}
-/* TIP BOX */
-.tip-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;display:flex;gap:8px;align-items:flex-start}
-.tip-gold{background:#F3F0FF;border:1px solid #c4b5fd}
-.tip-green{background:#f0fdf4;border:1px solid #bbf7d0}
-.tip-red{background:#fef2f2;border:1px solid #fecaca}
-/* RESPONSIVE */
+.search-inp{background:var(--gray-1);border:1.5px solid var(--gray-3);color:var(--navy);font-size:14px;width:100%;outline:none;padding:10px 14px 10px 38px;border-radius:var(--radius-sm);transition:all .15s;font-family:inherit}
+.search-inp:focus{border-color:var(--purple);background:var(--white);box-shadow:0 0 0 3px rgba(124,92,252,.1)}
+.search-inp::placeholder{color:var(--gray-4)}
+.portal-link{background:var(--white);border:1.5px solid #ebebeb;border-radius:10px;padding:13px 16px;display:flex;align-items:center;gap:12px;text-decoration:none;transition:all .14s}
+.portal-link:hover{border-color:var(--purple-m);background:var(--purple-l)}
+.socio-card{background:var(--gray-1);border:1px solid #ebebeb;border-radius:10px;padding:14px 16px;margin-bottom:8px;transition:border-color .15s}
+.socio-card:hover{border-color:var(--purple-m)}
+.field-ok{font-size:11px;color:var(--purple);margin-top:4px;font-weight:600}
+.field-hint{font-size:11px;color:var(--gray-4);margin-top:4px}
+.field-err{font-size:11px;color:#ef4444;margin-top:4px;font-weight:600}
+
+/* ─── QUICK ACTIONS HOME ─── */
+.qa-card{background:var(--white);border:1.5px solid var(--gray-3);border-radius:var(--radius);padding:18px 20px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:14px;text-decoration:none}
+.qa-card:hover{border-color:var(--purple);transform:translateY(-2px);box-shadow:0 6px 20px rgba(124,92,252,.12)}
+.qa-card.active{border-color:var(--purple);background:var(--purple-l)}
+.ai-badge{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,var(--purple),#a78bfa);color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700}
+
+/* ─── TOAST ─── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--navy);color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;z-index:200;white-space:nowrap;box-shadow:var(--shadow-md)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ─── SECTION HEADER ─── */
+.sec-eyebrow{font-size:11px;font-weight:700;color:var(--purple);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
+.sec-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--navy);line-height:1.2;letter-spacing:-.02em}
+.sec-sub{font-size:13px;color:var(--gray-5);margin-top:6px;line-height:1.5}
+
+/* ─── DIVIDER ─── */
+.divider{height:1px;background:var(--gray-2);margin:18px 0}
+
+/* ─── SCORE RING ─── */
+.score-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700}
+
+/* ─── RESPONSIVE ─── */
 @media(max-width:600px){
-  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
-  .grid-portal{grid-template-columns:1fr}
-  .topbar{padding:0 16px}
-  .content{padding:24px 14px 72px}
-  .card{padding:18px}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .topbar{padding:0 14px}
+  .content{padding:20px 14px 72px}
+  .card{padding:16px}
+  .sec-title{font-size:20px}
 }
 </style>
 </head>
@@ -138,232 +166,326 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6
 
 <!-- ═══ TOPBAR ═══ -->
 <div class="topbar">
-  <div style="display:flex;align-items:center;gap:14px">
-    <!-- Flying Studio Logo -->
-    <div style="display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="44" height="44" rx="10" fill="#7C5CFC"/>
-        <!-- White square body -->
-        <rect x="9" y="14" width="19" height="19" rx="2.5" fill="white"/>
-        <!-- Diagonal slash through square -->
-        <line x1="9" y1="32" x2="27" y2="14" stroke="#7C5CFC" stroke-width="4" stroke-linecap="round"/>
-        <!-- Green dot accent -->
-        <circle cx="31" cy="13" r="6" fill="#A8E63D"/>
-      </svg>
-    </div>
-    <div style="display:flex;flex-direction:column;line-height:1.2">
-      <span style="font-size:16px;font-weight:800;color:#1a1a2e;letter-spacing:-.02em;line-height:1">Flying Studio</span>
-      <span style="font-size:11px;font-weight:600;color:#7C5CFC;letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Prospector</span>
+  <div style="display:flex;align-items:center;gap:12px">
+    <svg width="40" height="40" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="cursor:pointer" onclick="switchTab('home')">
+      <rect width="44" height="44" rx="10" fill="#7C5CFC"/>
+      <rect x="9" y="14" width="19" height="19" rx="2.5" fill="white"/>
+      <line x1="9" y1="32" x2="27" y2="14" stroke="#7C5CFC" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="31" cy="13" r="6" fill="#A8E63D"/>
+    </svg>
+    <div style="line-height:1.1">
+      <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--navy);letter-spacing:-.01em">Flying Studio</div>
+      <div style="font-size:10px;font-weight:700;color:var(--purple);letter-spacing:.08em;text-transform:uppercase">Prospector</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <span id="hist-count-top" style="font-size:12px;color:#9ca3af;font-weight:500"></span>
-    <button onclick="switchTab('contatos')" style="background:#F3F0FF;border:none;color:#7C5CFC;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7C5CFC" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span id="hist-count-top" style="font-size:12px;color:var(--gray-4);font-weight:500"></span>
+    <button onclick="switchTab('home')" class="btn-sm" style="display:flex;align-items:center;gap:5px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
       Início
     </button>
-    <div style="display:flex;align-items:center;gap:6px;background:#f5f5f0;border:1px solid #e8e8e0;padding:5px 10px;border-radius:8px">
-      <div style="width:6px;height:6px;border-radius:50%;background:#A8E63D"></div>
-      <span style="font-size:11px;color:#6b7280;font-weight:600">Hunter · BrasilAPI</span>
-    </div>
   </div>
 </div>
-
 
 <!-- ═══ TABS ═══ -->
 <div class="tabs" id="main-tabs">
-  <button class="tab-btn active" id="tab-contatos"        onclick="switchTab('contatos')">📧 Contatos</button>
-  <button class="tab-btn"        id="tab-cnpj"            onclick="switchTab('cnpj')">🏢 CNPJ</button>
-  <button class="tab-btn"        id="tab-mensagem"        onclick="switchTab('mensagem')">💬 Mensagem</button>
-  <button class="tab-btn"        id="tab-empreendimentos" onclick="switchTab('empreendimentos')">🏗️ Empreendimentos</button>
-  <button class="tab-btn"        id="tab-historico"       onclick="switchTab('historico')">🕑 Histórico<span id="hist-notif" style="display:none" class="notif"></span></button>
+  <button class="tab-btn" id="tab-home"            onclick="switchTab('home')">🏠 Home</button>
+  <button class="tab-btn active" id="tab-contatos" onclick="switchTab('contatos')">📧 Contatos</button>
+  <button class="tab-btn" id="tab-cnpj"            onclick="switchTab('cnpj')">🏢 CNPJ</button>
+  <button class="tab-btn" id="tab-mensagem"        onclick="switchTab('mensagem')">💬 Mensagem</button>
+  <button class="tab-btn" id="tab-empreendimentos" onclick="switchTab('empreendimentos')">🏗️ Empreendimentos</button>
+  <button class="tab-btn" id="tab-historico"       onclick="switchTab('historico')">🕑 Pipeline<span id="hist-notif" style="display:none" class="notif"></span></button>
 </div>
 
 <div class="content">
-  <div style="margin-bottom:22px">
-    <p id="hl-sub" style="font-size:11px;font-weight:700;color:#7C5CFC;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">Prospecção inteligente</p>
-    <h1 id="hl-main" style="font-size:24px;font-weight:800;color:#1a1a2e;line-height:1.25;letter-spacing:-.02em">Encontre decisores. Feche mais projetos.</h1>
+
+<!-- ═══════════════════════════════════════ HOME ═══════════════════════════════════════ -->
+<div id="page-home" style="display:none">
+  <div style="margin-bottom:24px">
+    <p class="sec-eyebrow">Bom dia, time Flying Studio 👋</p>
+    <h1 class="sec-title">O que vamos fazer hoje?</h1>
   </div>
 
-  <!-- ═══════════ CONTATOS ═══════════ -->
-  <div id="page-contatos">
-    <div class="card" style="margin-bottom:14px">
-      <div style="display:flex;gap:20px;border-bottom:1px solid #f3f4f6;margin-bottom:20px;overflow-x:auto">
-        <button class="tab-btn active" id="mode-domain" onclick="switchMode('domain')" style="padding:8px 4px 12px">
-          <div>Todos os contatos</div><div style="font-size:11px;color:#9ca3af;font-weight:400;margin-top:2px">Mapeia emails do domínio</div>
-        </button>
-        <button class="tab-btn" id="mode-role" onclick="switchMode('role')" style="padding:8px 4px 12px">
-          <div>Filtrar por cargo</div><div style="font-size:11px;color:#9ca3af;font-weight:400;margin-top:2px">CEO, Marketing, Diretor...</div>
-        </button>
+  <!-- Quick actions -->
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px">
+    <div class="qa-card" onclick="switchTab('contatos')">
+      <div style="width:44px;height:44px;background:var(--purple-l);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📧</div>
+      <div style="flex:1">
+        <p style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:2px">Mapear contatos</p>
+        <p style="font-size:13px;color:var(--gray-5)">Digite o domínio e encontre decisores da empresa</p>
       </div>
-      <div class="grid-2" style="margin-bottom:14px">
-        <div>
-          <label>Empresa</label>
-          <input id="inp-company" type="text" placeholder="Ex: EZTec" onkeydown="if(event.key==='Enter')doSearch()"/>
-        </div>
-        <div>
-          <label>Domínio do site</label>
-          <input id="inp-domain" type="text" placeholder="eztec.com.br" oninput="onDomainInput('inp-domain','domain-hint')" onkeydown="if(event.key==='Enter')doSearch()"/>
-          <p id="domain-hint" class="field-ok" style="display:none"></p>
-        </div>
-      </div>
-      <div id="role-filters" style="display:none;border-top:1px solid #f3f4f6;padding-top:18px;margin-bottom:16px">
-        <div style="margin-bottom:14px">
-          <label style="margin-bottom:8px">Área / Departamento</label>
-          <div id="dept-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-        </div>
-        <div>
-          <label style="margin-bottom:8px">Nível hierárquico</label>
-          <div id="sen-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-        </div>
-      </div>
-      <button class="btn btn-dark" id="btn-search" onclick="doSearch()">Mapear todos os contatos</button>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
     </div>
-    <div id="search-error" style="display:none" class="card" style="border-color:#fecaca;background:#fff7ed"></div>
-    <div id="search-loader" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <p id="prog-step" style="font-size:13px;font-weight:600;color:#374151">Conectando...</p>
-        <p id="prog-pct" style="font-size:18px;font-weight:800;color:#7C5CFC">0%</p>
+    <div class="qa-card" onclick="switchTab('cnpj')">
+      <div style="width:44px;height:44px;background:#f0fdf4;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏢</div>
+      <div style="flex:1">
+        <p style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:2px">Pesquisar por CNPJ</p>
+        <p style="font-size:13px;color:var(--gray-5)">Veja sócios, telefone e email da Receita Federal</p>
       </div>
-      <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
-      <p style="font-size:12px;color:#9ca3af;margin-top:8px">Consultando Hunter.io diretamente...</p>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
     </div>
-    <div id="search-results" style="display:none"></div>
+    <div class="qa-card" onclick="switchTab('mensagem')">
+      <div style="width:44px;height:44px;background:#fff7ed;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">💬</div>
+      <div style="flex:1">
+        <p style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:2px">Gerar mensagem</p>
+        <p style="font-size:13px;color:var(--gray-5)">WhatsApp e email personalizados padrão Flying Studio</p>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </div>
+    <div class="qa-card" onclick="switchTab('empreendimentos')">
+      <div style="width:44px;height:44px;background:#eff6ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏗️</div>
+      <div style="flex:1">
+        <p style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:2px">Ver empreendimentos</p>
+        <p style="font-size:13px;color:var(--gray-5)">Conheça a carteira e os lançamentos ativos</p>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </div>
   </div>
 
-  <!-- ═══════════ CNPJ ═══════════ -->
-  <div id="page-cnpj" style="display:none">
-    <div class="card" style="margin-bottom:14px">
-      <div class="grid-2" style="margin-bottom:14px">
-        <div>
-          <label>CNPJ da empresa</label>
-          <input id="inp-cnpj" type="text" placeholder="00.000.000/0001-00" oninput="maskCnpj(this)" maxlength="18" onkeydown="if(event.key==='Enter')buscarCnpj()"/>
-          <p id="cnpj-hint" class="field-hint">14 dígitos · Receita Federal via BrasilAPI</p>
-        </div>
-        <div style="display:flex;flex-direction:column;justify-content:flex-end">
-          <button class="btn btn-dark" id="btn-cnpj" onclick="buscarCnpj()">🔍 Buscar empresa</button>
-        </div>
-      </div>
-      <div class="tip-box">
-        <span style="font-size:14px;flex-shrink:0">ℹ️</span>
-        <p style="font-size:12px;color:#1e40af;font-weight:500;line-height:1.5">Dados oficiais da Receita Federal: razão social, sócios, endereço, telefone, CNAE. <strong>Grátis e ilimitado.</strong></p>
-      </div>
+  <!-- Busca rápida AI -->
+  <div class="card" style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span class="ai-badge">✦ IA</span>
+      <p style="font-size:14px;font-weight:700;color:var(--navy)">Análise rápida de empresa</p>
     </div>
-    <div id="cnpj-loader" class="loader-box" style="display:none">
-      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-      <p style="font-size:13px;color:#9ca3af;margin-top:12px;font-weight:500">Consultando Receita Federal...</p>
+    <p style="font-size:13px;color:var(--gray-5);margin-bottom:12px">Cole o domínio ou nome da empresa e a IA gera um resumo de prospecção em segundos.</p>
+    <div style="display:flex;gap:8px">
+      <input id="quick-empresa" type="text" placeholder="Ex: cyrela.com.br ou Cyrela" style="flex:1" onkeydown="if(event.key==='Enter')analisarRapido()"/>
+      <button class="btn btn-primary" style="width:auto;padding:11px 18px;white-space:nowrap" onclick="analisarRapido()">Analisar</button>
     </div>
-    <div id="cnpj-error" style="display:none"></div>
-    <div id="cnpj-results" style="display:none"></div>
+    <div id="quick-result" style="display:none;margin-top:14px"></div>
   </div>
 
-  <!-- ═══════════ RADAR ═══════════ -->
-  <div id="page-mensagem" style="display:none">
-    <div class="card" style="margin-bottom:14px">
-      <p style="font-size:13px;font-weight:700;color:#374151;margin-bottom:16px;display:flex;align-items:center;gap:8px">
-        <span style="background:#F3F0FF;border:1px solid #c4b5fd;border-radius:6px;padding:3px 8px;font-size:12px;color:#5a3dd4">Padrão Flying Studio</span>
-        Dados do lead
-      </p>
-      <div class="grid-2" style="margin-bottom:12px">
-        <div>
-          <label>Nome do contato</label>
-          <input id="msg-nome" type="text" placeholder="Ex: João Silva"/>
-        </div>
-        <div>
-          <label>Cargo</label>
-          <select id="msg-cargo">
-            <option>Diretor de Marketing</option>
-            <option>Gerente de Marketing</option>
-            <option>CEO / Presidente</option>
-            <option>Diretor Comercial</option>
-            <option>CMO</option>
-            <option>Gerente Comercial</option>
-            <option>Gerente de Produto</option>
-            <option>Sócio / Fundador</option>
-            <option>Coordenador de Marketing</option>
-          </select>
-        </div>
-      </div>
-      <div class="grid-2" style="margin-bottom:12px">
-        <div>
-          <label>Empresa</label>
-          <input id="msg-empresa" type="text" placeholder="Ex: Gama Pro"/>
-        </div>
-        <div>
-          <label>Segmento</label>
-          <select id="msg-segmento">
-            <option value="alto padrão">Alto padrão</option>
-            <option value="médio padrão">Médio padrão</option>
-            <option value="econômico / MCMV">Econômico / MCMV</option>
-            <option value="comercial / lajes">Comercial / Lajes</option>
-            <option value="loteamentos">Loteamentos</option>
-          </select>
-        </div>
-      </div>
-      <div class="grid-2" style="margin-bottom:16px">
-        <div>
-          <label>Empreendimento em lançamento <span style="font-weight:400;color:#9ca3af">(opcional)</span></label>
-          <input id="msg-lancamento" type="text" placeholder="Ex: Residencial Vista Verde"/>
-        </div>
-        <div>
-          <label>Cidade</label>
-          <input id="msg-cidade" type="text" placeholder="Ex: São Paulo - SP"/>
-        </div>
-      </div>
-      <div style="margin-bottom:16px">
-        <label style="margin-bottom:8px">Contexto do contato</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap" id="ctx-chips">
-          <button class="chip active" id="ctx-frio"     onclick="selectCtx('frio')">Primeiro contato</button>
-          <button class="chip"        id="ctx-proposta" onclick="selectCtx('proposta')">Proposta já enviada</button>
-          <button class="chip"        id="ctx-followup" onclick="selectCtx('followup')">Follow up</button>
-          <button class="chip"        id="ctx-recusada" onclick="selectCtx('recusada')">Proposta recusada</button>
-          <button class="chip"        id="ctx-antiga"   onclick="selectCtx('antiga')">Proposta antiga</button>
-        </div>
-      </div>
-      <button class="btn btn-dark" onclick="gerarMensagem()">✨ Gerar mensagens personalizadas</button>
-    </div>
-    <div id="msg-results" style="display:none"></div>
+  <!-- Pipeline resumido -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <p style="font-size:13px;font-weight:700;color:var(--navy)">Prospectados recentemente</p>
+    <button class="btn-sm" onclick="switchTab('historico')">Ver tudo</button>
   </div>
+  <div id="home-hist" class="card" style="padding:4px 16px"></div>
+</div>
 
-  <!-- ═══════════ EMPREENDIMENTOS ═══════════ -->
-  <div id="page-empreendimentos" style="display:none">
-    <div class="card" style="margin-bottom:14px">
-      <div class="grid-2" style="margin-bottom:14px">
-        <div>
-          <label>Empresa / Incorporadora</label>
-          <input id="emp-company" type="text" placeholder="Ex: EZTec" onkeydown="if(event.key==='Enter')buscarEmp()"/>
-        </div>
-        <div>
-          <label>Domínio <span style="font-weight:400;color:#9ca3af">(opcional)</span></label>
-          <input id="emp-domain" type="text" placeholder="eztec.com.br" oninput="onDomainInput('emp-domain','emp-domain-hint')" onkeydown="if(event.key==='Enter')buscarEmp()"/>
-          <p id="emp-domain-hint" class="field-ok" style="display:none"></p>
-        </div>
-      </div>
-      <button class="btn btn-gold" onclick="buscarEmp()">🔍 Pesquisar empreendimentos</button>
-    </div>
-    <div id="emp-error" style="display:none"></div>
-    <div id="emp-results" style="display:none"></div>
+<!-- ═══════════════════════════════════════ CONTATOS ═══════════════════════════════════════ -->
+<div id="page-contatos">
+  <div style="margin-bottom:20px">
+    <p class="sec-eyebrow">Hunter.io</p>
+    <h1 class="sec-title">Encontre os decisores</h1>
+    <p class="sec-sub">Digite o domínio da empresa e mapeamos todos os emails.</p>
   </div>
-
-  <!-- ═══════════ HISTÓRICO ═══════════ -->
-  <div id="page-historico" style="display:none">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px">
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;gap:16px;border-bottom:1px solid var(--gray-2);margin-bottom:18px">
+      <button class="tab-btn active" id="mode-domain" onclick="switchMode('domain')" style="padding:8px 4px 12px;font-size:13px">
+        Todos os emails
+      </button>
+      <button class="tab-btn" id="mode-role" onclick="switchMode('role')" style="padding:8px 4px 12px;font-size:13px">
+        Filtrar por cargo
+      </button>
+    </div>
+    <div class="grid-2" style="margin-bottom:12px">
       <div>
-        <p id="hist-total" style="font-size:14px;font-weight:700;color:#1a1a2e">Histórico de pesquisas</p>
-        <p id="hist-sub" style="font-size:12px;color:#9ca3af;margin-top:2px"></p>
+        <label>Empresa</label>
+        <input id="inp-company" type="text" placeholder="Ex: EZTec" onkeydown="if(event.key==='Enter')doSearch()"/>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-sm" onclick="exportHistorico()">↓ Exportar</button>
-        <button class="btn-red" onclick="limparHistorico()">🗑 Limpar</button>
+      <div>
+        <label>Domínio</label>
+        <input id="inp-domain" type="text" placeholder="eztec.com.br" oninput="onDomainInput('inp-domain','domain-hint')" onkeydown="if(event.key==='Enter')doSearch()"/>
+        <p id="domain-hint" class="field-ok" style="display:none"></p>
       </div>
     </div>
-    <!-- search historico -->
-    <div class="search-wrap" style="margin-bottom:14px">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input class="search-inp" placeholder="Buscar no histórico..." oninput="filterHistorico(this.value)"/>
+    <div id="role-filters" style="display:none;border-top:1px solid var(--gray-2);padding-top:16px;margin-bottom:14px">
+      <div style="margin-bottom:12px">
+        <label style="margin-bottom:8px">Área</label>
+        <div id="dept-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+      <div>
+        <label style="margin-bottom:8px">Nível</label>
+        <div id="sen-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
     </div>
-    <div id="hist-list"></div>
+    <button class="btn btn-primary" id="btn-search" onclick="doSearch()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Mapear contatos
+    </button>
   </div>
+  <div id="search-error" style="display:none"></div>
+  <div id="search-loader" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <p id="prog-step" style="font-size:13px;font-weight:600;color:var(--gray-5)">Conectando...</p>
+      <p id="prog-pct" style="font-size:18px;font-weight:800;color:var(--purple)">0%</p>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+    <p style="font-size:12px;color:var(--gray-4);margin-top:8px">Consultando Hunter.io...</p>
+  </div>
+  <div id="search-results" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════ CNPJ ═══════════════════════════════════════ -->
+<div id="page-cnpj" style="display:none">
+  <div style="margin-bottom:20px">
+    <p class="sec-eyebrow">Receita Federal · BrasilAPI</p>
+    <h1 class="sec-title">Dados oficiais da empresa</h1>
+    <p class="sec-sub">Sócios, endereço, telefone — grátis e ilimitado.</p>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="grid-2" style="margin-bottom:0">
+      <div>
+        <label>CNPJ</label>
+        <input id="inp-cnpj" type="text" placeholder="00.000.000/0001-00" oninput="maskCnpj(this)" maxlength="18" onkeydown="if(event.key==='Enter')buscarCnpj()"/>
+        <p id="cnpj-hint" class="field-hint">14 dígitos</p>
+      </div>
+      <div style="display:flex;flex-direction:column;justify-content:flex-end">
+        <button class="btn btn-dark" id="btn-cnpj" onclick="buscarCnpj()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Buscar empresa
+        </button>
+      </div>
+    </div>
+  </div>
+  <div id="cnpj-loader" class="loader-box" style="display:none">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <p style="font-size:13px;color:var(--gray-4);margin-top:12px;font-weight:500">Consultando Receita Federal...</p>
+  </div>
+  <div id="cnpj-error" style="display:none"></div>
+  <div id="cnpj-results" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════ MENSAGEM ═══════════════════════════════════════ -->
+<div id="page-mensagem" style="display:none">
+  <div style="margin-bottom:20px">
+    <p class="sec-eyebrow">Padrão Flying Studio</p>
+    <h1 class="sec-title">Mensagem certa, na hora certa</h1>
+    <p class="sec-sub">Preencha os dados do lead e gere WhatsApp + email em segundos.</p>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <!-- Step 1: Contato -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="width:26px;height:26px;background:var(--purple);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">1</div>
+      <p style="font-size:13px;font-weight:700;color:var(--navy)">Quem é o decisor?</p>
+    </div>
+    <div class="grid-2" style="margin-bottom:14px">
+      <div>
+        <label>Nome</label>
+        <input id="msg-nome" type="text" placeholder="Ex: João Silva"/>
+      </div>
+      <div>
+        <label>Cargo</label>
+        <select id="msg-cargo">
+          <option>Diretor de Marketing</option>
+          <option>Gerente de Marketing</option>
+          <option>CEO / Presidente</option>
+          <option>Diretor Comercial</option>
+          <option>CMO</option>
+          <option>Gerente Comercial</option>
+          <option>Gerente de Produto</option>
+          <option>Sócio / Fundador</option>
+          <option>Coordenador de Marketing</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Step 2: Empresa -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="width:26px;height:26px;background:var(--purple);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">2</div>
+      <p style="font-size:13px;font-weight:700;color:var(--navy)">Qual é a empresa?</p>
+    </div>
+    <div class="grid-2" style="margin-bottom:14px">
+      <div>
+        <label>Empresa</label>
+        <input id="msg-empresa" type="text" placeholder="Ex: Gama Pro"/>
+      </div>
+      <div>
+        <label>Segmento</label>
+        <select id="msg-segmento">
+          <option value="alto padrão">Alto padrão</option>
+          <option value="médio padrão">Médio padrão</option>
+          <option value="econômico / MCMV">Econômico / MCMV</option>
+          <option value="comercial / lajes">Comercial / Lajes</option>
+          <option value="loteamentos">Loteamentos</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-bottom:16px">
+      <div>
+        <label>Empreendimento <span style="font-weight:400;color:var(--gray-4);text-transform:none;letter-spacing:0">(opcional)</span></label>
+        <input id="msg-lancamento" type="text" placeholder="Ex: Residencial Vista Verde"/>
+      </div>
+      <div>
+        <label>Cidade</label>
+        <input id="msg-cidade" type="text" placeholder="Ex: São Paulo - SP"/>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Step 3: Contexto -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="width:26px;height:26px;background:var(--purple);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">3</div>
+      <p style="font-size:13px;font-weight:700;color:var(--navy)">Qual é o momento do lead?</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+      <button class="chip active" id="ctx-frio"     onclick="selectCtx('frio')">🧊 Primeiro contato</button>
+      <button class="chip"        id="ctx-proposta" onclick="selectCtx('proposta')">📄 Proposta enviada</button>
+      <button class="chip"        id="ctx-followup" onclick="selectCtx('followup')">🔄 Follow up</button>
+      <button class="chip"        id="ctx-recusada" onclick="selectCtx('recusada')">❌ Proposta recusada</button>
+      <button class="chip"        id="ctx-antiga"   onclick="selectCtx('antiga')">📅 Proposta antiga</button>
+    </div>
+
+    <button class="btn btn-primary" onclick="gerarMensagem()" style="font-size:15px;padding:14px">
+      ✨ Gerar mensagens
+    </button>
+  </div>
+  <div id="msg-results" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════ EMPREENDIMENTOS ═══════════════════════════════════════ -->
+<div id="page-empreendimentos" style="display:none">
+  <div style="margin-bottom:20px">
+    <p class="sec-eyebrow">Inteligência de mercado</p>
+    <h1 class="sec-title">Conheça a carteira</h1>
+    <p class="sec-sub">Informe o site e extraímos os lançamentos automaticamente.</p>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="grid-2" style="margin-bottom:12px">
+      <div>
+        <label>Empresa</label>
+        <input id="emp-company" type="text" placeholder="Ex: EZTec" onkeydown="if(event.key==='Enter')buscarEmp()"/>
+      </div>
+      <div>
+        <label>Domínio <span style="font-weight:400;color:var(--gray-4);text-transform:none;letter-spacing:0">(recomendado)</span></label>
+        <input id="emp-domain" type="text" placeholder="eztec.com.br" oninput="onDomainInput('emp-domain','emp-domain-hint')" onkeydown="if(event.key==='Enter')buscarEmp()"/>
+        <p id="emp-domain-hint" class="field-ok" style="display:none"></p>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="buscarEmp()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Pesquisar empreendimentos
+    </button>
+  </div>
+  <div id="emp-error" style="display:none"></div>
+  <div id="emp-results" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════ PIPELINE ═══════════════════════════════════════ -->
+<div id="page-historico" style="display:none">
+  <div style="margin-bottom:20px">
+    <p class="sec-eyebrow">Pipeline comercial</p>
+    <h1 class="sec-title">Empresas prospectadas</h1>
+    <p class="sec-sub">Histórico salvo localmente — nunca prospecte a mesma empresa duas vezes.</p>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">
+    <p id="hist-total" style="font-size:14px;font-weight:700;color:var(--navy)"></p>
+    <div style="display:flex;gap:8px">
+      <button class="btn-sm" onclick="exportHistorico()">↓ Exportar</button>
+      <button class="btn-danger" onclick="limparHistorico()">🗑 Limpar</button>
+    </div>
+  </div>
+  <div class="search-wrap" style="margin-bottom:14px">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input class="search-inp" placeholder="Buscar empresa..." oninput="filterHistorico(this.value)"/>
+  </div>
+  <div id="hist-list"></div>
+</div>
 
 </div><!-- end .content -->
 
@@ -568,8 +690,9 @@ function showError(elId,msg){
 // ═══════════════════════════════════════
 // TAB / MODE SWITCHES
 // ═══════════════════════════════════════
-var TABS=["contatos","cnpj","mensagem","empreendimentos","historico"];
+var TABS=["home","contatos","cnpj","mensagem","empreendimentos","historico"];
 var HEADLINES={
+  home:["Início","O que vamos fazer hoje?"],
   contatos:       ["Prospecção inteligente","Encontre decisores. Feche mais projetos."],
   cnpj:           ["Receita Federal","Busque qualquer CNPJ e veja sócios."],
   mensagem:       ["Apoio à abordagem","Mensagem certa. Decisor certo."],
@@ -578,16 +701,15 @@ var HEADLINES={
 };
 function switchTab(tab){
   TABS.forEach(function(t){
-    document.getElementById("page-"+t).style.display=t===tab?"block":"none";
-    document.getElementById("tab-"+t).classList.toggle("active",t===tab);
+    var el=document.getElementById("page-"+t);
+    if(el) el.style.display=t===tab?"block":"none";
+    var tb=document.getElementById("tab-"+t);
+    if(tb) tb.classList.toggle("active",t===tab);
   });
-  document.getElementById("hl-sub").textContent=HEADLINES[tab][0];
-  document.getElementById("hl-main").textContent=HEADLINES[tab][1];
   if(tab==="historico") renderHistorico();
-  // Scroll to top of content
+  if(tab==="home") renderHome();
   window.scrollTo({top:0,behavior:"smooth"});
-  // Scroll active tab into view
-  var activeTab = document.getElementById("tab-"+tab);
+  var activeTab=document.getElementById("tab-"+tab);
   if(activeTab) activeTab.scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"});
 }
 function switchMode(m){
@@ -654,7 +776,7 @@ function addHistory(item){
 function updateHistCount(){
   var n=getHistory().length;
   var el=document.getElementById("hist-count-top");
-  if(el) el.textContent=n>0?n+" empresa"+(n!==1?"s":"")+" salva"+(n!==1?"s":""):"";
+  if(el) el.textContent=n>0?n+" salva"+(n!==1?"s":""):"";
   var notif=document.getElementById("hist-notif");
   if(notif) notif.style.display=n>0?"block":"none";
 }
@@ -1488,6 +1610,81 @@ function usarEmpresaMensagem(nomeEnc,lancEnc){
   toast("✅ Empreendimento preenchido na aba Mensagem!",3000);
 }
 
+
+// ═══════════════════════════════════
+// HOME + ANÁLISE RÁPIDA IA
+// ═══════════════════════════════════
+function renderHome(){
+  var list=getHistory().slice(0,4);
+  var el=document.getElementById("home-hist");
+  if(!el) return;
+  if(!list.length){
+    el.innerHTML='<div style="text-align:center;padding:28px;color:var(--gray-4)"><p style="font-size:14px;font-weight:600">Nenhuma prospecção ainda</p><p style="font-size:12px;margin-top:4px">As empresas pesquisadas aparecem aqui</p></div>';
+    return;
+  }
+  var typeIcons={cnpj:"🏢",contatos:"📧",empreendimentos:"🏗️"};
+  el.innerHTML=list.map(function(h){
+    var icon=typeIcons[h.type]||"🔍";
+    var ageMs=Date.now()-h.ts, ageDays=Math.floor(ageMs/86400000);
+    var ageStr=ageDays===0?"Hoje":ageDays===1?"Ontem":ageDays+"d";
+    return '<div class="hist-row row-in" data-h="'+encodeURIComponent(JSON.stringify(h))+'" onclick="reabrirPesquisa(this.dataset.h)" title="Reabrir">'+
+      '<div style="width:36px;height:36px;border-radius:9px;background:var(--gray-1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+icon+'</div>'+
+      '<div style="flex:1;min-width:0"><p style="font-size:14px;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+h.label+'</p>'+
+      '<p style="font-size:12px;color:var(--gray-4)">'+h.sublabel+'</p></div>'+
+      '<span style="font-size:11px;color:var(--gray-4);flex-shrink:0">'+ageStr+'</span>'+
+    '</div>';
+  }).join('');
+  var hora=new Date().getHours();
+  var saud=hora<12?"Bom dia":hora<18?"Boa tarde":"Boa noite";
+  var eyebrow=document.querySelector("#page-home .sec-eyebrow");
+  if(eyebrow) eyebrow.textContent=saud+", time Flying Studio 👋";
+}
+
+function analisarRapido(){
+  var val=document.getElementById("quick-empresa").value.trim();
+  if(!val){toast("⚠️ Digite o nome ou domínio");return;}
+  var el=document.getElementById("quick-result");
+  el.style.display="block";
+  el.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:14px 0"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;color:var(--gray-4);font-weight:500">IA analisando "'+val+'"...</p></div>';
+  var domain=cleanDomain(val);
+  var nome=val.includes(".")?domain.split(".")[0]:val;
+  var prompt='Análise rápida de prospecção de "'+val+'" para a Flying Studio (visualização 3D imobiliária em SP). Seja direto. Responda em 4 tópicos curtos: 1) Segmento e porte, 2) Lançamentos conhecidos, 3) Oportunidade (Alta/Média/Baixa) e motivo, 4) Abordagem recomendada. Máximo 3 linhas por tópico.';
+  callClaude({model:"claude-sonnet-4-20250514",max_tokens:600,messages:[{role:"user",content:prompt}]})
+  .then(function(text){
+    el.innerHTML='<div class="card-purple pop">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'+
+        '<span class="ai-badge">✦ IA</span>'+
+        '<p style="font-size:13px;font-weight:700;color:var(--navy)">'+val+'</p>'+
+      '</div>'+
+      '<p style="font-size:13px;color:var(--navy);line-height:1.75;white-space:pre-wrap">'+text.trim()+'</p>'+
+      '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'+
+        '<button class="btn-sm" data-nome="'+encodeURIComponent(val)+'" data-domain="'+encodeURIComponent(domain)+'" onclick="prefillContatos(this.dataset.nome,this.dataset.domain)">📧 Buscar contatos</button>'+
+        '<button class="btn-sm" data-nome="'+encodeURIComponent(nome)+'" onclick="prefillMensagem(this.dataset.nome)">💬 Gerar mensagem</button>'+
+        '<button class="btn-sm" data-nome="'+encodeURIComponent(val)+'" data-domain="'+encodeURIComponent(domain)+'" onclick="prefillEmpreendimentos(this.dataset.nome,this.dataset.domain)">🏗️ Empreendimentos</button>'+
+      '</div>'+
+    '</div>';
+  })
+  .catch(function(){
+    el.innerHTML='<div class="card-flat" style="background:var(--gray-1)"><p style="font-size:13px;color:var(--gray-5)">IA indisponível. Use as abas para prospectar.</p><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn-sm" data-nome="'+encodeURIComponent(val)+'" data-domain="'+encodeURIComponent(domain)+'" onclick="prefillContatos(this.dataset.nome,this.dataset.domain)">📧 Contatos</button><button class="btn-sm" data-nome="'+encodeURIComponent(nome)+'" onclick="prefillMensagem(this.dataset.nome)">💬 Mensagem</button></div></div>';
+  });
+}
+
+function prefillContatos(nomeEnc,domainEnc){
+  document.getElementById("inp-company").value=decodeURIComponent(nomeEnc);
+  document.getElementById("inp-domain").value=decodeURIComponent(domainEnc);
+  onDomainInput("inp-domain","domain-hint");
+  switchTab("contatos");
+}
+function prefillMensagem(nomeEnc){
+  document.getElementById("msg-empresa").value=decodeURIComponent(nomeEnc);
+  switchTab("mensagem");
+}
+function prefillEmpreendimentos(nomeEnc,domainEnc){
+  document.getElementById("emp-company").value=decodeURIComponent(nomeEnc);
+  document.getElementById("emp-domain").value=decodeURIComponent(domainEnc);
+  switchTab("empreendimentos");
+  setTimeout(buscarEmp,100);
+}
 </script>
 </body>
 </html>
