@@ -20,9 +20,20 @@ export default async function handler(req, res) {
   let people = [];
   let source = "";
   let pattern = null;
+  let orgName = null;
+
+  async function fetchProxy(url, timeout = 8000) {
+    try {
+      const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {
+        headers: { Accept: "application/json" }, signal: AbortSignal.timeout(timeout),
+      });
+      const d = await r.json();
+      return d.contents || "";
+    } catch(e) { return ""; }
+  }
 
   // ── 1. Snov.io ────────────────────────────────────────────────────
-  if (snovId && snovSecret && !people.length) {
+  if (snovId && snovSecret) {
     try {
       const tok = await fetch("https://api.snov.io/v1/oauth/access_token", {
         method: "POST",
@@ -68,10 +79,7 @@ export default async function handler(req, res) {
       });
       const d = await r.json();
       const limited = d.error && /free plan|not accessible|upgrade|credits/i.test(d.error);
-      if (!limited && d.people && d.people.length) {
-        people = d.people;
-        source = "apollo";
-      }
+      if (!limited && d.people && d.people.length) { people = d.people; source = "apollo"; }
     } catch(e) {}
   }
 
@@ -84,52 +92,89 @@ export default async function handler(req, res) {
       );
       const d = await r.json();
       pattern = d.data?.pattern || null;
+      orgName = d.data?.organization || null;
       if (d.data?.emails?.length) {
         people = d.data.emails.map(e => ({
           name: [e.first_name, e.last_name].filter(Boolean).join(" ") || null,
           first_name: e.first_name, last_name: e.last_name,
-          email: e.value,
-          email_status: e.confidence >= 75 ? "verified" : "likely_to_engage",
+          email: e.value, email_status: e.confidence >= 70 ? "verified" : "likely_to_engage",
           title: e.position, linkedin_url: e.linkedin || null,
-          phone_numbers: [], organization: { name: domain }, confidence: e.confidence,
+          phone_numbers: [], organization: { name: orgName || domain }, confidence: e.confidence,
         }));
         source = "hunter";
       }
     } catch(e) {}
   }
 
-  // ── 4. Scrape LinkedIn via allorigins ─────────────────────────────
-  // If still no results, scrape the company website for team/about pages
+  // ── 4. LinkedIn Company Page Scrape ───────────────────────────────
+  // Scrape public LinkedIn to find employees with their titles
   if (!people.length) {
     try {
-      const pages = [
-        `https://${domain}/sobre`, `https://${domain}/equipe`, `https://${domain}/time`,
-        `https://${domain}/contato`, `https://${domain}/about`, `https://${domain}/team`,
+      const companySlug = domain.split(".")[0]; // cyrela, eztec, etc
+      const searches = [
+        `https://www.linkedin.com/company/${companySlug}/people/`,
+        `site:linkedin.com/in "${companySlug}" diretor OR gerente OR marketing`,
       ];
+
+      // Try Google search for LinkedIn profiles
+      const googleUrl = `https://www.google.com/search?q=site:linkedin.com/in+%22${companySlug}%22+%22diretor%22+OR+%22gerente%22+OR+%22marketing%22&hl=pt-BR&num=10`;
+      const googleHtml = await fetchProxy(googleUrl, 8000);
+      
+      if (googleHtml) {
+        // Extract names and titles from Google results
+        const nameMatches = googleHtml.match(/linkedin\.com\/in\/[^"'\s]+/g) || [];
+        const snippets = googleHtml.match(/<span[^>]*>([^<]{10,80}(?:Diretor|Gerente|Direto|Director|Manager|CEO|CMO|Marketing|Comercial)[^<]{0,60})<\/span>/gi) || [];
+        
+        const extracted = [];
+        snippets.slice(0, 8).forEach(s => {
+          const clean = s.replace(/<[^>]+>/g, "").trim();
+          if (clean.length > 5 && !extracted.find(e => e.title === clean)) {
+            // Try to parse "Name - Title at Company" format
+            const parts = clean.split(/\s*[-–]\s*/);
+            if (parts.length >= 2) {
+              extracted.push({
+                name: parts[0].trim(),
+                title: parts[1].trim(),
+                email: null, email_status: "guessed",
+                phone_numbers: [],
+                organization: { name: orgName || domain },
+                linkedin_url: nameMatches[extracted.length] ? "https://www." + nameMatches[extracted.length] : null,
+              });
+            }
+          }
+        });
+
+        if (extracted.length) { people = extracted; source = "linkedin_search"; }
+      }
+    } catch(e) {}
+  }
+
+  // ── 5. Site /equipe or /sobre page ────────────────────────────────
+  if (!people.length) {
+    try {
+      const pages = [`https://${domain}/equipe`, `https://${domain}/sobre`, `https://${domain}/time`, `https://${domain}/contato`];
       for (const url of pages) {
         if (people.length) break;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const r = await fetch(proxyUrl, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(5000) });
-        const d = await r.json();
-        const html = d.contents || "";
+        const html = await fetchProxy(url, 5000);
         if (!html) continue;
-
-        // Extract emails from page
-        const emailMatches = html.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) || [];
-        const validEmails = [...new Set(emailMatches)].filter(e =>
-          e.includes(domain.split(".")[0]) && !e.includes("noreply") && !e.includes("no-reply")
-        );
-        if (validEmails.length) {
-          people = validEmails.slice(0, 8).map(e => ({
-            name: null, email: e,
-            email_status: "likely_to_engage", title: null,
-            phone_numbers: [], organization: { name: domain },
-          }));
+        const emailMatches = [...new Set((html.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) || []))]
+          .filter(e => !e.includes("noreply") && !e.includes("example") && !e.includes("test"))
+          .slice(0, 8);
+        if (emailMatches.length) {
+          people = emailMatches.map(e => ({ name: null, email: e, email_status: "likely_to_engage", title: null, phone_numbers: [], organization: { name: domain } }));
           source = "site";
         }
       }
     } catch(e) {}
   }
 
-  return res.status(200).json({ source, people, pattern, pagination: { total_entries: people.length } });
+  // ── 6. If still nothing: infer from CNPJ QSA + email pattern ─────
+  // Return empty with pattern for the socios endpoint to handle
+  return res.status(200).json({
+    source: source || "none",
+    people,
+    pattern,
+    orgName,
+    pagination: { total_entries: people.length },
+  });
 }
