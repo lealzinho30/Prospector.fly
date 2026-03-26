@@ -17,7 +17,6 @@ export default async function handler(req, res) {
   const snovSecret = process.env.SNOV_CLIENT_SECRET;
   const apolloKey  = process.env.APOLLO_API_KEY;
 
-  // Empresa derivada do domínio como fallback
   const companyGuess = domain.split(".")[0].charAt(0).toUpperCase() + domain.split(".")[0].slice(1);
 
   async function fetchProxy(url, timeout = 9000) {
@@ -94,64 +93,70 @@ export default async function handler(req, res) {
     } catch(e) {}
   }
 
-  // ── 4. SEMPRE busca LinkedIn via DuckDuckGo (mesmo que já tenha resultados) ──
-  // Isso garante que sempre tenhamos nomes e cargos reais
+  // ── 4. LinkedIn via DuckDuckGo — busca quem TRABALHA na empresa ───
   const empresa = orgName || companyGuess;
   const liPeople = [];
+
   try {
-    // Múltiplas queries para cobrir diferentes cargos
+    // Queries corretas: busca "at [empresa]" no LinkedIn, não pelo nome como sobrenome
     const queries = [
-      `site:linkedin.com/in "${empresa}" diretor OR diretora OR "head of" marketing`,
-      `site:linkedin.com/in "${empresa}" gerente OR coordenador marketing OR comercial`,
-      `site:linkedin.com/in "${empresa}" CEO OR presidente OR "sócio"`,
+      `site:linkedin.com/in "at ${empresa}" diretor OR diretora OR gerente marketing OR comercial`,
+      `site:linkedin.com/in "at ${empresa}" CEO OR presidente OR fundador OR "head"`,
+      `site:linkedin.com/in "${empresa}" "Diretor" OR "Gerente" OR "Head" cargo`,
     ];
 
     for (const q of queries) {
-      const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}&kl=br-pt`;
-      const html = await fetchProxy(ddgUrl, 9000);
+      const html = await fetchProxy(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}&kl=br-pt`, 8000);
       if (!html) continue;
 
-      // Extract result titles and links
-      const titleRe = /<a[^>]+class="result__a"[^>]*href="([^"]*linkedin\.com\/in\/[^"]+)"[^>]*>([^<]+)<\/a>/gi;
+      // Extract result links and titles — format: "Name - Title at Company | LinkedIn"
+      const resultRe = /<a[^>]+class="result__a"[^>]*href="([^"]*linkedin\.com\/in\/[^"?]+)[^"]*"[^>]*>([^<]+)<\/a>/gi;
       const snippetRe = /<a[^>]+class="result__snippet"[^>]*>([^<]{10,200})<\/a>/gi;
 
-      let tm, sm;
-      const titles = [], snippets = [];
-      while ((tm = titleRe.exec(html)) !== null) titles.push({ url: tm[1], text: tm[2].trim() });
-      while ((sm = snippetRe.exec(html)) !== null) snippets.push(sm[1].trim());
+      const results = [], snippets = [];
+      let m;
+      while ((m = resultRe.exec(html)) !== null) results.push({ url: m[1], text: m[2].trim() });
+      while ((m = snippetRe.exec(html)) !== null) snippets.push(m[1].replace(/<[^>]+>/g,"").trim());
 
-      titles.slice(0, 5).forEach((t, i) => {
-        const rawName = t.text.replace(/\s*[-–|].*$/, "").trim();
-        const snippet = snippets[i] || "";
-        // Parse title from snippet: "Name · Title at Company · Location"
-        const titleMatch = snippet.match(/·\s*([^·]{5,60})\s*(?:at|na|em|·)/i);
-        const titleText = titleMatch ? titleMatch[1].trim() : (snippet.split("·")[1] || "").trim().slice(0, 60);
-        const alreadyIn = people.some(p => (p.name||"").toLowerCase() === rawName.toLowerCase())
-                       || liPeople.some(p => (p.name||"").toLowerCase() === rawName.toLowerCase());
-        if (!rawName || alreadyIn) return;
+      results.slice(0, 5).forEach((t, i) => {
+        const fullText = t.text; // "João Silva - Diretor de Marketing at Cyrela | LinkedIn"
+        
+        // Extract name (before the dash or pipe)
+        const namePart = fullText.split(/\s*[-–|]\s*/)[0].trim();
+        
+        // Extract title (between dashes)  
+        const titleMatch = fullText.match(/[-–]\s*([^|]+?)\s*(?:at|na|em)\s+/i);
+        const titleText = titleMatch ? titleMatch[1].trim() : (snippets[i] || "").split("·")[1]?.trim() || null;
+
+        // Validate: name should look like a real name (2+ words, not the company name)
+        const words = namePart.split(" ").filter(Boolean);
+        const looksLikeName = words.length >= 2 && words.length <= 5;
+        const isCompanyItself = namePart.toLowerCase().includes(empresa.toLowerCase().split(" ")[0].toLowerCase()) && words.length < 3;
+        
+        if (!namePart || !looksLikeName || isCompanyItself) return;
+        
+        // Skip if already in results
+        const alreadyIn = people.some(p => (p.name||"").toLowerCase() === namePart.toLowerCase())
+                       || liPeople.some(p => p.name.toLowerCase() === namePart.toLowerCase());
+        if (alreadyIn) return;
+
+        const linkedInUrl = t.url.startsWith("http") ? t.url : "https://www.linkedin.com/in/" + t.url.split("/in/")[1]?.split("?")[0];
+
         liPeople.push({
-          name: rawName,
-          first_name: rawName.split(" ")[0],
-          last_name: rawName.split(" ").pop(),
-          title: titleText || null,
-          email: null,
-          email_status: "guessed",
-          phone_numbers: [],
-          organization: { name: empresa },
-          linkedin_url: t.url.startsWith("http") ? t.url : "https://www.linkedin.com/in/" + t.url.split("/in/")[1],
-          is_linkedin: true,
+          name: namePart, first_name: words[0], last_name: words[words.length-1],
+          title: titleText, email: null, email_status: "guessed",
+          phone_numbers: [], organization: { name: empresa },
+          linkedin_url: linkedInUrl, is_linkedin: true,
         });
       });
     }
   } catch(e) {}
 
-  // Merge: emails first (more valuable), then LinkedIn profiles
   const merged = [...people, ...liPeople].slice(0, 20);
 
   return res.status(200).json({
     source: merged.length ? (people.length ? source : "linkedin") : "none",
-    people: merged,
-    pattern, orgName,
+    people: merged, pattern, orgName,
     pagination: { total_entries: merged.length },
   });
 }
