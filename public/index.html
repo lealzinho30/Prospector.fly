@@ -269,7 +269,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
   <div style="margin-bottom:20px">
     <p class="sec-eyebrow" id="contatos-source">Apollo.io · Base de 275M+ pessoas</p>
     <h1 class="sec-title">Encontre os decisores</h1>
-    <p class="sec-sub">Nome, email, cargo e telefone dos decisores — direto da maior base B2B do mundo.</p>
+    <p class="sec-sub">Cole o domínio da empresa — identificamos a empresa e buscamos os decisores automaticamente.</p>
   </div>
   <div class="card" style="margin-bottom:14px">
     <!-- Mode tabs -->
@@ -278,16 +278,11 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
       <button class="tab-btn"        id="mode-role"   onclick="switchMode('role')"   style="padding:10px 12px 12px;font-size:13px">🎯 Por cargo</button>
       <button class="tab-btn"        id="mode-socios" onclick="switchMode('socios')" style="padding:10px 12px 12px;font-size:13px">🏢 CNPJ + Sócios</button>
     </div>
-    <div class="grid-2" style="margin-bottom:12px">
-      <div>
-        <label>Empresa</label>
-        <input id="inp-company" type="text" placeholder="Ex: EZTec" onkeydown="if(event.key==='Enter')doSearch()"/>
-      </div>
-      <div>
-        <label>Domínio</label>
-        <input id="inp-domain" type="text" placeholder="eztec.com.br" oninput="onDomainInput('inp-domain','domain-hint')" onkeydown="if(event.key==='Enter')doSearch()"/>
-        <p id="domain-hint" class="field-ok" style="display:none"></p>
-      </div>
+    <div style="margin-bottom:14px">
+      <label>Domínio do site</label>
+      <input id="inp-domain" type="text" placeholder="eztec.com.br ou cyrela.com.br" oninput="onDomainInput('inp-domain','domain-hint')" onkeydown="if(event.key==='Enter')doSearch()" style="font-size:15px;padding:13px 16px"/>
+      <p id="domain-hint" class="field-ok" style="display:none"></p>
+      <input id="inp-company" type="hidden" value=""/>
     </div>
     <div id="filters-block">
       <div style="margin-bottom:14px">
@@ -886,7 +881,7 @@ function doSearch(){
     document.getElementById("prog-pct").textContent = "20%";
     setTimeout(function(){document.getElementById("prog-step").textContent="Consultando Receita Federal...";document.getElementById("prog-fill").style.width="55%";document.getElementById("prog-pct").textContent="55%";},1000);
     setTimeout(function(){document.getElementById("prog-step").textContent="Inferindo emails...";document.getElementById("prog-fill").style.width="85%";document.getElementById("prog-pct").textContent="85%";},2500);
-    fetch("/api/socios", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({company:company, domain:domain})})
+    fetch("/api/socios", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({domain:domain})})
     .then(function(r){ return r.json(); })
     .then(function(data){
       stopProgress();
@@ -914,9 +909,8 @@ function doSearch(){
     {pct:95,label:"Finalizando...",delay:4000},
   ]);
 
-  // Monta payload — campos simples que o proxy entende
+  // Monta payload
   var body = {
-    company: company,
     domain: domain,
     seniority: selectedSen || "",
     department: selectedDept || "",
