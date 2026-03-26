@@ -479,36 +479,35 @@ function iniciarAgente(){
     stepHtml(3,"waiting","Mapear lançamentos","Aguardando...")+
     stepHtml(4,"waiting","Gerar análise e abordagem","Aguardando...");
 
-  // Execute steps
-  agStep1(domain);
+  // Steps 1+2 em paralelo, depois 3, depois 4
+  Promise.all([agStep1(domain), agStep2(domain)])
+    .then(function(){ return agStep3(domain); })
+    .then(function(){ agStep4(); });
 }
 
-// Step 1: Contacts via Snov/Hunter/Apollo
+// Step 1: Contacts — returns Promise
 function agStep1(domain){
-  updateStep(1,"running","Buscando decisores...","Consultando base de contatos");
-  callApollo(domain)
+  updateStep(1,"running","Buscando decisores...","LinkedIn + Hunter + Snov");
+  return callApollo(domain)
   .then(function(data){
     var people=data.people||[];
     AG.contatos=people;
-    AG.fonte=data.source||"hunter";
+    AG.fonte=data.source||"none";
     if(people.length>0&&people[0].organization&&people[0].organization.name){
       AG.empresa=people[0].organization.name;
     }
-    var decisores=people.filter(function(p){return isDecisive(p.title||p.position||"");});
-    var n=decisores.length||people.length;
-    updateStep(1,"done","Decisores encontrados",n+" contatos · fonte: "+AG.fonte);
-    agStep2(domain);
+    var n=people.length;
+    updateStep(1,"done","Decisores encontrados",n+" contatos · "+AG.fonte);
   })
   .catch(function(){
-    updateStep(1,"skip","Contatos não encontrados","Continuando com outras fontes...");
-    agStep2(domain);
+    updateStep(1,"skip","Contatos não encontrados","Continuando...");
   });
 }
 
-// Step 2: CNPJ + Socios
+// Step 2: CNPJ + Socios — returns Promise
 function agStep2(domain){
-  updateStep(2,"running","Buscando CNPJ e sócios...","Consultando Receita Federal");
-  callSocios(domain)
+  updateStep(2,"running","Buscando CNPJ e sócios...","Receita Federal");
+  return callSocios(domain)
   .then(function(data){
     if(data.people&&data.people.length){
       AG.socios=data.people;
@@ -516,13 +515,11 @@ function agStep2(domain){
       updateStep(2,"done","Sócios encontrados",data.people.length+" sócios · CNPJ: "+(data.cnpj||"encontrado"));
     } else {
       if(!AG.empresa&&data.empresa) AG.empresa=data.empresa;
-      updateStep(2,"skip","Sócios não encontrados",data.warning||"CNPJ não localizado automaticamente");
+      updateStep(2,"skip","Sócios não encontrados",data.warning||"CNPJ não localizado");
     }
-    agStep3(domain);
   })
   .catch(function(){
-    updateStep(2,"skip","Não foi possível consultar","Seguindo para próxima etapa");
-    agStep3(domain);
+    updateStep(2,"skip","Não foi possível consultar","");
   });
 }
 
@@ -573,7 +570,7 @@ function agStep3(domain){
   });
 }
 
-// Step 4: Analysis + message
+// Step 4: Analysis + message — called after steps 1+2+3
 function agStep4(){
   updateStep(4,"running","Gerando análise e abordagem...","IA processando dados");
 
