@@ -859,31 +859,13 @@ function doSearch(){
     {pct:95,label:"Finalizando...",delay:4000},
   ]);
 
-  // Monta query para Apollo
+  // Monta payload — campos simples que o proxy entende
   var body = {
-    page: 1,
-    per_page: 25,
-    person_titles: [],
+    company: company,
+    domain: domain,
+    seniority: selectedSen || "",
+    department: selectedDept || "",
   };
-
-  if (domain) {
-    body.q_organization_domains = [domain];
-  } else {
-    body.q_organization_name = company;
-  }
-
-  // Filtro por cargo se modo "role"
-  if (currentMode === "role") {
-    var cargosFiltro = [];
-    if (selectedDept === "executive")      cargosFiltro = ["CEO","CTO","CMO","CFO","Diretor","Presidente","VP"];
-    else if (selectedDept === "marketing") cargosFiltro = ["Marketing","CMO","Brand","Comunicação"];
-    else if (selectedDept === "sales")     cargosFiltro = ["Comercial","Vendas","Sales","Business Development"];
-    else if (selectedDept === "management")cargosFiltro = ["Gerente","Manager","Coordenador"];
-    if (cargosFiltro.length) body.person_titles = cargosFiltro;
-    // Senioridade
-    if (selectedSen === "executive") body.person_seniority = ["c_suite","vp","director","partner","owner"];
-    else if (selectedSen === "senior") body.person_seniority = ["manager","senior"];
-  }
 
   fetch("/api/apollo", {
     method: "POST",
