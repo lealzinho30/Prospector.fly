@@ -10,12 +10,12 @@
 :root{
   --p:#7C5CFC;--pd:#6344E0;--pl:#F3F0FF;--pm:#c4b5fd;
   --g:#A8E63D;--navy:#1a1a2e;
-  --g1:#f7f7f9;--g2:#eeeef2;--g3:#dddde5;--g4:#94a3b8;--g5:#64748b;
+  --g1:#f8f8f6;--g2:#f0efe9;--g3:#e5e4dd;--g4:#9ca3af;--g5:#6b7280;
   --r:12px;--rs:8px;--sh:0 1px 4px rgba(26,26,46,.07);--shm:0 4px 16px rgba(26,26,46,.10)
 }
 *{box-sizing:border-box;margin:0;padding:0;font-family:'DM Sans',sans-serif}
-body{background:#f5f5f3;min-height:100vh;color:var(--navy)}
-h1,h2,h3{font-family:'Syne',sans-serif;letter-spacing:0;font-stretch:normal}
+body{background:var(--g1);min-height:100vh;color:var(--navy)}
+h1,h2,h3{font-family:'Syne',sans-serif}
 
 /* Animations */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -37,7 +37,7 @@ label{display:block;font-size:11px;font-weight:700;color:var(--g5);margin-bottom
 /* Buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:none;border-radius:var(--rs);padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
 .btn:disabled{opacity:.35;cursor:not-allowed}
-.btn-p{background:var(--p);color:#fff;width:100%;letter-spacing:-.01em}.btn-p:hover:not(:disabled){background:var(--pd);transform:translateY(-1px);box-shadow:0 6px 20px rgba(124,92,252,.35)}
+.btn-p{background:var(--p);color:#fff;width:100%}.btn-p:hover:not(:disabled){background:var(--pd);transform:translateY(-1px);box-shadow:0 4px 12px rgba(124,92,252,.3)}
 .btn-dark{background:var(--navy);color:#fff}.btn-dark:hover{background:#252545;transform:translateY(-1px)}
 .btn-sm{background:#fff;border:1.5px solid var(--g3);color:var(--g5);border-radius:var(--rs);padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:all .14s;font-family:inherit}
 .btn-sm:hover{border-color:var(--pm);color:var(--p);background:var(--pl)}
@@ -54,7 +54,7 @@ label{display:block;font-size:11px;font-weight:700;color:var(--g5);margin-bottom
 .chip:hover:not(.active){border-color:var(--pm);color:var(--pd)}
 
 /* Cards */
-.card{background:#fff;border:1.5px solid #eaeaea;border-radius:16px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.card{background:#fff;border:1.5px solid var(--g3);border-radius:var(--r);padding:22px;box-shadow:var(--sh)}
 .card-flat{background:#fff;border:1.5px solid #ebebeb;border-radius:10px;padding:14px 16px}
 .card-p{background:var(--pl);border:1.5px solid var(--pm);border-radius:var(--r);padding:20px}
 .card-dark{background:var(--navy);border-radius:var(--r);padding:22px;color:#fff}
@@ -67,40 +67,39 @@ label{display:block;font-size:11px;font-weight:700;color:var(--g5);margin-bottom
 .ai-badge{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,var(--p),#a78bfa);color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700}
 
 /* Layout */
-.topbar{background:rgba(255,255,255,.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(0,0,0,.07);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:30;box-shadow:0 1px 0 rgba(0,0,0,.06)}
+.topbar{background:#fff;border-bottom:1.5px solid var(--g3);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:30;box-shadow:0 2px 8px rgba(26,26,46,.05)}
 .tabs{background:#fff;border-bottom:1.5px solid var(--g3);padding:0 20px;display:flex;gap:4px;position:sticky;top:60px;z-index:29}
 .content{max-width:700px;margin:0 auto;padding:32px 18px 80px}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
 /* Tab buttons */
-.tab-btn{background:transparent;border:none;padding:15px 18px;cursor:pointer;font-size:14px;font-weight:600;color:var(--g4);transition:all .15s;position:relative;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0;letter-spacing:-.01em}
-.tab-btn::after{content:"";position:absolute;bottom:-1px;left:16px;right:16px;height:2px;background:var(--p);border-radius:99px;transform:scaleX(0);transition:transform .22s cubic-bezier(.34,1.56,.64,1)}
+.tab-btn{background:transparent;border:none;padding:14px 16px;cursor:pointer;font-size:14px;font-weight:600;color:var(--g4);transition:all .15s;position:relative;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0}
+.tab-btn::after{content:"";position:absolute;bottom:-1.5px;left:0;right:0;height:2.5px;background:var(--p);border-radius:2px;transform:scaleX(0);transition:transform .2s ease}
 .tab-btn.active{color:var(--navy);font-weight:700}
 .tab-btn.active::after{transform:scaleX(1)}
 .tab-btn:hover:not(.active){color:var(--navy);background:var(--g1)}
 
 /* Step tracker */
-.step-row{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:12px;background:#fff;border:1px solid var(--g2);margin-bottom:8px;transition:all .25s}
-.step-row.running{border-color:var(--pm);background:var(--pl);box-shadow:0 0 0 3px rgba(124,92,252,.08)}
-.step-row.done{border-color:#86efac;background:#f0fdf4}
+.step-row{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:10px;background:#fff;border:1.5px solid #ebebeb;margin-bottom:8px;transition:all .2s}
+.step-row.running{border-color:var(--pm);background:var(--pl)}
+.step-row.done{border-color:#bbf7d0;background:#f0fdf4}
 .step-row.error{border-color:#fde68a;background:#fffbeb}
-.step-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;background:var(--g2);color:var(--g5);transition:all .25s;letter-spacing:0}
-.step-row.running .step-icon{background:var(--p);color:#fff;animation:spin .8s linear infinite}
-.step-row.done .step-icon{background:#16a34a;color:#fff;font-size:16px}
+.step-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;background:var(--g2);color:var(--g5);transition:all .2s}
+.step-row.running .step-icon{background:var(--p);color:#fff}
+.step-row.done .step-icon{background:#166534;color:#fff}
 .step-row.error .step-icon{background:#854d0e;color:#fff}
 
 /* Result sections */
-.result-section{margin-bottom:24px}
-.section-title{font-size:11px;font-weight:700;color:var(--g4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.contact-row{display:flex;align-items:flex-start;gap:14px;padding:16px 0;border-bottom:1px solid var(--g2);transition:all .12s}
+.result-section{margin-bottom:20px}
+.section-title{font-size:11px;font-weight:700;color:var(--g4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.contact-row{display:flex;align-items:flex-start;gap:12px;padding:14px 4px;border-bottom:1px solid var(--g2);transition:all .12s}
 .contact-row:last-child{border-bottom:none}
-.contact-row:hover{background:var(--g1);padding:16px 12px;margin:0 -12px;border-radius:12px}
-.emp-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-radius:12px;background:#fff;border:1.5px solid #ebebeb;margin-bottom:8px;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-.emp-row:hover{border-color:var(--pm);box-shadow:0 2px 8px rgba(124,92,252,.1);transform:translateY(-1px)}
-.link-btn{background:var(--g1);border:1.5px solid #e8e8e8;color:var(--g5);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:all .13s;font-family:inherit;display:inline-flex;align-items:center;gap:5px;text-decoration:none;white-space:nowrap}
+.contact-row:hover{background:var(--g1);padding:14px 10px;margin:0 -6px;border-radius:var(--rs)}
+.emp-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-radius:10px;background:#fff;border:1.5px solid #ebebeb;margin-bottom:8px;transition:border-color .15s}
+.emp-row:hover{border-color:var(--pm)}
+.link-btn{background:var(--g1);border:1.5px solid var(--g3);color:var(--g5);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;transition:all .13s;font-family:inherit;display:inline-flex;align-items:center;gap:4px;text-decoration:none;white-space:nowrap}
 .link-btn:hover{border-color:var(--pm);color:var(--p);background:var(--pl)}
-.link-btn svg{width:12px;height:12px;flex-shrink:0}
-.msg-box{background:var(--g1);border:1px solid var(--g2);border-radius:12px;padding:18px;font-size:14px;line-height:1.9;color:#374151;white-space:pre-wrap;min-height:100px;outline:none;transition:border-color .15s}
+.msg-box{background:var(--g1);border:1.5px solid var(--g3);border-radius:10px;padding:16px;font-size:14px;line-height:1.8;color:#374151;white-space:pre-wrap;min-height:100px;outline:none;transition:border-color .15s}
 .msg-box:focus{border-color:var(--p);background:#fff}
 .divider{height:1px;background:var(--g2);margin:20px 0}
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -143,8 +142,8 @@ label{display:block;font-size:11px;font-weight:700;color:var(--g5);margin-bottom
       <circle cx="31" cy="13" r="6" fill="#A8E63D"/>
     </svg>
     <div style="line-height:1.1">
-      <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--navy);letter-spacing:-.02em">Flying Studio</div>
-      <div style="font-size:10px;font-weight:700;color:var(--p);letter-spacing:.06em;text-transform:uppercase">Prospector</div>
+      <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--navy)">Flying Studio</div>
+      <div style="font-size:10px;font-weight:700;color:var(--p);letter-spacing:.08em;text-transform:uppercase">Prospector</div>
     </div>
   </div>
   <div id="status-badge" style="font-size:12px;color:var(--g4);font-weight:500"></div>
@@ -152,8 +151,8 @@ label{display:block;font-size:11px;font-weight:700;color:var(--g5);margin-bottom
 
 <!-- TABS -->
 <div class="tabs">
-  <button class="tab-btn active" id="tab-agente"   onclick="switchTab('agente')">Agente IA</button>
-  <button class="tab-btn"        id="tab-mensagem" onclick="switchTab('mensagem')">Mensagens</button>
+  <button class="tab-btn active" id="tab-agente"   onclick="switchTab('agente')">🤖 Agente de Prospecção</button>
+  <button class="tab-btn"        id="tab-mensagem" onclick="switchTab('mensagem')">💬 Mensagens</button>
 </div>
 
 <div class="content">
@@ -164,7 +163,7 @@ label{display:block;font-size:11px;font-weight:700;color:var(--g5);margin-bottom
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
       <span class="ai-badge">✦ Agente IA</span>
     </div>
-    <h1 style="font-size:26px;font-weight:800;color:var(--navy);line-height:1.3;letter-spacing:-.01em;margin-bottom:8px">Prospecção completa em 1 clique</h1>
+    <h1 style="font-size:28px;font-weight:800;color:var(--navy);line-height:1.25;margin-bottom:8px">Prospecção completa em 1 clique</h1>
     <p style="font-size:14px;color:var(--g5);line-height:1.6">Cole o site da empresa. O agente identifica decisores, lançamentos, contatos e gera a abordagem — tudo automaticamente.</p>
   </div>
 
@@ -189,7 +188,7 @@ label{display:block;font-size:11px;font-weight:700;color:var(--g5);margin-bottom
 <!-- ══════════════════════════ MENSAGENS ══════════════════════════ -->
 <div id="page-mensagem" style="display:none">
   <div style="margin-bottom:24px">
-    <h1 style="font-size:26px;font-weight:800;color:var(--navy);line-height:1.3;letter-spacing:-.01em;margin-bottom:8px">Mensagem certa. Decisor certo.</h1>
+    <h1 style="font-size:28px;font-weight:800;color:var(--navy);line-height:1.25;margin-bottom:8px">Mensagem certa. Decisor certo.</h1>
     <p style="font-size:14px;color:var(--g5)">Padrão Flying Studio — WhatsApp e email personalizados para cada contexto.</p>
   </div>
 
@@ -362,27 +361,13 @@ var EMP_DB={
     {nome:"EZ Connect",status:"Em obras",cidade:"São Paulo",bairro:"Barra Funda",destaque:"Lajes corporativas no corredor da Barra Funda"},
     {nome:"EZ Vila Mariana",status:"Em lançamento",cidade:"São Paulo",bairro:"Vila Mariana",destaque:"Studios e 2 dormitórios na Vila Mariana"},
   ]},
-  cyrela:{empresa:"Cyrela",segmento:"Alto padrão",atuacao:"SP, RJ e principais capitais",totalLancamentos:18,link:"https://www.cyrela.com.br",empreendimentos:[
-    {nome:"Cyrela Unique Moema",status:"Em lançamento",cidade:"São Paulo",bairro:"Moema",destaque:"Alto padrão assinado próximo ao Ibirapuera",link:"https://www.cyrela.com.br/imoveis/sp/sao-paulo/moema"},
-    {nome:"Cyrela Century Vila Olímpia",status:"Em lançamento",cidade:"São Paulo",bairro:"Vila Olímpia",destaque:"Projeto assinado com localização premium",link:"https://www.cyrela.com.br/imoveis/sp/sao-paulo/vila-olimpia"},
-    {nome:"Living Interlagos",status:"Em lançamento",cidade:"São Paulo",bairro:"Interlagos",destaque:"Médio padrão Cyrela com custo-benefício",link:"https://www.cyrela.com.br/vivaz"},
-    {nome:"Cyrela Landscape Barra",status:"Em obras",cidade:"Rio de Janeiro",bairro:"Barra da Tijuca",destaque:"Alto padrão na Barra da Tijuca",link:"https://www.cyrela.com.br/imoveis/rj"},
-    {nome:"Cyrela Downtown Pinheiros",status:"Em lançamento",cidade:"São Paulo",bairro:"Pinheiros",destaque:"Studios compactos no coração de Pinheiros",link:"https://www.cyrela.com.br"},
-    {nome:"Vivaz Campo Limpo",status:"Em lançamento",cidade:"São Paulo",bairro:"Campo Limpo",destaque:"Marca econômica — MCMV em SP",link:"https://www.cyrela.com.br/vivaz"},
-    {nome:"Vivaz Guarulhos",status:"Em obras",cidade:"Guarulhos",bairro:"Centro",destaque:"MCMV com lazer completo",link:"https://www.cyrela.com.br/vivaz"},
-    {nome:"Cyrela Mirante do Horto",status:"Em lançamento",cidade:"São Paulo",bairro:"Horto Florestal",destaque:"Vista privilegiada com área verde",link:"https://www.cyrela.com.br"},
-    {nome:"Cyrela Sky Garden",status:"Em lançamento",cidade:"São Paulo",bairro:"Alphaville",destaque:"Condomínio fechado com rooftop e lazer",link:"https://www.cyrela.com.br"},
-    {nome:"Cyrela Parc des Arts",status:"Em obras",cidade:"São Paulo",bairro:"Perdizes",destaque:"Referência em arquitetura contemporânea",link:"https://www.cyrela.com.br"},
-    {nome:"Cyrela Gold Coast",status:"Em lançamento",cidade:"Balneário Camboriú",bairro:"Meia Praia",destaque:"Sofisticado empreendimento à beira-mar",link:"https://www.cyrela.com.br"},
-    {nome:"Vivaz Porto Alegre",status:"Em lançamento",cidade:"Porto Alegre",bairro:"Sarandi",destaque:"MCMV em POA com infraestrutura completa",link:"https://www.cyrela.com.br/vivaz"},
-    {nome:"Cyrela Select Brooklin",status:"Em obras",cidade:"São Paulo",bairro:"Brooklin",destaque:"Alto padrão no Brooklin Paulista",link:"https://www.cyrela.com.br"},
-    {nome:"Cyrela West Village",status:"Em lançamento",cidade:"São Paulo",bairro:"Barueri",destaque:"Condomínio clube com lazer completo",link:"https://www.cyrela.com.br"},
-    {nome:"Vivaz Campinas",status:"Em obras",cidade:"Campinas",bairro:"Santa Genebra",destaque:"MCMV em Campinas com localização estratégica",link:"https://www.cyrela.com.br/vivaz"},
-    {nome:"Cyrela Le Quartier",status:"Em lançamento",cidade:"São Paulo",bairro:"Jardins",destaque:"Ultra-luxo nos Jardins — arquitetura assinada",link:"https://www.cyrela.com.br"},
-    {nome:"Cyrela Terras do Planalto",status:"Em obras",cidade:"Brasília",bairro:"Sudoeste",destaque:"Alto padrão no Sudoeste de Brasília",link:"https://www.cyrela.com.br"},
-    {nome:"Vivaz Belo Horizonte",status:"Em lançamento",cidade:"Belo Horizonte",bairro:"Barreiro",destaque:"MCMV em BH com ótima infraestrutura",link:"https://www.cyrela.com.br/vivaz"},
+  cyrela:{empresa:"Cyrela",segmento:"Alto padrão",atuacao:"SP, RJ e principais capitais",totalLancamentos:18,empreendimentos:[
+    {nome:"Cyrela Unique Moema",status:"Em lançamento",cidade:"São Paulo",bairro:"Moema",destaque:"Design exclusivo em Moema"},
+    {nome:"Cyrela Century Vila Olímpia",status:"Em lançamento",cidade:"São Paulo",bairro:"Vila Olímpia",destaque:"Projeto assinado na Vila Olímpia"},
+    {nome:"Living Interlagos",status:"Em lançamento",cidade:"São Paulo",bairro:"Interlagos",destaque:"Médio padrão com custo-benefício"},
+    {nome:"Cyrela Landscape Barra",status:"Em obras",cidade:"Rio de Janeiro",bairro:"Barra da Tijuca",destaque:"Alto padrão na Barra da Tijuca"},
   ]},
-    mrv:{empresa:"MRV Engenharia",segmento:"MCMV / Econômico",atuacao:"Todo o Brasil",totalLancamentos:85,empreendimentos:[
+  mrv:{empresa:"MRV Engenharia",segmento:"MCMV / Econômico",atuacao:"Todo o Brasil",totalLancamentos:85,empreendimentos:[
     {nome:"Reserva das Árvores",status:"Em lançamento",cidade:"São Paulo",bairro:"Itaquera",destaque:"MCMV fase 3 com lazer completo"},
     {nome:"Parque dos Ipês",status:"Em obras",cidade:"Campinas",bairro:"Campo Grande",destaque:"Condomínio fechado com playground"},
     {nome:"Mirante do Parque",status:"Em lançamento",cidade:"Belo Horizonte",bairro:"São João Batista",destaque:"MCMV com excelente localização"},
@@ -432,7 +417,7 @@ function findInDB(nome,domain){
 var AG = {};
 
 function stepHtml(n,status,label,sub){
-  var icons={waiting:n,running:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',done:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>',error:"!",skip:"—"};
+  var icons={waiting:n,running:'<div class="dot" style="margin:0;width:8px;height:8px"></div>',done:"✓",error:"!",skip:"—"};
   return '<div class="step-row '+status+'" id="ag-step-'+n+'">'+
     '<div class="step-icon">'+icons[status]+'</div>'+
     '<div style="flex:1">'+
@@ -447,7 +432,7 @@ function updateStep(n,status,label,sub){
   if(!el) return;
   el.className="step-row "+status;
   var icon=el.querySelector(".step-icon");
-  var icons={waiting:n,running:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',done:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>',error:"!",skip:"—"};
+  var icons={waiting:n,running:'<div class="dot" style="margin:0;width:8px;height:8px"></div>',done:"✓",error:"!",skip:"—"};
   if(icon) icon.innerHTML=icons[status]||n;
   var ps=el.querySelectorAll("p");
   if(ps[0]&&label) ps[0].textContent=label;
@@ -479,123 +464,97 @@ function iniciarAgente(){
     stepHtml(3,"waiting","Mapear lançamentos","Aguardando...")+
     stepHtml(4,"waiting","Gerar análise e abordagem","Aguardando...");
 
-  // Steps 1+2 em paralelo, depois 3, depois 4
-  Promise.all([agStep1(domain), agStep2(domain)])
-    .then(function(){ return agStep3(domain); })
-    .then(function(){ agStep4(); });
+  // ── 4 AGENTES em pipeline ──
+  agOrquestrador(domain);
 }
 
-// Step 1: Contacts — returns Promise
-function agStep1(domain){
-  updateStep(1,"running","Buscando decisores...","LinkedIn + Hunter + Snov");
-  return callApollo(domain)
-  .then(function(data){
-    var people=data.people||[];
-    AG.contatos=people;
-    AG.fonte=data.source||"none";
-    if(people.length>0&&people[0].organization&&people[0].organization.name){
-      AG.empresa=people[0].organization.name;
-    }
-    var n=people.length;
-    updateStep(1,"done","Decisores encontrados",n+" contatos · "+AG.fonte);
-  })
-  .catch(function(){
-    updateStep(1,"skip","Contatos não encontrados","Continuando...");
-  });
-}
+function agOrquestrador(domain) {
+  var stepsEl=document.getElementById("ag-steps");
+  stepsEl.style.display="block";
+  stepsEl.innerHTML=
+    stepHtml(1,"waiting","🔍 Agente Pesquisador","Contatos + CNPJ + Lançamentos em paralelo")+
+    stepHtml(2,"waiting","📊 Agente Analista","Avalia oportunidade e score")+
+    stepHtml(3,"waiting","🎯 Agente Estrategista","Define tom e ângulo")+
+    stepHtml(4,"waiting","✍️ Agente Comunicador","Redige mensagem personalizada");
 
-// Step 2: CNPJ + Socios — returns Promise
-function agStep2(domain){
-  updateStep(2,"running","Buscando CNPJ e sócios...","Receita Federal");
-  return callSocios(domain)
-  .then(function(data){
-    if(data.people&&data.people.length){
-      AG.socios=data.people;
-      if(!AG.empresa&&data.empresa) AG.empresa=data.empresa;
-      updateStep(2,"done","Sócios encontrados",data.people.length+" sócios · CNPJ: "+(data.cnpj||"encontrado"));
-    } else {
-      if(!AG.empresa&&data.empresa) AG.empresa=data.empresa;
-      updateStep(2,"skip","Sócios não encontrados",data.warning||"CNPJ não localizado");
-    }
-  })
-  .catch(function(){
-    updateStep(2,"skip","Não foi possível consultar","");
-  });
-}
+  updateStep(1,"running","🔍 Agente Pesquisador","Pesquisando...");
 
-// Step 3: Empreendimentos
-function agStep3(domain){
-  updateStep(3,"running","Pesquisando lançamentos...","Consultando banco de dados");
+  var empRe=/residenc|condomin|lancam|apart|torre|park|garden|plaza|vila|living|home|prime|reserva|parque|jardim|comercial|studios|flat|loft|empreend/i;
 
-  // Identify company name if not yet
-  if(!AG.empresa){
-    AG.empresa=domain.split(".")[0];
-    AG.empresa=AG.empresa.charAt(0).toUpperCase()+AG.empresa.slice(1);
+  function scrapeEmps(){
+    var db=findInDB(AG.empresa||"",domain);
+    if(db) return Promise.resolve({emps:db.empreendimentos,seg:db.segmento,emp:db.empresa});
+    return Promise.all(["","empreendimentos","lancamentos"].map(function(p){
+      return fetch("https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain+(p?"/"+p:"")),{headers:{Accept:"application/json"}})
+        .then(function(r){return r.json();})
+        .then(function(px){
+          var doc=new DOMParser().parseFromString(px.contents||"","text/html");
+          var found=[],seen={};
+          doc.querySelectorAll("h2,h3,h4,[class*='empreend'],[class*='lancam'],[class*='card'] h3").forEach(function(el){
+            var t=(el.textContent||"").replace(/\s+/g," ").trim();
+            if(t.length>4&&t.length<80&&!seen[t]&&empRe.test(t)){seen[t]=true;found.push({nome:t,status:"Em lancamento",cidade:"",bairro:"",destaque:""});}
+          });
+          return found;
+        }).catch(function(){return[];});
+    })).then(function(all){
+      var merged=[],seen={};
+      all.forEach(function(r){r.forEach(function(e){if(!seen[e.nome]){seen[e.nome]=true;merged.push(e);}});});
+      return {emps:merged.slice(0,12),seg:null,emp:null};
+    });
   }
 
-  // Try local DB first
-  var dbResult=findInDB(AG.empresa,domain);
-  if(dbResult){
-    AG.empreendimentos=dbResult.empreendimentos||[];
-    AG.segmento=dbResult.segmento;
-    AG.totalLancamentos=dbResult.totalLancamentos||AG.empreendimentos.length;
-    AG.totalLancamentos=dbResult.totalLancamentos||AG.empreendimentos.length;
-    updateStep(3,"done",dbResult.empresa+" — "+dbResult.totalLancamentos+" lançamentos",dbResult.segmento+" · "+dbResult.atuacao);
-    agStep4();
-    return;
-  }
+  Promise.all([
+    callApollo(domain).catch(function(){return{people:[],source:"none",orgName:null};}),
+    callSocios(domain).catch(function(){return{people:[],empresa:null,cnpj:null};}),
+    scrapeEmps().catch(function(){return{emps:[],seg:null,emp:null};}),
+  ]).then(function(res){
+    var cont=res[0],soc=res[1],emp=res[2];
+    AG.contatos=cont.people||[];
+    AG.fonte=cont.source||"none";
+    AG.socios=soc.people||[];
+    AG.cnpj=soc.cnpj||null;
+    AG.empreendimentos=emp.emps||[];
+    AG.segmento=emp.seg||null;
+    AG.empresa=emp.emp||cont.orgName||soc.empresa||AG.empresa||(domain.split(".")[0].charAt(0).toUpperCase()+domain.split(".")[0].slice(1));
 
-  // Try Claude
-  var prompt='Empresa imobiliária "'+AG.empresa+'". Liste os empreendimentos que você conhece do seu treinamento. Retorne SOMENTE JSON: {"empresa":"string","segmento":"Alto padrão|Médio padrão|MCMV|Comercial","atuacao":"cidades","totalLancamentos":0,"empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras|Pronto para morar","cidade":"string","bairro":"string","destaque":"string"}]}';
-  var done=false;
-  var timer=setTimeout(function(){
-    if(!done){done=true;updateStep(3,"skip","Lançamentos não encontrados","Empresa fora do banco de dados");agStep4();}
-  },7000);
-  callClaude({model:"claude-sonnet-4-20250514",max_tokens:1500,messages:[{role:"user",content:prompt}]})
-  .then(function(text){
-    if(done)return;done=true;clearTimeout(timer);
-    var match=text.match(/\{[\s\S]*\}/);
-    if(!match)throw new Error();
-    var d=JSON.parse(match[0]);
-    AG.empreendimentos=d.empreendimentos||[];
-    AG.segmento=d.segmento;
-    if(d.empresa)AG.empresa=d.empresa;
-    updateStep(3,"done",d.empresa+" — "+(d.totalLancamentos||AG.empreendimentos.length)+" lançamentos",d.segmento);
-    agStep4();
-  })
-  .catch(function(){
-    if(done)return;done=true;clearTimeout(timer);
-    updateStep(3,"skip","Lançamentos não encontrados","Adicione o nome da empresa manualmente se necessário");
-    agStep4();
+    var totalP=AG.contatos.length+AG.socios.length;
+    updateStep(1,"done","🔍 Agente Pesquisador",totalP+" contatos · "+AG.empreendimentos.length+" lancamentos"+(AG.cnpj?" · CNPJ verificado":""));
+
+    updateStep(2,"running","📊 Agente Analista","Calculando score...");
+    var score=50;
+    var seg=(AG.segmento||"").toLowerCase();
+    if(AG.empreendimentos.length>=3) score+=20; else if(AG.empreendimentos.length>=1) score+=10;
+    if(totalP>0) score+=15;
+    if(seg.indexOf("alto")>=0) score+=15; else if(seg.indexOf("medio")>=0||seg.indexOf("médio")>=0) score+=8;
+    if(AG.cnpj) score+=5;
+    score=Math.min(score,99);
+    var nivel=score>=80?"Alta":score>=65?"Média-Alta":score>=45?"Média":"Baixa";
+    var cor=score>=80?"#A8E63D":score>=65?"#fbbf24":"#9ca3af";
+    var rec=score>=70?"Prioridade alta — abordar esta semana":score>=50?"Boa oportunidade":"Aquecer relacionamento primeiro";
+    AG.analise={score:score,nivel:nivel,cor:cor,recomendacao:rec,insight:null,angulo:null};
+    updateStep(2,"done","📊 Agente Analista","Score: "+score+"/100 · "+nivel);
+    callClaude({model:"claude-sonnet-4-20250514",max_tokens:200,messages:[{role:"user",content:'Empresa "'+AG.empresa+'", segmento '+(AG.segmento||"imobiliario")+', '+AG.empreendimentos.length+' lancamentos. JSON: {"insight":"1 frase sobre empresa","angulo":"como abordar em 1 frase"}'}]}).then(function(t){try{var m=t.match(/\{[^}]+\}/);if(m){var d=JSON.parse(m[0]);AG.analise.insight=d.insight;AG.analise.angulo=d.angulo;}}catch(ex){}}).catch(function(){});
+
+    updateStep(3,"running","🎯 Agente Estrategista","Definindo abordagem...");
+    var allP=[].concat(AG.socios||[],AG.contatos||[]);
+    var dec=null;
+    for(var i=0;i<allP.length;i++){if(isDecisive(allP[i].title||allP[i].position||"")){dec=allP[i];break;}}
+    if(!dec&&allP.length) dec=allP[0];
+    var lanc=AG.empreendimentos[0]?AG.empreendimentos[0].nome:"";
+    var angulo=lanc?"Mencionar "+lanc+" como gancho":"Mostrar cases de "+(AG.segmento||"incorporadoras");
+    AG.estrategia={decisor:dec,nome:dec?(dec.name||"").split(" ")[0]:"",cargo:dec?(dec.title||dec.position||"Diretor"):"Diretor de Marketing",lancamento:lanc,angulo:angulo,empresa:AG.empresa,segmento:AG.segmento||"incorporadora"};
+    updateStep(3,"done","🎯 Agente Estrategista",angulo.slice(0,55));
+
+    updateStep(4,"running","✍️ Agente Comunicador","Redigindo...");
+    var msgs=buildMsgs(AG.estrategia.nome,AG.estrategia.cargo,AG.estrategia.empresa,AG.estrategia.segmento,lanc,"frio");
+    AG.mensagem=msgs;
+    updateStep(4,"done","✍️ Agente Comunicador","WhatsApp + email prontos");
+    setTimeout(function(){renderAgenteResult(AG.empresa,msgs,dec);},300);
+  }).catch(function(e){
+    updateStep(4,"error","Erro no agente",e.message||"Erro");
+    document.getElementById("btn-agente").disabled=false;
   });
 }
-
-// Step 4: Analysis + message — called after steps 1+2+3
-function agStep4(){
-  updateStep(4,"running","Gerando análise e abordagem...","IA processando dados");
-
-  var empresa=AG.empresa||AG.domain;
-  var segmento=AG.segmento||"incorporadora";
-  var lancamento=AG.empreendimentos&&AG.empreendimentos[0]?AG.empreendimentos[0].nome:"";
-  var decisor=null;
-  var allPeople=[].concat(AG.socios,AG.contatos);
-  for(var i=0;i<allPeople.length;i++){
-    if(isDecisive(allPeople[i].title||allPeople[i].position||"")){decisor=allPeople[i];break;}
-  }
-  if(!decisor&&allPeople.length) decisor=allPeople[0];
-
-  var nome=decisor?((decisor.name||decisor.first_name||"").split(" ")[0]):"";
-  var cargo=decisor?(decisor.title||decisor.position||"Diretor"):"Diretor de Marketing";
-
-  var msgs=buildMsgs(nome,cargo,empresa,segmento,lancamento,"frio");
-
-  updateStep(4,"done","Análise completa","Mensagem personalizada gerada");
-  setTimeout(function(){renderAgenteResult(empresa,msgs,decisor);},300);
-}
-
-// ══════════════════════════════════════════
-// RENDER AGENTE RESULT
-// ══════════════════════════════════════════
 function renderAgenteResult(empresa,msgs,decisorPrincipal){
   var el=document.getElementById("ag-result");
   var allPeople=[].concat(AG.socios,AG.contatos);
@@ -605,60 +564,27 @@ function renderAgenteResult(empresa,msgs,decisorPrincipal){
   var html='<div class="fade">';
 
   // ── Company header ──────────────────────────────────────────
-  var analise    = AG.analise    || {};
-  var estrategia = AG.estrategia || {};
-  var scoreCor   = (analise.score||0)>=80?"#A8E63D":(analise.score||0)>=65?"#fbbf24":"#9ca3af";
-  var faviconUrl = 'https://www.google.com/s2/favicons?domain='+AG.domain+'&sz=64';
-
-  html += '<div class="card-dark" style="margin-bottom:16px">'+
-    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">'+
-      '<div style="display:flex;align-items:center;gap:12px">'+
-        '<img src="'+faviconUrl+'" style="width:36px;height:36px;border-radius:8px;object-fit:cover" onError="this.remove()"/>'+
-        '<div>'+
-          '<p style="font-size:22px;font-weight:800;font-family:Syne,sans-serif;color:#fff;line-height:1.1">'+empresa+'</p>'+
-          '<p style="font-size:12px;color:#9ca3af;margin-top:2px">'+AG.domain+(AG.segmento?' · '+AG.segmento:'')+'</p>'+
-        '</div>'+
+  html+='<div class="card-dark" style="margin-bottom:16px">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
+      '<div>'+
+        '<p style="font-size:22px;font-weight:800;font-family:Syne,sans-serif;color:#fff;margin-bottom:4px">'+empresa+'</p>'+
+        '<p style="font-size:13px;color:#9ca3af">'+AG.domain+(AG.segmento?' · '+AG.segmento:'')+'</p>'+
       '</div>'+
-      (analise.score?
-        '<div style="text-align:center;flex-shrink:0;background:rgba(255,255,255,.06);border-radius:10px;padding:8px 14px">'+
-          '<p style="font-size:30px;font-weight:800;color:'+scoreCor+';line-height:1;font-family:Syne,sans-serif">'+analise.score+'</p>'+
-          '<p style="font-size:10px;font-weight:700;color:'+scoreCor+';text-transform:uppercase;letter-spacing:.04em">'+analise.nivel+'</p>'+
-        '</div>':"")+
-    '</div>'+
-
-    (analise.insight?
-      '<div style="background:rgba(255,255,255,.05);border-radius:8px;padding:10px 14px;margin-bottom:10px">'+
-        '<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">📊 Analista</p>'+
-        '<p style="font-size:13px;color:#e2e8f0;line-height:1.5">'+analise.insight+'</p>'+
-      '</div>':"")+
-
-    (analise.angulo||estrategia.angulo?
-      '<div style="background:rgba(168,230,61,.07);border:1px solid rgba(168,230,61,.15);border-radius:8px;padding:10px 14px;margin-bottom:12px">'+
-        '<p style="font-size:10px;font-weight:700;color:#A8E63D;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">🎯 Estrategista</p>'+
-        '<p style="font-size:13px;color:#d1fae5;line-height:1.5">'+(analise.angulo||estrategia.angulo)+'</p>'+
-      '</div>':"")+
-
-    (analise.recomendacao?
-      '<p style="font-size:12px;color:#94a3b8;margin-bottom:12px;line-height:1.4">'+analise.recomendacao+'</p>':"")+
-
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
-      (decisores.length?'<span class="tag-p">'+decisores.length+' decisores</span>':'')+
-      (AG.empreendimentos.length?'<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700">'+AG.empreendimentos.length+' lançamentos</span>':'')+
-      (AG.cnpj?'<span style="background:rgba(255,255,255,.06);color:#9ca3af;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:3px 9px;font-size:11px">'+AG.cnpj+'</span>':'')+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+        (decisores.length?'<span class="tag-p">'+decisores.length+' decisores</span>':'')+
+        (AG.empreendimentos.length?'<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700">'+AG.empreendimentos.length+' lançamentos</span>':'')+
+      '</div>'+
     '</div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-      '<button class="btn-ghost" style="font-size:12px;padding:7px 14px;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7)" data-emp="'+encodeURIComponent(empresa)+'" onclick="agenteUsarMensagem(this.dataset.emp)">✉ Usar na mensagem</button>'+
+      '<button class="btn-ghost" style="font-size:12px;padding:7px 14px;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7)" onclick="agenteUsarMensagem(\''+encodeURIComponent(empresa)+'\')">✉ Usar na mensagem</button>'+
       '<button class="btn-ghost" style="font-size:12px;padding:7px 14px;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7)" onclick="novaProspeccao()">↺ Nova prospecção</button>'+
     '</div>'+
   '</div>';
 
-
   // ── Decisores ───────────────────────────────────────────────
   if(decisores.length){
     html+='<div class="result-section">'+
-      '<div class="section-title">'+
-      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'+
-      'Decisores e contatos</div>'+
+      '<div class="section-title">👥 Decisores e contatos</div>'+
       '<div class="card" style="padding:4px 20px">';
     decisores.slice(0,6).forEach(function(p){html+=renderContactRow(p,empresa);});
     html+='</div></div>';
@@ -667,29 +593,19 @@ function renderAgenteResult(empresa,msgs,decisorPrincipal){
   // ── Empreendimentos ─────────────────────────────────────────
   if(AG.empreendimentos&&AG.empreendimentos.length){
     html+='<div class="result-section">'+
-      '<div class="section-title">'+
-      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>'+
-      'Lançamentos ativos</div>';
+      '<div class="section-title">🏗️ Lançamentos ativos</div>';
     AG.empreendimentos.forEach(function(e){
       var sc=e.status&&e.status.includes("lançamento")?"#166534":e.status&&e.status.includes("obras")?"#854d0e":"#374151";
-      var siteLink=e.link||e.url||('https://'+AG.domain+'/empreendimentos');
       html+='<div class="emp-row">'+
-        '<div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1">'+
+        '<div style="display:flex;align-items:center;gap:12px">'+
           '<div style="width:36px;height:36px;background:var(--pl);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🏗️</div>'+
-          '<div style="min-width:0">'+
+          '<div>'+
             '<p style="font-size:14px;font-weight:600;color:var(--navy)">'+e.nome+'</p>'+
             '<p style="font-size:12px;font-weight:600;color:'+sc+'">'+e.status+(e.cidade?' · '+e.cidade:'')+(e.bairro?' · '+e.bairro:'')+'</p>'+
             (e.destaque?'<p style="font-size:12px;color:var(--g4);margin-top:2px">'+e.destaque+'</p>':'')+
           '</div>'+
         '</div>'+
-        '<div style="display:flex;gap:5px;flex-shrink:0;align-items:center">'+
-          '<a class="link-btn" href="'+siteLink+'" target="_blank">'+
-            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'+
-            'Ver no site</a>'+
-          '<button class="link-btn" style="background:var(--pl);border-color:var(--pm);color:var(--pd)" data-emp="'+encodeURIComponent(empresa)+'" data-lanc="'+encodeURIComponent(e.nome)+'" onclick="agenteAbordagem(this.dataset.emp,this.dataset.lanc)">'+
-            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'+
-            'Abordar</button>'+
-        '</div>'+
+        '<button class="link-btn" data-emp="'+encodeURIComponent(empresa)+'" data-lanc="'+encodeURIComponent(e.nome)+'" onclick="agenteAbordagem(this.dataset.emp,this.dataset.lanc)">✉ Abordar</button>'+
       '</div>';
     });
     html+='</div>';
@@ -697,9 +613,7 @@ function renderAgenteResult(empresa,msgs,decisorPrincipal){
 
   // ── Mensagem gerada ─────────────────────────────────────────
   html+='<div class="result-section">'+
-    '<div class="section-title">'+
-      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'+
-      'Abordagem gerada</div>'+
+    '<div class="section-title">💬 Abordagem gerada</div>'+
     '<div class="card">'+
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'+
         '<span style="font-size:18px">💬</span>'+
@@ -734,56 +648,34 @@ function renderAgenteResult(empresa,msgs,decisorPrincipal){
 function renderContactRow(p,empresa){
   var name=p.name||[(p.first_name||""),(p.last_name||"")].filter(Boolean).join(" ")||"-";
   var email=p.email||p.value||null;
-  var title=p.title||p.position||null;
+  var title=p.title||p.position||"-";
   var phone=p.phone_numbers&&p.phone_numbers[0]?p.phone_numbers[0].sanitized_number:(p.direct_phone||p.mobile_phone||null);
   var linkedin=p.linkedin_url||null;
-  var verified=p.email_status==="verified";
-  var likely=p.email_status==="likely_to_engage";
+  var verified=p.email_status==="verified"||p.email_status==="likely_to_engage";
   var isSocio=p.is_socio;
-  var alternatives=p.email_alternatives||[];
   var cols=getAvColors(name);
   var ini=initials((p.first_name||name.split(" ")[0]||""),(p.last_name||name.split(" ")[1]||""));
+  var photo=p.photo_url||null;
 
   return '<div class="contact-row row-in">'+
-    '<div class="av" style="background:'+cols[1]+';color:'+cols[0]+';font-size:13px;letter-spacing:0">'+ini+'</div>'+
+    (photo
+      ?'<img src="'+photo+'" style="width:40px;height:40px;border-radius:10px;object-fit:cover;flex-shrink:0" onError="this.remove()"/>'
+      :'<div class="av" style="background:'+cols[1]+';color:'+cols[0]+'">'+ini+'</div>')+
     '<div style="flex:1;min-width:0">'+
       '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">'+
         '<span style="font-size:14px;font-weight:700;color:var(--navy)">'+name+'</span>'+
-        (isSocio?'<span style="background:#ede9fe;color:#5b21b6;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700">Sócio</span>':
-          isDecisive(title||"")?'<span style="background:#ede9fe;color:#5b21b6;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700">Decisor</span>':"")+
+        (isSocio?'<span class="tag-p" style="font-size:10px">Sócio</span>':
+          isDecisive(title)?'<span class="tag-p" style="font-size:10px">Decisor</span>':"")+
+        (verified?'<span class="tag-ok" style="font-size:10px">✓ email</span>':"")+
       '</div>'+
-      (title?'<p style="font-size:12px;color:var(--g5);margin-bottom:6px">'+title+'</p>':"")+
-      // Email in highlight box
-      (email?
-        '<div style="display:flex;align-items:center;gap:8px;background:'+(verified?"#f0fdf4":likely?"#fefce8":"var(--g1)")+';border:1px solid '+(verified?"#bbf7d0":likely?"#fde68a":"var(--g2)")+';border-radius:8px;padding:6px 10px;margin-bottom:4px">'+
-          '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="'+(verified?"#166534":likely?"#854d0e":"var(--g4)")+'" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>'+
-          '<span style="font-size:12px;font-weight:600;color:'+(verified?"#166534":likely?"#854d0e":"var(--g5)")+'">'+email+'</span>'+
-          (verified?'<span style="font-size:10px;font-weight:700;color:#166534;margin-left:auto">Verificado</span>':
-           likely?'<span style="font-size:10px;font-weight:700;color:#854d0e;margin-left:auto">Inferido</span>':
-           '<span style="font-size:10px;font-weight:600;color:var(--g4);margin-left:auto">Estimado</span>')+
-        '</div>'
-      :"")+ 
-      (!email&&alternatives.length?
-        '<div style="background:var(--g1);border-radius:8px;padding:7px 10px;margin-bottom:4px">'+
-          '<p style="font-size:10px;font-weight:700;color:var(--g4);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Possíveis emails</p>'+
-          alternatives.slice(0,3).map(function(a){return '<p style="font-size:12px;color:var(--g5);font-family:monospace">'+a+'</p>';}).join("")+
-        '</div>'
-      :"")+
-      (phone?
-        '<div style="display:flex;align-items:center;gap:5px">'+
-          '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--g4)" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'+
-          '<span style="font-size:12px;color:var(--g5)">'+phone+'</span>'+
-        '</div>'
-      :"")+
+      '<p style="font-size:13px;color:var(--g5)">'+title+'</p>'+
+      (email?'<p style="font-size:12px;color:var(--g4);margin-top:2px;font-family:monospace">'+email+'</p>':"")+
+      (phone?'<p style="font-size:12px;color:var(--g5);margin-top:2px">📞 '+phone+'</p>':"")+
     '</div>'+
     '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">'+
-      (linkedin?'<a class="link-btn" href="'+linkedin+'" target="_blank" style="gap:5px">'+
-        '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>'+
-        'LinkedIn</a>':"")+
-      (email?'<a class="link-btn" href="mailto:'+email+'" style="gap:5px">'+
-        '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>'+
-        'Email</a>':"")+
-      (phone?'<a class="link-btn" style="background:#dcfce7;border-color:#86efac;color:#166534" href="https://wa.me/55'+phone.replace(/\D/g,"")+'" target="_blank">WA</a>':"")+
+      (linkedin?'<a class="link-btn" href="'+linkedin+'" target="_blank">LinkedIn ↗</a>':"")+
+      (email?'<a class="link-btn" href="mailto:'+email+'">Email</a>':"")+
+      (phone?'<a class="link-btn" href="https://wa.me/55'+phone.replace(/\D/g,"")+'" target="_blank">WA</a>':"")+
     '</div>'+
   '</div>';
 }
@@ -971,120 +863,3 @@ switchTab("agente");
 </script>
 </body>
 </html>
-  // ── 4 AGENTES em pipeline ──
-  agOrquestrador(domain);
-}
-
-function agOrquestrador(domain) {
-  var stepsEl = document.getElementById("ag-steps");
-  stepsEl.innerHTML =
-    stepHtml(1,"waiting","🔍 Agente Pesquisador","Contatos + CNPJ + Lançamentos em paralelo")+
-    stepHtml(2,"waiting","📊 Agente Analista","Avalia oportunidade e score")+
-    stepHtml(3,"waiting","🎯 Agente Estrategista","Define tom e ângulo")+
-    stepHtml(4,"waiting","✍️ Agente Comunicador","Redige mensagem personalizada");
-
-  updateStep(1,"running","🔍 Agente Pesquisador","Pesquisando...");
-
-  var empRe = /residenc|condomin|lançam|lanc|apart|torre|park|garden|plaza|vila|living|home|prime|reserva|parque|jardim|comercial|studios?|flat|loft|empreend/i;
-
-  function scrapeEmps() {
-    var db = findInDB(AG.empresa||"", domain);
-    if (db) return Promise.resolve({emps:db.empreendimentos, seg:db.segmento, emp:db.empresa});
-    return Promise.all(["","empreendimentos","lancamentos"].map(function(p){
-      return fetch("https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain+(p?"/"+p:"")),{headers:{Accept:"application/json"}})
-        .then(function(r){return r.json();})
-        .then(function(px){
-          var doc=new DOMParser().parseFromString(px.contents||"","text/html");
-          var found=[],seen={};
-          doc.querySelectorAll("h2,h3,h4,[class*='empreend'],[class*='product'],[class*='lancam'],[class*='card'] h3").forEach(function(el){
-            var t=(el.textContent||"").replace(/\s+/g," ").trim();
-            if(t.length>4&&t.length<80&&!seen[t]&&empRe.test(t)){seen[t]=true;found.push({nome:t,status:"Em lançamento",cidade:"",bairro:"",destaque:""});}
-          });
-          return found;
-        }).catch(function(){return[];});
-    })).then(function(all){
-      var merged=[],seen={};
-      all.forEach(function(r){r.forEach(function(e){if(!seen[e.nome]){seen[e.nome]=true;merged.push(e);}});});
-      return {emps:merged.slice(0,12), seg:null, emp:null};
-    });
-  }
-
-  Promise.all([
-    callApollo(domain).catch(function(){return {people:[],source:"none",orgName:null};}),
-    callSocios(domain).catch(function(){return {people:[],empresa:null,cnpj:null};}),
-    scrapeEmps().catch(function(){return {emps:[],seg:null,emp:null};}),
-  ])
-  .then(function(res) {
-    var cont=res[0], soc=res[1], emp=res[2];
-
-    AG.contatos = cont.people||[];
-    AG.fonte     = cont.source||"none";
-    AG.socios    = soc.people||[];
-    AG.cnpj      = soc.cnpj||null;
-    AG.empreendimentos = emp.emps||[];
-    AG.segmento  = emp.seg||null;
-    AG.empresa   = emp.emp || cont.orgName || soc.empresa || AG.empresa ||
-      (domain.split(".")[0].charAt(0).toUpperCase()+domain.split(".")[0].slice(1));
-
-    var totalP = AG.contatos.length + AG.socios.length;
-    updateStep(1,"done","🔍 Agente Pesquisador",
-      totalP+" contatos · "+AG.empreendimentos.length+" lançamentos"+(AG.cnpj?" · CNPJ ✓":""));
-
-    // ── Agente 2: Analista ───────────────────────────────
-    updateStep(2,"running","📊 Agente Analista","Calculando score...");
-
-    var score = 50, motivos = [];
-    var seg = (AG.segmento||"").toLowerCase();
-    if (AG.empreendimentos.length >= 3) { score += 20; motivos.push("múltiplos lançamentos"); }
-    else if (AG.empreendimentos.length >= 1) { score += 10; motivos.push("lançamento ativo"); }
-    if (totalP > 0) { score += 15; motivos.push("decisores identificados"); }
-    if (seg.includes("alto")) { score += 15; motivos.push("alto padrão"); }
-    else if (seg.includes("médio")) { score += 8; }
-    if (AG.cnpj) { score += 5; }
-    score = Math.min(score, 99);
-
-    var nivel = score>=80?"Alta":score>=65?"Média-Alta":score>=45?"Média":"Baixa";
-    var cor   = score>=80?"#A8E63D":score>=65?"#fbbf24":"#9ca3af";
-    var rec   = score>=70?"Prioridade alta — abordar esta semana com Max Barbosa":
-                score>=50?"Boa oportunidade — apresentar cases similares":
-                "Aquecer relacionamento antes de proposta";
-
-    AG.analise = {score:score, nivel:nivel, cor:cor, recomendacao:rec, insight:null, angulo:null};
-    updateStep(2,"done","📊 Agente Analista","Score: "+score+"/100 · "+nivel);
-
-    // Enriquece com Claude em background (não bloqueia)
-    callClaude({model:"claude-sonnet-4-20250514", max_tokens:200,
-      messages:[{role:"user", content:'Empresa imobiliária "'+AG.empresa+'". Segmento: '+(AG.segmento||"?")+'. Lançamentos: '+AG.empreendimentos.length+'. JSON apenas: {"insight":"1 frase sobre a empresa","angulo":"melhor forma de abordar em 1 frase"}'}]
-    }).then(function(t){
-      try { var m=t.match(/\{[\s\S]*\}/); if(m){ var d=JSON.parse(m[0]); AG.analise.insight=d.insight; AG.analise.angulo=d.angulo; } } catch(e){}
-    }).catch(function(){});
-
-    // ── Agente 3: Estrategista ───────────────────────────
-    updateStep(3,"running","🎯 Agente Estrategista","Definindo abordagem...");
-
-    var allP = [].concat(AG.socios||[], AG.contatos||[]);
-    var dec  = allP.find(function(p){ return isDecisive(p.title||p.position||""); }) || allP[0] || null;
-    var lanc = AG.empreendimentos[0] ? AG.empreendimentos[0].nome : "";
-    var angulo = lanc ? "Mencionar o "+lanc+" como gancho inicial" : "Posicionar Flying Studio em casos de "+( AG.segmento||"incorporadoras");
-
-    AG.estrategia = {
-      decisor:dec,
-      nome: dec ? (dec.name||"").split(" ")[0] : "",
-      cargo: dec ? (dec.title||dec.position||"Diretor") : "Diretor de Marketing",
-      lancamento: lanc, angulo: angulo,
-      empresa: AG.empresa, segmento: AG.segmento||"incorporadora",
-    };
-    updateStep(3,"done","🎯 Agente Estrategista", angulo.slice(0,55)+"...");
-
-    // ── Agente 4: Comunicador ────────────────────────────
-    updateStep(4,"running","✍️ Agente Comunicador","Redigindo mensagem...");
-    var msgs = buildMsgs(AG.estrategia.nome, AG.estrategia.cargo, AG.estrategia.empresa, AG.estrategia.segmento, lanc, "frio");
-    AG.mensagem = msgs;
-    updateStep(4,"done","✍️ Agente Comunicador","WhatsApp + email prontos para usar");
-    setTimeout(function(){ renderAgenteResult(AG.empresa, msgs, dec); }, 300);
-  })
-  .catch(function(e){
-    updateStep(4,"error","Erro no agente", e.message||"Erro inesperado");
-    document.getElementById("btn-agente").disabled = false;
-  });
-}
