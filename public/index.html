@@ -267,19 +267,11 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
 <!-- ═══════════════════════════════════════ CONTATOS ═══════════════════════════════════════ -->
 <div id="page-contatos" style="display:none">
   <div style="margin-bottom:20px">
-    <p class="sec-eyebrow">Hunter.io</p>
+    <p class="sec-eyebrow">Apollo.io · Base de 275M+ pessoas</p>
     <h1 class="sec-title">Encontre os decisores</h1>
-    <p class="sec-sub">Digite o domínio da empresa e mapeamos todos os emails.</p>
+    <p class="sec-sub">Nome, email, cargo e telefone dos decisores — direto da maior base B2B do mundo.</p>
   </div>
   <div class="card" style="margin-bottom:14px">
-    <div style="display:flex;gap:16px;border-bottom:1px solid var(--gray-2);margin-bottom:18px">
-      <button class="tab-btn active" id="mode-domain" onclick="switchMode('domain')" style="padding:8px 4px 12px;font-size:13px">
-        Todos os emails
-      </button>
-      <button class="tab-btn" id="mode-role" onclick="switchMode('role')" style="padding:8px 4px 12px;font-size:13px">
-        Filtrar por cargo
-      </button>
-    </div>
     <div class="grid-2" style="margin-bottom:12px">
       <div>
         <label>Empresa</label>
@@ -291,19 +283,17 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
         <p id="domain-hint" class="field-ok" style="display:none"></p>
       </div>
     </div>
-    <div id="role-filters" style="display:none;border-top:1px solid var(--gray-2);padding-top:16px;margin-bottom:14px">
-      <div style="margin-bottom:12px">
-        <label style="margin-bottom:8px">Área</label>
-        <div id="dept-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-      </div>
-      <div>
-        <label style="margin-bottom:8px">Nível</label>
-        <div id="sen-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-      </div>
+    <div style="margin-bottom:14px">
+      <label style="margin-bottom:8px">Área / Departamento</label>
+      <div id="dept-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="margin-bottom:8px">Nível hierárquico</label>
+      <div id="sen-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
     </div>
     <button class="btn btn-primary" id="btn-search" onclick="doSearch()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      Mapear contatos
+      Buscar decisores
     </button>
   </div>
   <div id="search-error" style="display:none"></div>
@@ -850,172 +840,175 @@ updateHistCount();
 // CONTATOS (Hunter.io)
 // ═══════════════════════════════════════
 function doSearch(){
-  var domain=cleanDomain(document.getElementById("inp-domain").value);
-  var company=document.getElementById("inp-company").value.trim();
-  if(!domain){ document.getElementById("inp-domain").classList.add("error"); toast("⚠️ Informe o domínio da empresa"); return; }
+  var domain  = cleanDomain(document.getElementById("inp-domain").value);
+  var company = document.getElementById("inp-company").value.trim();
+  if(!domain && !company){
+    document.getElementById("inp-company").classList.add("error");
+    toast("⚠️ Preencha empresa ou domínio"); return;
+  }
+  document.getElementById("inp-company").classList.remove("error");
   document.getElementById("inp-domain").classList.remove("error");
   document.getElementById("search-error").style.display="none";
   document.getElementById("search-results").style.display="none";
   document.getElementById("search-loader").style.display="block";
   document.getElementById("btn-search").disabled=true;
-  startProgress([
-    {pct:15,label:"Conectando à Hunter.io...",delay:200},
-    {pct:40,label:"Buscando emails do domínio...",delay:800},
-    {pct:70,label:"Coletando resultados...",delay:2000},
-    {pct:88,label:"Finalizando...",delay:3500},
-  ]);
-  var url="https://api.hunter.io/v2/domain-search?domain="+encodeURIComponent(domain)+"&api_key="+HUNTER_KEY+"&limit=10";
-  if(currentMode==="role"){
-    if(selectedDept) url+="&department="+selectedDept;
-    if(selectedSen)  url+="&seniority="+selectedSen;
-  }
-  fetch(url,{headers:{Accept:"application/json"}})
-    .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d};});})
-    .then(function(res){
-      stopProgress();
-      document.getElementById("search-loader").style.display="none";
-      document.getElementById("btn-search").disabled=false;
-      if(!res.ok||res.data.errors){
-        var msg=(res.data.errors&&res.data.errors[0]&&(res.data.errors[0].details||res.data.errors[0].id))||res.data.message||("Erro HTTP "+res.status);
-        showError("search-error",msg);
-        return;
-      }
-      var emails=res.data.data&&res.data.data.emails||[];
-      var pattern=res.data.data&&res.data.data.pattern||null;
-      var org=res.data.data&&res.data.data.organization||null;
-      // Fallback: mínimo 2 contatos
-      if(emails.length<2){
-        var pat=pattern||"{first}.{last}";
-        var inferLocal=function(f,l){return pat.replace("{first}",f).replace("{last}",l).replace("{f}",f[0]||"").replace("{l}",l[0]||"");};
-        var fallbacks=[
-          {first:"diretor",last:"marketing",position:"Diretor de Marketing"},
-          {first:"marketing",last:domain.split(".")[0],position:"Gerente de Marketing"},
-          {first:"ceo",last:domain.split(".")[0],position:"CEO / Presidente"},
-        ];
-        var existing={};
-        emails.forEach(function(e){existing[e.value]=true;});
-        fallbacks.forEach(function(c){
-          if(emails.length>=2) return;
-          var email=inferLocal(c.first,c.last)+"@"+domain;
-          if(!existing[email]){emails.push({value:email,first_name:c.first,last_name:c.last,position:c.position,confidence:35,inferred:true});existing[email]=true;}
-        });
-      }
-      allResults=emails;
-      addHistory({key:"c:"+domain,type:"contatos",label:company||domain,sublabel:emails.length+" contatos · "+domain,domain:domain,company:company,ts:Date.now()});
-      renderContatos(emails,pattern,domain,company,org);
-    })
-    .catch(function(e){
-      stopProgress();
-      document.getElementById("search-loader").style.display="none";
-      document.getElementById("btn-search").disabled=false;
-      showError("search-error","Falha na conexão: "+e.message+". Verifique sua internet.");
-    });
+  document.getElementById("prog-step").textContent="Conectando ao Apollo.io...";
+  document.getElementById("prog-fill").style.width="20%";
+  document.getElementById("prog-pct").textContent="20%";
+
+  var dept = selectedDept || null;
+  var senMap = {
+    executive:["c_suite","owner","founder"],
+    senior:["vp","director","manager","senior"],
+    junior:["entry","junior","intern"],
+    "":["c_suite","vp","director","manager","senior"]
+  };
+  var seniority = senMap[selectedSen||""];
+
+  var body = {company:company, domain:domain, seniority:seniority};
+  if(dept) body.department = [dept];
+
+  setTimeout(function(){
+    document.getElementById("prog-fill").style.width="60%";
+    document.getElementById("prog-pct").textContent="60%";
+    document.getElementById("prog-step").textContent="Buscando decisores...";
+  }, 800);
+
+  fetch("/api/apollo", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    document.getElementById("search-loader").style.display="none";
+    document.getElementById("btn-search").disabled=false;
+    if(data.error){
+      showError("search-error", data.error);
+      return;
+    }
+    var people = data.people || data.contacts || [];
+    if(!people.length){
+      showError("search-error","Nenhum decisor encontrado para essa empresa. Tente com o domínio do site.");
+      return;
+    }
+    allResults = people;
+    addHistory({key:"c:"+(domain||company),type:"contatos",label:company||domain,
+      sublabel:people.length+" decisores · Apollo.io",domain:domain,company:company,ts:Date.now()});
+    renderContatosApollo(people, company||domain, data.pagination);
+  })
+  .catch(function(e){
+    document.getElementById("search-loader").style.display="none";
+    document.getElementById("btn-search").disabled=false;
+    showError("search-error","Falha na conexão: "+e.message);
+  });
 }
 
-function buildContactRow(r,compOrDomain){
-  var name=[(r.first_name||""),(r.last_name||"")].filter(Boolean).join(" ");
-  var score=r.confidence||0;
-  var hl=isTarget(r.position);
-  var avCol=name?getAvColor(name):"#9ca3af";
-  var avBg2=name?getAvBg(name):"#f3f4f6";
-  var ini=name?initials(r.first_name||"",r.last_name||""):"?";
-  var liUrl="https://www.linkedin.com/search/results/people/?keywords="+encodeURIComponent(name+" "+compOrDomain);
-  var gUrl="https://www.google.com/search?q="+encodeURIComponent('"'+name+'" "'+compOrDomain+'"');
+
+function buildContactRow(p, compOrDomain){
+  // Suporta tanto formato Apollo quanto Hunter
+  var name    = p.name || [(p.first_name||""),(p.last_name||"")].filter(Boolean).join(" ") || "-";
+  var email   = p.email || p.value || "-";
+  var title   = p.title || p.position || "-";
+  var phone   = p.phone_numbers&&p.phone_numbers[0]?p.phone_numbers[0].sanitized_number:
+                (p.direct_phone||p.mobile_phone||null);
+  var linkedin= p.linkedin_url||null;
+  var photo   = p.photo_url||null;
+  var org     = p.organization&&p.organization.name ? p.organization.name : compOrDomain;
+  var emailStatus = p.email_status||"";
+  var isVerified = emailStatus==="verified"||emailStatus==="likely_to_engage";
+  var avCol   = getAvColor(name); var avBg2 = getAvBg(name);
+  var ini     = initials((p.first_name||name.split(" ")[0]||""),(p.last_name||name.split(" ")[1]||""));
+  var isTarget2 = isTarget(title);
+
   return '<div class="result-row row-in">'+
-    '<div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;background:'+avBg2+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:'+avCol+'">'+ini+'</div>'+
+    (photo?'<img src="'+photo+'" style="width:42px;height:42px;border-radius:10px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'"/>':
+      '<div style="width:42px;height:42px;border-radius:10px;flex-shrink:0;background:'+avBg2+';display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:'+avCol+'">'+ini+'</div>')+
     '<div style="flex:1;min-width:0">'+
       '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap">'+
-        '<span style="font-size:14px;font-weight:600;color:#1a1a2e;word-break:break-all">'+r.value+'</span>'+
-        (hl?'<span class="badge" style="background:#F3F0FF;color:#5a3dd4;border-color:#c4b5fd;font-size:11px">Decisor</span>':"")+
-        (r.inferred?'<span class="badge" style="background:#f9fafb;color:#9ca3af;border-color:#e5e7eb;font-size:11px">Inferido</span>':"")+
+        '<span style="font-size:14px;font-weight:700;color:var(--navy)">'+name+'</span>'+
+        (isTarget2?'<span class="tag-purple" style="font-size:10px">Decisor</span>':"")+
+        (isVerified?'<span class="tag-ok" style="font-size:10px">✓ Email verificado</span>':"")+
       '</div>'+
-      (name?'<p style="font-size:13px;color:#6b7280;margin-bottom:2px">'+name+'</p>':"")+
-      (r.position?'<p style="font-size:12px;color:#9ca3af">'+r.position+'</p>':"")+
+      '<p style="font-size:13px;color:var(--gray-5);margin-bottom:2px">'+title+'</p>'+
+      (email&&email!=="-"?'<p style="font-size:12px;color:var(--gray-4);font-family:monospace">'+email+'</p>':"")+
+      (phone?'<p style="font-size:12px;color:var(--gray-5);margin-top:2px">📞 '+phone+'</p>':"")+
     '</div>'+
     '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">'+
-      '<div style="display:flex;align-items:center;gap:6px">'+
-        '<div style="width:8px;height:8px;border-radius:50%;background:'+scoreColor(score)+';flex-shrink:0"></div>'+
-        '<span class="badge" style="background:'+scoreBg(score)+';color:'+scoreColor(score)+';border-color:'+scoreBd(score)+'">'+scoreLabel(score)+' · '+score+'%</span>'+
-      '</div>'+
-      '<div style="display:flex;gap:5px;flex-wrap:wrap">'+
-        (name?'<a class="link-btn" href="'+liUrl+'" target="_blank">LinkedIn</a><a class="link-btn" href="'+gUrl+'" target="_blank">Google</a>':"")+
-        '<button class="link-btn" onclick="atalhoMensagem(\''+encodeURIComponent(name)+'\',\''+encodeURIComponent(r.position||"")+'\',\''+encodeURIComponent(compOrDomain)+'\')">✉ Msg</button>'+
+      '<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">'+
+        (linkedin?'<a class="link-btn" href="'+linkedin+'" target="_blank">LinkedIn</a>':"")+
+        (email&&email!=="-"?'<a class="link-btn" href="mailto:'+email+'">Email</a>':"")+
+        (phone?'<a class="link-btn" href="https://wa.me/55'+phone.replace(/\D/g,"")+'" target="_blank">WhatsApp</a>':"")+
+        '<button class="link-btn" data-name="'+encodeURIComponent(name)+'" data-title="'+encodeURIComponent(title)+'" data-org="'+encodeURIComponent(org)+'" onclick="atalhoMensagem(this.dataset.name,this.dataset.title,this.dataset.org)">✉ Msg</button>'+
       '</div>'+
     '</div>'+
   '</div>';
 }
 
-function renderContatos(emails,pattern,domain,company,org){
-  var sorted=emails.slice().sort(function(a,b){
-    if(isTarget(a.position)&&!isTarget(b.position)) return -1;
-    if(!isTarget(a.position)&&isTarget(b.position)) return 1;
-    return (b.confidence||0)-(a.confidence||0);
-  });
-  var targets=emails.filter(function(r){return isTarget(r.position);});
-  var avg=emails.length?Math.round(emails.reduce(function(a,r){return a+(r.confidence||0);},0)/emails.length):0;
-  var compOrDomain=company||domain;
+function renderContatosApollo(people, compOrDomain, pagination){
+  var decisores = people.filter(function(p){ return isTarget(p.title||p.position||""); });
+  var comEmail  = people.filter(function(p){ return p.email&&p.email!=="-"; });
+  var comTel    = people.filter(function(p){ return p.phone_numbers&&p.phone_numbers.length>0||p.direct_phone||p.mobile_phone; });
+
   var html='<div class="fade">';
-  // Company info from Hunter
-  if(org){
-    html+='<div class="card-flat" style="margin-bottom:12px;display:flex;align-items:center;gap:12px">'+
-      '<div style="width:38px;height:38px;border-radius:8px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏢</div>'+
-      '<div style="flex:1">'+
-        '<p style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:1px">'+( org.name||compOrDomain)+'</p>'+
-        (org.industry?'<p style="font-size:12px;color:#9ca3af">'+org.industry+(org.country?" · "+org.country:"")+'</p>':"")+
-      '</div>'+
-      (org.linkedin?'<a href="'+org.linkedin+'" target="_blank" class="btn-icon">💼 LinkedIn</a>':"")+
-    '</div>';
-  }
-  // Pattern
-  if(pattern){
-    html+='<div style="background:#F3F0FF;border:1.5px solid #c4b5fd;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:center">'+
-      '<span style="font-size:18px">⚡</span>'+
-      '<div><p style="font-size:11px;font-weight:700;color:#5a3dd4;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Padrão de email detectado</p>'+
-      '<p style="font-size:14px;font-weight:700;color:#1a1a2e"><span style="color:#7C5CFC">'+pattern+'</span><span style="color:#9ca3af">@'+domain+'</span></p></div>'+
-    '</div>';
-  }
+
   // Stats
   html+='<div class="grid-3" style="margin-bottom:14px">'+
-    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:#1a1a2e;line-height:1;margin-bottom:4px;letter-spacing:-.02em">'+emails.length+'</p><p style="font-size:12px;font-weight:500;color:#9ca3af">Emails mapeados</p></div>'+
-    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:#7C5CFC;line-height:1;margin-bottom:4px;letter-spacing:-.02em">'+targets.length+'</p><p style="font-size:12px;font-weight:500;color:#9ca3af">Decisores</p></div>'+
-    '<div class="stat-card"><p style="font-size:28px;font-weight:800;line-height:1;margin-bottom:4px;letter-spacing:-.02em;color:'+scoreColor(avg)+'">'+avg+'%</p><p style="font-size:12px;font-weight:500;color:#9ca3af">Score médio</p></div>'+
+    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:var(--navy);line-height:1;margin-bottom:4px;letter-spacing:-.02em">'+people.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Pessoas</p></div>'+
+    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:var(--purple);line-height:1;margin-bottom:4px;letter-spacing:-.02em">'+decisores.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Decisores</p></div>'+
+    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:#166534;line-height:1;margin-bottom:4px;letter-spacing:-.02em">'+comTel.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Com telefone</p></div>'+
   '</div>';
+
   // Toolbar
   html+='<div style="display:flex;gap:10px;margin-bottom:12px">'+
     '<div class="search-wrap" style="flex:1">'+
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+
-    '<input class="search-inp" placeholder="Filtrar por nome ou email..." oninput="filterContatos(this.value,\''+encodeURIComponent(compOrDomain)+'\')"/></div>'+
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+
+    '<input class="search-inp" placeholder="Filtrar por nome, cargo ou email..." oninput="filterContatos(this.value,''+encodeURIComponent(compOrDomain)+'')"/></div>'+
     '<button class="btn-sm" onclick="exportXlsx()">↓ Excel</button>'+
   '</div>';
-  // List
+
+  // Sort: decisores first, then by email verified
+  var sorted = people.slice().sort(function(a,b){
+    var at=a.title||a.position||"", bt=b.title||b.position||"";
+    if(isTarget(at)&&!isTarget(bt)) return -1;
+    if(!isTarget(at)&&isTarget(bt)) return 1;
+    var ae=a.email_status==="verified"?1:0, be=b.email_status==="verified"?1:0;
+    return be-ae;
+  });
+
   html+='<div class="card" style="padding:4px 20px" id="contacts-list">';
-  sorted.forEach(function(r){html+=buildContactRow(r,compOrDomain);});
+  sorted.forEach(function(p){ html+=buildContactRow(p,compOrDomain); });
   html+='</div>';
-  // Legend
-  html+='<div style="margin-top:12px;display:flex;gap:16px;flex-wrap:wrap">'+
-    [["#166534","Confirmado ≥75%"],["#854d0e","Provável ≥45%"],["#9a3412","Incerto <45%"]].map(function(x){
-      return '<div style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:'+x[0]+';display:inline-block;flex-shrink:0"></span><span style="font-size:12px;color:#9ca3af;font-weight:500">'+x[1]+'</span></div>';
-    }).join("")+
-  '</div></div>';
+
+  if(pagination&&pagination.total_entries>people.length){
+    html+='<p style="font-size:12px;color:var(--gray-4);text-align:center;margin-top:10px">'+
+      pagination.total_entries+' pessoas encontradas · mostrando '+people.length+'</p>';
+  }
+  html+='</div>';
+
   var el=document.getElementById("search-results");
   el.innerHTML=html; el.style.display="block";
 }
+
 
 function filterContatos(q,enc){
   var comp=decodeURIComponent(enc);
   var list=document.getElementById("contacts-list");
   if(!list) return;
   var filtered=q?allResults.filter(function(r){
-    return (r.value||"").includes(q.toLowerCase())||((r.first_name||"")+" "+(r.last_name||"")).toLowerCase().includes(q.toLowerCase())||
-      (r.position||"").toLowerCase().includes(q.toLowerCase());
+    var name=(r.name||r.first_name+" "+r.last_name||"").toLowerCase();
+    var email=(r.email||r.value||"").toLowerCase();
+    var title=(r.title||r.position||"").toLowerCase();
+    return name.includes(q.toLowerCase())||email.includes(q.toLowerCase())||title.includes(q.toLowerCase());
   }):allResults;
   var sorted=filtered.slice().sort(function(a,b){
-    if(isTarget(a.position)&&!isTarget(b.position)) return -1;
-    if(!isTarget(a.position)&&isTarget(b.position)) return 1;
-    return (b.confidence||0)-(a.confidence||0);
+    var at=a.title||a.position||"",bt=b.title||b.position||"";
+    if(isTarget(at)&&!isTarget(bt)) return -1;
+    if(!isTarget(at)&&isTarget(bt)) return 1;
+    return 0;
   });
   list.innerHTML=sorted.length?sorted.map(function(r){return buildContactRow(r,comp);}).join(""):
-    '<div class="empty-state"><p>Nenhum resultado</p><p>Tente outro termo de busca</p></div>';
+    '<div style="text-align:center;padding:28px;color:var(--gray-4)"><p>Nenhum resultado para "'+q+'"</p></div>';
 }
 
 function exportXlsx(){
@@ -1023,13 +1016,15 @@ function exportXlsx(){
   var company=document.getElementById("inp-company").value.trim();
   var domain=cleanDomain(document.getElementById("inp-domain").value);
   var rows=allResults.map(function(r){
+    var phone=r.phone_numbers&&r.phone_numbers[0]?r.phone_numbers[0].sanitized_number:(r.direct_phone||r.mobile_phone||"-");
     return {
-      "Nome":((r.first_name||"")+" "+(r.last_name||"")).trim()||"-",
-      "Cargo":r.position||"-","Email":r.value||"",
-      "Confiança (%)":r.confidence||0,"Status":scoreLabel(r.confidence||0),
-      "Inferido":r.inferred?"Sim":"Não",
-      "Empresa":company||domain,"Domínio":domain,
-      "LinkedIn":"https://linkedin.com/search/results/people/?keywords="+encodeURIComponent(((r.first_name||"")+" "+(r.last_name||"")).trim()+" "+(company||domain)),
+      "Nome":r.name||((r.first_name||"")+" "+(r.last_name||"")).trim()||"-",
+      "Cargo":r.title||r.position||"-",
+      "Email":r.email||r.value||"-",
+      "Telefone":phone,
+      "Status Email":r.email_status||"-",
+      "Empresa":r.organization&&r.organization.name?r.organization.name:(company||domain),
+      "LinkedIn":r.linkedin_url||"-",
     };
   });
   var ws=XLSX.utils.json_to_sheet(rows);
