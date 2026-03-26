@@ -189,8 +189,8 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
 
 <!-- ═══ TABS ═══ -->
 <div class="tabs" id="main-tabs">
-  <button class="tab-btn" id="tab-home"            onclick="switchTab('home')">🏠 Home</button>
-  <button class="tab-btn active" id="tab-contatos" onclick="switchTab('contatos')">📧 Contatos</button>
+  <button class="tab-btn active" id="tab-home"            onclick="switchTab('home')">🏠 Home</button>
+  <button class="tab-btn" id="tab-contatos" onclick="switchTab('contatos')">📧 Contatos</button>
   <button class="tab-btn" id="tab-cnpj"            onclick="switchTab('cnpj')">🏢 CNPJ</button>
   <button class="tab-btn" id="tab-mensagem"        onclick="switchTab('mensagem')">💬 Mensagem</button>
   <button class="tab-btn" id="tab-empreendimentos" onclick="switchTab('empreendimentos')">🏗️ Empreendimentos</button>
@@ -200,7 +200,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
 <div class="content">
 
 <!-- ═══════════════════════════════════════ HOME ═══════════════════════════════════════ -->
-<div id="page-home" style="display:none">
+<div id="page-home">
   <div style="margin-bottom:24px">
     <p class="sec-eyebrow">Bom dia, time Flying Studio 👋</p>
     <h1 class="sec-title" style="font-size:28px;line-height:1.25">O que vamos fazer hoje?</h1>
@@ -265,7 +265,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
 </div>
 
 <!-- ═══════════════════════════════════════ CONTATOS ═══════════════════════════════════════ -->
-<div id="page-contatos">
+<div id="page-contatos" style="display:none">
   <div style="margin-bottom:20px">
     <p class="sec-eyebrow">Hunter.io</p>
     <h1 class="sec-title">Encontre os decisores</h1>
@@ -772,6 +772,7 @@ function saveHistory(list){ try{localStorage.setItem(HIST_KEY,JSON.stringify(lis
 function addHistory(item){
   var list=getHistory().filter(function(h){return h.key!==item.key;});
   list.unshift(item); saveHistory(list); updateHistCount();
+switchTab('home');
 }
 function updateHistCount(){
   var n=getHistory().length;
@@ -1645,29 +1646,78 @@ function analisarRapido(){
   if(!val){toast("⚠️ Digite o nome ou domínio");return;}
   var el=document.getElementById("quick-result");
   el.style.display="block";
-  el.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:14px 0"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;color:var(--gray-4);font-weight:500">IA analisando "'+val+'"...</p></div>';
+  el.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:14px 0"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;color:var(--gray-4);font-weight:500">Analisando "'+val+'"...</p></div>';
   var domain=cleanDomain(val);
   var nome=val.includes(".")?domain.split(".")[0]:val;
-  var prompt='Análise rápida de prospecção de "'+val+'" para a Flying Studio (visualização 3D imobiliária em SP). Seja direto. Responda em 4 tópicos curtos: 1) Segmento e porte, 2) Lançamentos conhecidos, 3) Oportunidade (Alta/Média/Baixa) e motivo, 4) Abordagem recomendada. Máximo 3 linhas por tópico.';
-  callClaude({model:"claude-sonnet-4-20250514",max_tokens:600,messages:[{role:"user",content:prompt}]})
+  var done=false;
+  var timer=setTimeout(function(){if(!done){done=true;mostrarAnaliseLocal(val,nome,domain,el);}},5000);
+  var prompt='Análise de prospecção de "'+val+'" para Flying Studio (visualização 3D imobiliária em SP). 4 tópicos: 1) Segmento e porte, 2) Lançamentos recentes, 3) Oportunidade (Alta/Média/Baixa) + motivo em 1 frase, 4) Abordagem recomendada em 1 frase.';
+  callClaude({model:"claude-sonnet-4-20250514",max_tokens:500,messages:[{role:"user",content:prompt}]})
   .then(function(text){
+    if(done) return; done=true; clearTimeout(timer);
     el.innerHTML='<div class="card-purple pop">'+
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'+
         '<span class="ai-badge">✦ IA</span>'+
         '<p style="font-size:13px;font-weight:700;color:var(--navy)">'+val+'</p>'+
       '</div>'+
       '<p style="font-size:13px;color:var(--navy);line-height:1.75;white-space:pre-wrap">'+text.trim()+'</p>'+
-      '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'+
-        '<button class="btn-sm" data-nome="'+encodeURIComponent(val)+'" data-domain="'+encodeURIComponent(domain)+'" onclick="prefillContatos(this.dataset.nome,this.dataset.domain)">📧 Buscar contatos</button>'+
-        '<button class="btn-sm" data-nome="'+encodeURIComponent(nome)+'" onclick="prefillMensagem(this.dataset.nome)">💬 Gerar mensagem</button>'+
-        '<button class="btn-sm" data-nome="'+encodeURIComponent(val)+'" data-domain="'+encodeURIComponent(domain)+'" onclick="prefillEmpreendimentos(this.dataset.nome,this.dataset.domain)">🏗️ Empreendimentos</button>'+
-      '</div>'+
+      buildQuickActions(val,nome,domain)+
     '</div>';
   })
-  .catch(function(){
-    el.innerHTML='<div class="card-flat" style="background:var(--gray-1)"><p style="font-size:13px;color:var(--gray-5)">IA indisponível. Use as abas para prospectar.</p><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn-sm" data-nome="'+encodeURIComponent(val)+'" data-domain="'+encodeURIComponent(domain)+'" onclick="prefillContatos(this.dataset.nome,this.dataset.domain)">📧 Contatos</button><button class="btn-sm" data-nome="'+encodeURIComponent(nome)+'" onclick="prefillMensagem(this.dataset.nome)">💬 Mensagem</button></div></div>';
-  });
+  .catch(function(){if(done)return;done=true;clearTimeout(timer);mostrarAnaliseLocal(val,nome,domain,el);});
 }
+
+function buildQuickActions(val,nome,domain){
+  return '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'+
+    '<button class="btn-sm" data-nome="'+encodeURIComponent(val)+'" data-domain="'+encodeURIComponent(domain)+'" onclick="prefillContatos(this.dataset.nome,this.dataset.domain)">📧 Contatos</button>'+
+    '<button class="btn-sm" data-nome="'+encodeURIComponent(nome)+'" onclick="prefillMensagem(this.dataset.nome)">💬 Mensagem</button>'+
+    '<button class="btn-sm" data-nome="'+encodeURIComponent(val)+'" data-domain="'+encodeURIComponent(domain)+'" onclick="prefillEmpreendimentos(this.dataset.nome,this.dataset.domain)">🏗️ Empreendimentos</button>'+
+  '</div>';
+}
+
+function mostrarAnaliseLocal(val,nome,domain,el){
+  var v=val.toLowerCase();
+  var seg="Médio/Alto padrão",op="Média",cor="#854d0e";
+  var motivo="Incorporadora ativa — demanda contínua por visualização 3D.";
+  var abordagem="Apresentar cases do segmento. Propor conversa com CEO Max Barbosa.";
+  if(v.match(/cyrela|helbor|tegra|rem |vitacon|klabin|brookfield|jhsf/)){
+    seg="Alto padrão";op="Alta";cor="#166534";
+    motivo="Alto padrão residencial — visual 3D premium é diferencial decisivo de vendas.";
+    abordagem="Focar em qualidade e cases de luxo. Agendar direto com o Max.";
+  } else if(v.match(/mrv|direcional|tenda|cury|plano|patriani/)){
+    seg="MCMV / Econômico";op="Média";cor="#854d0e";
+    motivo="Grande volume de lançamentos, ticket por projeto menor.";
+    abordagem="Proposta de pacote para múltiplos empreendimentos. Foco em escala.";
+  } else if(v.match(/eztec|trisul|even|tecnisa|kallas|setin/)){
+    seg="Médio padrão";op="Alta";cor="#166534";
+    motivo="Ritmo constante de lançamentos em SP — demanda recorrente.";
+    abordagem="Propor contrato recorrente. Mostrar agilidade e padrão técnico.";
+  } else if(v.match(/multiplan|br prop|syn |wtorre/)){
+    seg="Comercial / Lajes";op="Alta";cor="#166534";
+    motivo="Projetos corporativos de alto padrão exigem visual de impacto.";
+    abordagem="Apresentar cases comerciais. Focar em renders e perspectivas aéreas.";
+  }
+  el.innerHTML='<div class="card-purple pop">'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">'+
+      '<div style="background:var(--navy);color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">📊 Análise</div>'+
+      '<p style="font-size:13px;font-weight:700;color:var(--navy)">'+val+'</p>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'+
+      '<div style="background:var(--white);border-radius:8px;padding:10px 12px">'+
+        '<p style="font-size:10px;font-weight:700;color:var(--gray-4);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Segmento</p>'+
+        '<p style="font-size:13px;font-weight:600;color:var(--navy)">'+seg+'</p>'+
+      '</div>'+
+      '<div style="background:var(--white);border-radius:8px;padding:10px 12px">'+
+        '<p style="font-size:10px;font-weight:700;color:var(--gray-4);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Oportunidade</p>'+
+        '<p style="font-size:13px;font-weight:700;color:'+cor+'">'+op+'</p>'+
+      '</div>'+
+    '</div>'+
+    '<p style="font-size:13px;color:var(--navy);margin-bottom:4px;line-height:1.5"><strong>Por quê:</strong> '+motivo+'</p>'+
+    '<p style="font-size:13px;color:var(--navy);margin-bottom:14px;line-height:1.5"><strong>Abordagem:</strong> '+abordagem+'</p>'+
+    buildQuickActions(val,nome,domain)+
+  '</div>';
+}
+
 
 function prefillContatos(nomeEnc,domainEnc){
   document.getElementById("inp-company").value=decodeURIComponent(nomeEnc);
