@@ -889,7 +889,7 @@ function doSearch(){
       document.getElementById("btn-search").disabled = false;
       if (data.error) { showError("search-error", data.error); return; }
       allResults = data.people || [];
-      if (data.warning && !allResults.length) { showError("search-error", data.warning); return; }
+      if (data.needs_manual || (data.warning && !allResults.length)) { renderSociosCnpjManual(domain, data.warning||"Cole o CNPJ para continuar."); return; }
       addHistory({key:"s:"+(domain||company), type:"contatos", label:company||domain, sublabel:allResults.length+" sócios · CNPJ "+(data.cnpj||""), domain:domain, company:company, ts:Date.now()});
       renderSocios(data, domain||company);
     })
