@@ -1517,7 +1517,7 @@ function buscarEmp(){
   el.style.display = "block";
 
   // 1. Tenta banco de dados embutido primeiro (instantâneo)
-  var key = nome.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"");
+  var key = nome.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9\-]/g,"");
   var domKey = (domain||"").split(".")[0].toLowerCase();
   var dbResult = EMP_DB[key] || EMP_DB[domKey] || findEmpDB(nome);
   if (dbResult) {
@@ -1599,13 +1599,18 @@ var EMP_DB = {
 function findEmpDB(nome) {
   var n = nome.toLowerCase();
   var keys = Object.keys(EMP_DB);
+  var i, k;
   // Exact match first
-  for (var k of keys) {
+  for (i=0; i<keys.length; i++) {
+    k = keys[i];
     if (EMP_DB[k].empresa.toLowerCase() === n) return EMP_DB[k];
   }
   // Partial match
-  for (var k of keys) {
-    if (n.includes(k) || k.includes(n.replace(/\s+/g,"-")) || EMP_DB[k].empresa.toLowerCase().includes(n.split(" ")[0])) {
+  for (i=0; i<keys.length; i++) {
+    k = keys[i];
+    var empNomeLower = EMP_DB[k].empresa.toLowerCase();
+    var nFirst = n.split(" ")[0];
+    if (n.indexOf(k) >= 0 || empNomeLower.indexOf(nFirst) >= 0 || nFirst.indexOf(k) >= 0) {
       return EMP_DB[k];
     }
   }
