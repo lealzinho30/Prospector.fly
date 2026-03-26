@@ -14,36 +14,76 @@ module.exports = async function handler(req, res) {
   const hunterKey = "8f122be7c8440172a49875acc9356073cb141ce2";
 
   try {
-    // ── PASSO 1: Identifica o nome da empresa via Hunter ─────────────
-    let empresaNome = null;
+    // ── PASSO 1: Scrapa o site e extrai CNPJ diretamente ─────────────
+    let cnpjFromSite = null;
+    let empresaNomeSite = null;
     let pattern = null;
 
+    // Tenta buscar o site via allorigins
+    const siteUrls = [
+      `https://${domain}`,
+      `https://${domain}/contato`,
+      `https://${domain}/sobre`,
+      `https://${domain}/quem-somos`,
+    ];
+
+    for (const url of siteUrls) {
+      if (cnpjFromSite) break;
+      try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const proxyRes = await fetch(proxyUrl, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
+        if (!proxyRes.ok) continue;
+        const proxy = await proxyRes.json();
+        const html = proxy.contents || "";
+
+        // Extrai CNPJ do HTML (padrão XX.XXX.XXX/XXXX-XX)
+        const cnpjMatch = html.match(/\d{2}[\.\s]?\d{3}[\.\s]?\d{3}[\/\s]?\d{4}[-\s]?\d{2}/g);
+        if (cnpjMatch) {
+          // Pega o primeiro CNPJ válido (14 dígitos)
+          for (const c of cnpjMatch) {
+            const digits = c.replace(/\D/g, "");
+            if (digits.length === 14) { cnpjFromSite = digits; break; }
+          }
+        }
+
+        // Extrai nome da empresa do título ou meta
+        if (!empresaNomeSite) {
+          const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+          if (titleMatch) empresaNomeSite = titleMatch[1].replace(/\s*[-|].*$/, "").trim();
+          const ogMatch = html.match(/<meta[^>]*property="og:site_name"[^>]*content="([^"]+)"/i)
+                       || html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:site_name"/i);
+          if (ogMatch) empresaNomeSite = ogMatch[1].trim();
+        }
+
+        if (cnpjFromSite) break;
+      } catch(e) {}
+    }
+
+    // ── PASSO 2: Busca padrão email via Hunter ───────────────────────
     try {
       const hunterUrl = `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&api_key=${hunterKey}&limit=3`;
       const hunterRes = await fetch(hunterUrl, { headers: { Accept: "application/json" } });
       const hunterData = await hunterRes.json();
-      empresaNome = hunterData?.data?.organization || null;
+      if (!empresaNomeSite) empresaNomeSite = hunterData?.data?.organization || null;
       pattern = hunterData?.data?.pattern || null;
     } catch(e) {}
 
-    // Fallback: deriva o nome do domínio
-    if (!empresaNome) {
-      empresaNome = domain.split(".")[0];
-      empresaNome = empresaNome.charAt(0).toUpperCase() + empresaNome.slice(1);
-    }
-
-    // ── PASSO 2: Busca CNPJ pelo nome identificado ───────────────────
-    let cnpjNum = null;
+    // ── PASSO 3: Busca CNPJ na Receita Federal ───────────────────────
     let cnpjData = null;
-    let empresa = empresaNome;
+    let cnpjNum = cnpjFromSite;
 
-    // Tenta BrasilAPI search
-    const queries = [empresaNome, domain.split(".")[0]];
-    for (const q of queries) {
-      if (cnpjNum) break;
+    if (cnpjNum) {
+      // Achou CNPJ no site — busca direto
+      try {
+        const cnpjRes = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjNum}`, { headers: { Accept: "application/json" } });
+        if (cnpjRes.ok) cnpjData = await cnpjRes.json();
+      } catch(e) {}
+    } else {
+      // Não achou CNPJ no site — busca pelo nome identificado
+      const searchName = empresaNomeSite || domain.split(".")[0];
       try {
         const searchRes = await fetch(
-          `https://brasilapi.com.br/api/cnpj/v1/search?query=${encodeURIComponent(q)}&page=1&perPage=3`,
+          `https://brasilapi.com.br/api/cnpj/v1/search?query=${encodeURIComponent(searchName)}&page=1&perPage=5`,
           { headers: { Accept: "application/json" } }
         );
         if (searchRes.ok) {
@@ -51,28 +91,28 @@ module.exports = async function handler(req, res) {
           const list = Array.isArray(results) ? results : (results.data || []);
           if (list.length > 0) {
             cnpjNum = (list[0].cnpj || "").replace(/\D/g, "");
-            empresa = list[0].razao_social || list[0].nome_fantasia || empresaNome;
+            const cnpjRes = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjNum}`, { headers: { Accept: "application/json" } });
+            if (cnpjRes.ok) cnpjData = await cnpjRes.json();
           }
         }
       } catch(e) {}
     }
 
-    // ── PASSO 3: Busca dados completos do CNPJ ───────────────────────
-    if (cnpjNum) {
-      try {
-        const cnpjRes = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjNum}`, {
-          headers: { Accept: "application/json" }
-        });
-        if (cnpjRes.ok) cnpjData = await cnpjRes.json();
-      } catch(e) {}
-    }
-
     const socios = cnpjData?.qsa || [];
+    const empresa = cnpjData?.nome_fantasia || cnpjData?.razao_social || empresaNomeSite || domain;
 
-    if (!socios.length && !cnpjNum) {
+    if (!cnpjData && !cnpjFromSite) {
       return res.status(200).json({
         source: "socios", people: [], empresa, cnpj: null,
-        warning: `Não encontramos CNPJ para "${empresaNome}". Cole o CNPJ diretamente na aba CNPJ para buscar os sócios.`
+        warning: `Não encontramos o CNPJ no site "${domain}". Cole o CNPJ diretamente na aba CNPJ para buscar os sócios.`
+      });
+    }
+
+    if (!socios.length) {
+      return res.status(200).json({
+        source: "socios", people: [], empresa,
+        cnpj: cnpjNum ? cnpjNum.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5") : null,
+        warning: "CNPJ encontrado, mas sem sócios registrados na Receita Federal."
       });
     }
 
@@ -86,16 +126,9 @@ module.exports = async function handler(req, res) {
 
       let email = null;
       if (firstName) {
-        if (pattern) {
-          email = pattern
-            .replace("{first}", firstName)
-            .replace("{last}", lastName)
-            .replace("{f}", firstName[0] || "")
-            .replace("{l}", lastName[0] || "")
-            + "@" + domain;
-        } else {
-          email = firstName + "." + lastName + "@" + domain;
-        }
+        email = pattern
+          ? pattern.replace("{first}", firstName).replace("{last}", lastName).replace("{f}", firstName[0] || "").replace("{l}", lastName[0] || "") + "@" + domain
+          : firstName + "." + lastName + "@" + domain;
       }
 
       return {
@@ -106,18 +139,17 @@ module.exports = async function handler(req, res) {
         email,
         email_status: pattern ? "likely_to_engage" : "guessed",
         phone_numbers: [],
-        organization: { name: cnpjData?.nome_fantasia || empresa },
-        linkedin_url: `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(nomeCompleto + " " + (cnpjData?.nome_fantasia || empresa))}`,
+        organization: { name: empresa },
+        linkedin_url: `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(nomeCompleto + " " + empresa)}`,
         is_socio: true,
       };
     });
 
     return res.status(200).json({
-      source: "socios",
-      people,
-      empresa: cnpjData?.nome_fantasia || cnpjData?.razao_social || empresa,
+      source: "socios", people, empresa,
       razao_social: cnpjData?.razao_social,
       cnpj: cnpjNum ? cnpjNum.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5") : null,
+      cnpj_found_on_site: !!cnpjFromSite,
       pattern,
       pagination: { total_entries: people.length },
     });
