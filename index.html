@@ -267,7 +267,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
 <!-- ═══════════════════════════════════════ CONTATOS ═══════════════════════════════════════ -->
 <div id="page-contatos" style="display:none">
   <div style="margin-bottom:20px">
-    <p class="sec-eyebrow">Apollo.io · Base de 275M+ pessoas</p>
+    <p class="sec-eyebrow" id="contatos-source">Apollo.io · Base de 275M+ pessoas</p>
     <h1 class="sec-title">Encontre os decisores</h1>
     <p class="sec-sub">Nome, email, cargo e telefone dos decisores — direto da maior base B2B do mundo.</p>
   </div>
@@ -970,7 +970,8 @@ function buildContactRow(p, compOrDomain){
 }
 
 
-function renderContatosApollo(people, compOrDomain, pagination){
+function renderContatosApollo(people, compOrDomain, pagination, data){
+  data = data || {};
   var decisores = people.filter(function(p){ return isTarget(p.title||p.position||""); });
   var comEmail  = people.filter(function(p){ return p.email&&p.email!=="-"; });
   var comTel    = people.filter(function(p){ return p.phone_numbers&&p.phone_numbers.length>0||p.direct_phone||p.mobile_phone; });
@@ -978,11 +979,18 @@ function renderContatosApollo(people, compOrDomain, pagination){
   var html='<div class="fade">';
 
   // Stats
-  html+='<div class="grid-3" style="margin-bottom:14px">'+
-    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:var(--navy);line-height:1;margin-bottom:4px;letter-spacing:-.02em">'+people.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Pessoas</p></div>'+
-    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:var(--purple);line-height:1;margin-bottom:4px;letter-spacing:-.02em">'+decisores.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Decisores</p></div>'+
-    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:#166534;line-height:1;margin-bottom:4px;letter-spacing:-.02em">'+comTel.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Com telefone</p></div>'+
-  '</div>';
+  var srcBadge = data.source==="apollo"
+    ? '<span class="tag-purple" style="font-size:11px">✦ Apollo.io</span>'
+    : '<span class="tag-ok" style="font-size:11px">Hunter.io</span>';
+
+  html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">'+
+    '<div class="grid-3" style="flex:1">'+
+      '<div class="stat-card"><p style="font-size:26px;font-weight:800;color:var(--navy);line-height:1;margin-bottom:4px">'+people.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Pessoas</p></div>'+
+      '<div class="stat-card"><p style="font-size:26px;font-weight:800;color:var(--purple);line-height:1;margin-bottom:4px">'+decisores.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Decisores</p></div>'+
+      '<div class="stat-card"><p style="font-size:26px;font-weight:800;color:#166534;line-height:1;margin-bottom:4px">'+comTel.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Com telefone</p></div>'+
+    '</div>'+
+  '</div>'+
+  '<div style="margin-bottom:12px">'+srcBadge+'</div>';
 
   // Toolbar
   html+='<div style="display:flex;gap:10px;margin-bottom:12px">'+
