@@ -64,7 +64,9 @@ export default async function handler(req, res) {
     const r = await fetch(url, { headers: { Accept: "application/json" } });
     const d = await r.json();
 
-    if (d.errors) return res.status(400).json({ error: d.errors[0]?.details || "Erro na busca." });
+    // Hunter retorna 'errors' mesmo com dados — só falha se não tiver emails
+    const hasData = d.data?.emails && d.data.emails.length > 0;
+    if (d.errors && !hasData) return res.status(400).json({ error: d.errors[0]?.details || "Nenhum contato encontrado." });
 
     const people = (d.data?.emails || []).map(e => ({
       name: [e.first_name, e.last_name].filter(Boolean).join(" ") || null,
