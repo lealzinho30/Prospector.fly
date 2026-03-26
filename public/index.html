@@ -45,7 +45,7 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6
 .btn-wpp{background:#25d366;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px;text-decoration:none}
 .btn-wpp:hover{background:#1da851}
 /* TABS */
-.tab-btn{background:transparent;border:none;padding:13px 4px;cursor:pointer;font-size:13px;font-weight:600;color:#6b7280;transition:all .15s;position:relative;border-bottom:2px solid transparent;font-family:inherit;white-space:nowrap}
+.tab-btn{background:transparent;border:none;padding:14px 10px;cursor:pointer;font-size:13px;font-weight:600;color:#6b7280;transition:all .15s;position:relative;border-bottom:2px solid transparent;font-family:inherit;white-space:nowrap;flex-shrink:0}
 .tab-btn.active{color:#1a1a2e;border-bottom-color:#7C5CFC;font-weight:700}
 .tab-btn:hover:not(.active){color:#374151}
 .tab-btn .notif{position:absolute;top:8px;right:-4px;width:7px;height:7px;background:#ef4444;border-radius:50%;border:1.5px solid #fff}
@@ -98,8 +98,8 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6
 .portal-link:hover{border-color:#c4b5fd;background:#fdfaf4}
 /* LAYOUT */
 .topbar{background:#fff;border-bottom:2px solid #f0ede5;padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:20;box-shadow:0 2px 12px rgba(26,26,46,.06)}
-.tabs{background:#fff;border-bottom:2px solid #f0ede5;padding:0 24px;display:flex;gap:16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.tabs::-webkit-scrollbar{height:0}
+.tabs{background:#fff;border-bottom:2px solid #f0ede5;padding:0 24px;display:flex;gap:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:64px;z-index:19}
+.tabs::-webkit-scrollbar{height:0}.tabs::after{content:"";position:absolute;right:0;top:0;height:100%;width:32px;background:linear-gradient(to right,transparent,#fff);pointer-events:none}
 .content{max-width:720px;margin:0 auto;padding:32px 20px 80px}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
@@ -156,22 +156,27 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6
       <span style="font-size:11px;font-weight:600;color:#7C5CFC;letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Prospector</span>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:12px">
+  <div style="display:flex;align-items:center;gap:10px">
     <span id="hist-count-top" style="font-size:12px;color:#9ca3af;font-weight:500"></span>
-    <div style="display:flex;align-items:center;gap:6px;background:#f5f5f0;border:1px solid #e8e8e0;padding:5px 12px;border-radius:8px">
-      <div style="width:6px;height:6px;border-radius:50%;background:#7C5CFC"></div>
-      <span style="font-size:11px;color:#6b7280;font-weight:600">Hunter.io + BrasilAPI + IA</span>
+    <button onclick="switchTab('contatos')" style="background:#F3F0FF;border:none;color:#7C5CFC;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7C5CFC" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Início
+    </button>
+    <div style="display:flex;align-items:center;gap:6px;background:#f5f5f0;border:1px solid #e8e8e0;padding:5px 10px;border-radius:8px">
+      <div style="width:6px;height:6px;border-radius:50%;background:#A8E63D"></div>
+      <span style="font-size:11px;color:#6b7280;font-weight:600">Hunter · BrasilAPI</span>
     </div>
   </div>
 </div>
 
+
 <!-- ═══ TABS ═══ -->
 <div class="tabs" id="main-tabs">
-  <button class="tab-btn active" id="tab-contatos"         onclick="switchTab('contatos')">📧 Contatos</button>
-  <button class="tab-btn"        id="tab-cnpj"             onclick="switchTab('cnpj')">🏢 CNPJ</button>
-  <button class="tab-btn"        id="tab-mensagem"         onclick="switchTab('mensagem')">💬 Mensagem</button>
-  <button class="tab-btn"        id="tab-empreendimentos"  onclick="switchTab('empreendimentos')">🏗️ Empreendimentos</button>
-  <button class="tab-btn"        id="tab-historico"        onclick="switchTab('historico')">🕑 Histórico <span id="hist-notif" style="display:none" class="notif"></span></button>
+  <button class="tab-btn active" id="tab-contatos"        onclick="switchTab('contatos')">📧 Contatos</button>
+  <button class="tab-btn"        id="tab-cnpj"            onclick="switchTab('cnpj')">🏢 CNPJ</button>
+  <button class="tab-btn"        id="tab-mensagem"        onclick="switchTab('mensagem')">💬 Mensagem</button>
+  <button class="tab-btn"        id="tab-empreendimentos" onclick="switchTab('empreendimentos')">🏗️ Empreendimentos</button>
+  <button class="tab-btn"        id="tab-historico"       onclick="switchTab('historico')">🕑 Histórico<span id="hist-notif" style="display:none" class="notif"></span></button>
 </div>
 
 <div class="content">
@@ -579,6 +584,11 @@ function switchTab(tab){
   document.getElementById("hl-sub").textContent=HEADLINES[tab][0];
   document.getElementById("hl-main").textContent=HEADLINES[tab][1];
   if(tab==="historico") renderHistorico();
+  // Scroll to top of content
+  window.scrollTo({top:0,behavior:"smooth"});
+  // Scroll active tab into view
+  var activeTab = document.getElementById("tab-"+tab);
+  if(activeTab) activeTab.scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"});
 }
 function switchMode(m){
   currentMode=m;
