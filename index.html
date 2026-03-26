@@ -484,22 +484,53 @@ function agOrquestrador(domain) {
   function scrapeEmps(){
     var db=findInDB(AG.empresa||"",domain);
     if(db) return Promise.resolve({emps:db.empreendimentos,seg:db.segmento,emp:db.empresa});
-    return Promise.all(["","empreendimentos","lancamentos"].map(function(p){
-      return fetch("https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain+(p?"/"+p:"")),{headers:{Accept:"application/json"}})
+
+    // Scrape with LINKS — captures href of each empreendimento card
+    return Promise.all(["","empreendimentos","lancamentos","imoveis"].map(function(p){
+      var pageUrl="https://"+domain+(p?"/"+p:"");
+      return fetch("https://api.allorigins.win/get?url="+encodeURIComponent(pageUrl),{headers:{Accept:"application/json"}})
         .then(function(r){return r.json();})
         .then(function(px){
           var doc=new DOMParser().parseFromString(px.contents||"","text/html");
           var found=[],seen={};
-          doc.querySelectorAll("h2,h3,h4,[class*='empreend'],[class*='lancam'],[class*='card'] h3").forEach(function(el){
-            var t=(el.textContent||"").replace(/\s+/g," ").trim();
-            if(t.length>4&&t.length<80&&!seen[t]&&empRe.test(t)){seen[t]=true;found.push({nome:t,status:"Em lancamento",cidade:"",bairro:"",destaque:""});}
+
+          // Strategy 1: find anchor tags that contain empreendimento keywords
+          doc.querySelectorAll("a[href]").forEach(function(a){
+            var href=(a.getAttribute("href")||"").trim();
+            var text=(a.textContent||"").replace(/\s+/g," ").trim();
+            if(!href||href.match(/^(#|mailto|tel|javascript)/)) return;
+            if(text.length<4||text.length>80) return;
+            if(!empRe.test(text+href)) return;
+            if(seen[text.toLowerCase()]) return;
+            var fullUrl=href.startsWith("http")?href:("https://"+domain+(href.startsWith("/")?href:"/"+href));
+            // Skip navigation/menu links
+            if(fullUrl===("https://"+domain)||fullUrl===("https://"+domain+"/")) return;
+            seen[text.toLowerCase()]=true;
+            found.push({nome:text,status:"Em lancamento",cidade:"",bairro:"",destaque:"",link:fullUrl});
           });
+
+          // Strategy 2: headings inside a card/link
+          if(found.length<3){
+            doc.querySelectorAll("[class*='card'],[class*='empreend'],[class*='product'],[class*='lancam'],[class*='imovel']").forEach(function(card){
+              var a=card.querySelector("a[href]");
+              var h=card.querySelector("h1,h2,h3,h4,h5,[class*='title'],[class*='name']");
+              if(!h) return;
+              var text=(h.textContent||"").replace(/\s+/g," ").trim();
+              if(text.length<4||text.length>80||seen[text.toLowerCase()]) return;
+              var href=a?a.getAttribute("href"):"";
+              var fullUrl=href?(href.startsWith("http")?href:("https://"+domain+(href.startsWith("/")?href:"/"+href))):"";
+              seen[text.toLowerCase()]=true;
+              found.push({nome:text,status:"Em lancamento",cidade:"",bairro:"",destaque:"",link:fullUrl||null});
+            });
+          }
           return found;
         }).catch(function(){return[];});
     })).then(function(all){
       var merged=[],seen={};
-      all.forEach(function(r){r.forEach(function(e){if(!seen[e.nome]){seen[e.nome]=true;merged.push(e);}});});
-      return {emps:merged.slice(0,12),seg:null,emp:null};
+      all.forEach(function(r){r.forEach(function(e){
+        if(!seen[e.nome.toLowerCase()]){seen[e.nome.toLowerCase()]=true;merged.push(e);}
+      });});
+      return {emps:merged.slice(0,15),seg:null,emp:null};
     });
   }
 
@@ -595,21 +626,26 @@ function renderAgenteResult(empresa,msgs,decisorPrincipal){
     html+='<div class="result-section">'+
       '<div class="section-title">🏗️ Lançamentos ativos</div>';
     AG.empreendimentos.forEach(function(e){
-      var sc=e.status&&e.status.includes("lançamento")?"#166534":e.status&&e.status.includes("obras")?"#854d0e":"#374151";
+      var sc=e.status&&(e.status.indexOf("lancamento")>=0||e.status.indexOf("lançamento")>=0)?"#166534":e.status&&e.status.indexOf("obras")>=0?"#854d0e":"#374151";
+      var hasLink=e.link&&e.link.length>10;
       html+='<div class="emp-row">'+
-        '<div style="display:flex;align-items:center;gap:12px">'+
+        '<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">'+
           '<div style="width:36px;height:36px;background:var(--pl);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🏗️</div>'+
-          '<div>'+
-            '<p style="font-size:14px;font-weight:600;color:var(--navy)">'+e.nome+'</p>'+
-            '<p style="font-size:12px;font-weight:600;color:'+sc+'">'+e.status+(e.cidade?' · '+e.cidade:'')+(e.bairro?' · '+e.bairro:'')+'</p>'+
-            (e.destaque?'<p style="font-size:12px;color:var(--g4);margin-top:2px">'+e.destaque+'</p>':'')+
+          '<div style="min-width:0">'+
+            '<p style="font-size:14px;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+e.nome+'</p>'+
+            '<p style="font-size:11px;font-weight:600;color:'+sc+';margin-top:1px">'+e.status+(e.cidade?' · '+e.cidade:'')+'</p>'+
+            (e.destaque?'<p style="font-size:12px;color:var(--g4);margin-top:2px">'+e.destaque+'</p>':"")+
           '</div>'+
         '</div>'+
-        '<button class="link-btn" data-emp="'+encodeURIComponent(empresa)+'" data-lanc="'+encodeURIComponent(e.nome)+'" onclick="agenteAbordagem(this.dataset.emp,this.dataset.lanc)">✉ Abordar</button>'+
+        '<div style="display:flex;gap:6px;flex-shrink:0">'+
+          (hasLink?'<a class="link-btn" href="'+e.link+'" target="_blank" style="color:var(--p);border-color:var(--pm);background:var(--pl)">Ver ↗</a>':"")+
+          '<button class="link-btn" data-emp="'+encodeURIComponent(empresa)+'" data-lanc="'+encodeURIComponent(e.nome)+'" onclick="agenteAbordagem(this.dataset.emp,this.dataset.lanc)">✉ Abordar</button>'+
+        '</div>'+
       '</div>';
     });
     html+='</div>';
   }
+
 
   // ── Mensagem gerada ─────────────────────────────────────────
   html+='<div class="result-section">'+
