@@ -701,6 +701,7 @@ var HEADLINES={
   empreendimentos:["Inteligência de mercado","Conheça a carteira. Chegue na hora certa."],
   historico:      ["Histórico","Empresas já pesquisadas ficam salvas aqui."],
 };
+function goSocios(){ switchMode("socios"); }
 function switchTab(tab){
   TABS.forEach(function(t){
     var el=document.getElementById("page-"+t);
@@ -934,7 +935,18 @@ function doSearch(){
 
     var people = data.people || [];
     if (!people.length) {
-      showError("search-error", "Nenhum contato encontrado para "+( domain||company)+". Tente outro domínio ou nome.");
+      // Padrão encontrado mas sem emails — direciona para CNPJ+Sócios
+      var msg = data.message || ("Nenhum contato encontrado para "+domain+". Tente CNPJ + Sócios.");
+      var elr = document.getElementById("search-results");
+      elr.style.display = "block";
+      var patternHtml = data.pattern ? '<p style="font-size:13px;color:#166534;font-weight:600;margin-bottom:14px">✓ Padrão detectado: ' + data.pattern + '@' + domain + '</p>' : '';
+      elr.innerHTML = '<div class="fade"><div class="card" style="background:#fffbeb;border-color:#fde68a;text-align:center;padding:28px">' +
+        '<p style="font-size:32px;margin-bottom:12px">🔍</p>' +
+        '<p style="font-size:14px;font-weight:700;color:#854d0e;margin-bottom:8px">Emails não encontrados no Hunter.io</p>' +
+        '<p style="font-size:13px;color:#92400e;line-height:1.6;margin-bottom:12px">' + msg + '</p>' +
+        patternHtml +
+        '<button class="btn btn-primary" style="width:auto;padding:10px 24px" onclick="goSocios()">🏢 Buscar via CNPJ + Sócios</button>' +
+      '</div></div>';
       return;
     }
 
