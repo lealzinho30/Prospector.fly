@@ -965,41 +965,10 @@ function renderContatosApollo(people, domain, company){
 
 
 function buildContactRow(p, compOrDomain){
-  var name    = p.name||[(p.first_name||""),(p.last_name||"")].filter(Boolean).join(" ")||"-";
-  var email   = p.email||p.value||"-";
-  var title   = p.title||p.position||"-";
-  var phone   = p.phone_numbers&&p.phone_numbers[0]?p.phone_numbers[0].sanitized_number:(p.direct_phone||p.mobile_phone||null);
-  var linkedin= p.linkedin_url||null;
-  var photo   = p.photo_url||null;
-  var org     = p.organization&&p.organization.name?p.organization.name:compOrDomain;
-  var isVerified = p.email_status==="verified"||p.email_status==="likely_to_engage";
-  var avCol   = getAvColor(name); var avBg2=getAvBg(name);
-  var ini     = initials((p.first_name||name.split(" ")[0]||""),(p.last_name||name.split(" ")[1]||""));
-  var isTarget2 = isTarget(title);
-  var avatar  = photo
-    ? '<img src="'+photo+'" style="width:42px;height:42px;border-radius:10px;object-fit:cover;flex-shrink:0" onError="this.remove()"/>'
-    : '<div style="width:42px;height:42px;border-radius:10px;flex-shrink:0;background:'+avBg2+';display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:'+avCol+'">'+ini+'</div>';
-  return '<div class="result-row row-in">'+avatar+
-    '<div style="flex:1;min-width:0">'+
-      '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap">'+
-        '<span style="font-size:14px;font-weight:700;color:var(--navy)">'+name+'</span>'+
-        (isTarget2?'<span class="tag-purple" style="font-size:10px">Decisor</span>':"")+
-        (isVerified?'<span class="tag-ok" style="font-size:10px">✓ Verificado</span>':"")+
-      '</div>'+
-      '<p style="font-size:13px;color:var(--gray-5);margin-bottom:2px">'+title+'</p>'+
-      (email&&email!=="-"?'<p style="font-size:12px;color:var(--gray-4);font-family:monospace">'+email+'</p>':"")+
-      (phone?'<p style="font-size:12px;color:var(--gray-5);margin-top:2px">📞 '+phone+'</p>':"")+
-    '</div>'+
-    '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">'+
-      '<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">'+
-        (linkedin?'<a class="link-btn" href="'+linkedin+'" target="_blank">LinkedIn</a>':"")+
-        (email&&email!=="-"?'<a class="link-btn" href="mailto:'+email+'">Email</a>':"")+
-        (phone?'<a class="link-btn" href="https://wa.me/55'+phone.replace(/\D/g,"")+'" target="_blank">WhatsApp</a>':"")+
-        '<button class="link-btn" data-name="'+encodeURIComponent(name)+'" data-title="'+encodeURIComponent(title)+'" data-org="'+encodeURIComponent(org)+'" onclick="atalhoMensagem(this.dataset.name,this.dataset.title,this.dataset.org)">✉ Msg</button>'+
-      '</div>'+
-    '</div>'+
-  '</div>';
+  // Delegates to Apollo version
+  return buildContactRowApollo(p, compOrDomain);
 }
+
 
 function renderContatosApollo(people, compOrDomain, pagination){
   var decisores = people.filter(function(p){ return isTarget(p.title||p.position||""); });
