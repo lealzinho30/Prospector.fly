@@ -126,42 +126,33 @@ export default async function handler(req, res) {
       let m;
       while ((m = re.exec(html)) !== null && liPeople.length < 8) {
         const url = m[1].startsWith("http") ? m[1] : "https://www.linkedin.com/in/"+m[2];
-        const raw = m[3].trim();
-        // Format: "Nome Sobrenome – Cargo na Empresa | LinkedIn"
-        // Split on – or | first
-        const segments = raw.split(/\s*[–|\|]\s*/);
-        const namePart = segments[0].trim();
-        // Title is in segment[1], remove "na/at/em Empresa" suffix
-        const titleRaw = (segments[1]||"").replace(/\s+(na|at|em|em|·)\s+.+$/i,"").replace(/linkedin/gi,"").trim();
-        const title = titleRaw.slice(0,60) || null;
+        
+        // Clean: "Ragnar Prado Nuner – Gerente de negócios na Plano&Plano | LinkedIn"
+        const raw = m[3].trim()
+          .replace(/\s*\|\s*LinkedIn.*$/i, "")  // remove "| LinkedIn"
+          .replace(/\s*–\s*LinkedIn.*$/i, "")
+          .trim();
 
-        // Validate: name should be 2-4 words, no numbers, no "LinkedIn"
-        const words = namePart.split(/\s+/).filter(Boolean);
+        // Split on dash/em-dash to separate name from title
+        const sepIdx = raw.search(/\s+[–\-]\s+/);
+        const name  = (sepIdx > 0 ? raw.slice(0, sepIdx) : raw.split(/[–\-]/)[0]).trim();
+        const after = (sepIdx > 0 ? raw.slice(sepIdx).replace(/^\s*[–\-]\s*/,"") : "").trim();
+
+        // Extract title (before "na/at/em + Company")
+        const titleM = after.match(/^(.+?)\s+(?:na|at|em|no)\s+/i);
+        const title  = titleM ? titleM[1].trim() : after.split(/\s+(?:na|at)\s+/i)[0].trim().slice(0,60) || null;
+
+        // Validate real person name
+        const words = name.split(/\s+/).filter(Boolean);
         if (words.length < 2 || words.length > 5) continue;
-        if (/[0-9@#]|linkedin/i.test(namePart)) continue;
+        if (/[0-9@#&]/.test(name)) continue;
+        if (name.toLowerCase().includes("linkedin")) continue;
+
         const slug = m[2].toLowerCase();
         if (slug === domain.split(".")[0].toLowerCase()) continue;
-        if (people.some(p => (p.name||"").toLowerCase() === namePart.toLowerCase())) continue;
-        if (liPeople.some(p => p.name.toLowerCase() === namePart.toLowerCase())) continue;
-        const name = namePart;
 
-        // Infer email using Hunter pattern or most common BR pattern
-        // Use REAL name words, not the potentially corrupted 'words' from above
-        const nameWords = name.split(/\s+/).filter(Boolean);
-        const fn = nameWords[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z]/g,"");
-        const ln = nameWords[nameWords.length-1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z]/g,"");
-        let inferredEmail = null;
-        if (fn && ln) {
-          if (pattern) {
-            inferredEmail = pattern
-              .replace("{first}", fn).replace("{last}", ln)
-              .replace("{f}", fn[0]||"").replace("{l}", ln[0]||"")
-              + "@" + domain;
-          } else {
-            inferredEmail = fn + "." + ln + "@" + domain;
-          }
-        }
-
+        if (people.some(p => (p.name||"").toLowerCase() === name.toLowerCase())) continue;
+        if (liPeople.some(p => p.name.toLowerCase() === name.toLowerCase())) continue;
         liPeople.push({
           name, first_name: words[0], last_name: words[words.length-1],
           title: title || null,
