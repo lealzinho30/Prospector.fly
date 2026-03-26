@@ -153,6 +153,17 @@ export default async function handler(req, res) {
 
         if (people.some(p => (p.name||"").toLowerCase() === name.toLowerCase())) continue;
         if (liPeople.some(p => p.name.toLowerCase() === name.toLowerCase())) continue;
+
+        // Infer email from name + domain
+        const fn = words[0].toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z]/g,"");
+        const ln = words[words.length-1].toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z]/g,"");
+        let inferredEmail = null;
+        if (fn && ln) {
+          inferredEmail = pattern
+            ? pattern.replace("{first}",fn).replace("{last}",ln).replace("{f}",fn[0]||"").replace("{l}",ln[0]||"")+"@"+domain
+            : fn+"."+ln+"@"+domain;
+        }
+
         liPeople.push({
           name, first_name: words[0], last_name: words[words.length-1],
           title: title || null,

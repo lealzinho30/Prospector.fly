@@ -495,73 +495,75 @@ function agOrquestrador(domain) {
     var db=EMP_DB[domKey]||null;
     if(db) return Promise.resolve({emps:db.empreendimentos,seg:db.segmento,emp:db.empresa});
 
-    // Scrape multiple pages simultaneously
-    var pages=["","empreendimentos","lancamentos","imoveis","residencial","comercial","produtos","portfolio"];
+    // Busca HTML bruto de múltiplas páginas e manda pro Claude analisar
+    var pages=["","empreendimentos","lancamentos","imoveis","residencial","produtos"];
     return Promise.all(pages.map(function(p){
-      var pageUrl="https://"+domain+(p?"/"+p:"");
-      return fetch("https://api.allorigins.win/get?url="+encodeURIComponent(pageUrl),{headers:{Accept:"application/json"}})
+      var url="https://"+domain+(p?"/"+p:"");
+      return fetch("https://api.allorigins.win/get?url="+encodeURIComponent(url),{headers:{Accept:"application/json"}})
         .then(function(r){return r.json();})
-        .then(function(px){
-          var raw=px.contents||"";
-          if(!raw||raw.length<200) return [];
-          var doc=new DOMParser().parseFromString(raw,"text/html");
-          var found=[],seen={};
+        .then(function(px){return px.contents||"";})
+        .catch(function(){return "";});
+    })).then(function(htmls){
+      // Extrai texto limpo de todos os HTMLs
+      var texts=htmls.map(function(raw){
+        if(!raw) return "";
+        var doc=new DOMParser().parseFromString(raw,"text/html");
+        // Remove scripts e styles
+        doc.querySelectorAll("script,style,nav,footer,header").forEach(function(el){el.remove();});
+        // Pega texto + links relevantes
+        var links=[];
+        doc.querySelectorAll("a[href]").forEach(function(a){
+          var href=(a.getAttribute("href")||"").trim();
+          var text=(a.textContent||"").replace(/\s+/g," ").trim();
+          if(href&&!href.match(/^(#|mailto|tel|javascript)/)&&text.length>3&&text.length<80){
+            var full=href.startsWith("http")?href:("https://"+domain+(href.startsWith("/")?href:"/"+href));
+            links.push(text+" -> "+full);
+          }
+        });
+        var bodyText=(doc.body?doc.body.innerText||doc.body.textContent:"").replace(/\s+/g," ").trim().slice(0,3000);
+        return bodyText+(links.length?"
 
-          // S1: Cards com link — padrão mais comum em sites imobiliários
-          doc.querySelectorAll("[class*='card'],[class*='empreend'],[class*='product'],[class*='lancam'],[class*='imovel'],[class*='residenc'],[class*='item']").forEach(function(card){
-            var links=card.querySelectorAll("a[href]");
-            var heads=card.querySelectorAll("h1,h2,h3,h4,h5,[class*='title'],[class*='name'],[class*='nome']");
-            var a=links[0], h=heads[0];
-            if(!h) return;
-            var text=(h.textContent||"").replace(/\s+/g," ").trim();
-            if(text.length<4||text.length>100||seen[text.toLowerCase()]) return;
-            var href=a?a.getAttribute("href"):"";
-            var fullUrl=href&&!href.match(/^(#|mailto|tel|javascript)/)?(href.startsWith("http")?href:("https://"+domain+(href.startsWith("/")?href:"/"+href))):null;
-            seen[text.toLowerCase()]=true;
-            found.push({nome:text,status:"Em lançamento",cidade:"",bairro:"",destaque:"",link:fullUrl});
-          });
+LINKS:
+"+links.slice(0,40).join("
+"):"");
+      }).filter(function(t){return t.length>100;});
 
-          // S2: Links diretos com texto relevante (href contém palavras-chave)
-          doc.querySelectorAll("a[href]").forEach(function(a){
-            var href=(a.getAttribute("href")||"").trim();
-            var text=(a.textContent||"").replace(/\s+/g," ").trim();
-            if(!href||href.match(/^(#|mailto|tel|javascript)/)) return;
-            if(text.length<5||text.length>100) return;
-            if(seen[text.toLowerCase()]) return;
-            // href must contain empreendimento-like path
-            var hrefLower=href.toLowerCase();
-            if(!hrefLower.match(/empreend|lancam|imovel|residenc|comercial|apart|condomin|torre|parque|jardim|vila|reserva|living|studio|flat/)) return;
-            var fullUrl=href.startsWith("http")?href:("https://"+domain+(href.startsWith("/")?href:"/"+href));
-            if(fullUrl==="https://"+domain||fullUrl==="https://"+domain+"/") return;
-            seen[text.toLowerCase()]=true;
-            found.push({nome:text,status:"Em lançamento",cidade:"",bairro:"",destaque:"",link:fullUrl});
-          });
+      if(!texts.length) return {emps:[],seg:null,emp:null};
 
-          // S3: qualquer heading que soe como nome de empreendimento
-          doc.querySelectorAll("h1,h2,h3,h4").forEach(function(h){
-            var text=(h.textContent||"").replace(/\s+/g," ").trim();
-            if(text.length<5||text.length>80||seen[text.toLowerCase()]) return;
-            if(!empRe.test(text)) return;
-            // Find nearest link parent
-            var par=h.closest("a")||h.parentElement&&h.parentElement.closest("a");
-            var href=par?par.getAttribute("href"):null;
-            var fullUrl=href&&!href.match(/^(#|mailto|tel|javascript)/)?(href.startsWith("http")?href:("https://"+domain+(href.startsWith("/")?href:"/"+href))):null;
-            seen[text.toLowerCase()]=true;
-            found.push({nome:text,status:"Em lançamento",cidade:"",bairro:"",destaque:"",link:fullUrl});
-          });
+      var combined=texts.join("
 
-          return found;
-        }).catch(function(){return[];});
-    })).then(function(all){
-      var merged=[],seen={};
-      all.forEach(function(r){r.forEach(function(e){
-        if(!seen[e.nome.toLowerCase()]){
-          // Skip generic navigation words
-          var skip=/^(home|início|sobre|contato|quem somos|blog|news|imóveis|empreendimentos|lançamentos|saiba mais|ver mais|acesse|clique)$/i;
-          if(!skip.test(e.nome.trim())){seen[e.nome.toLowerCase()]=true;merged.push(e);}
-        }
-      });});
-      return {emps:merged.slice(0,20),seg:null,emp:null};
+---
+
+").slice(0,6000);
+
+      // Claude analisa o conteúdo e extrai os empreendimentos com links
+      return callClaude({
+        model:"claude-sonnet-4-20250514",
+        max_tokens:1500,
+        messages:[{role:"user",content:
+          'Analise o conteúdo abaixo do site "'+domain+'" e extraia TODOS os empreendimentos imobiliários mencionados.
+'+
+          'Procure por nomes de empreendimentos, residenciais, condomínios, lançamentos, torres, etc.
+'+
+          'Para cada um, tente encontrar o link correspondente na lista de LINKS.
+'+
+          'Retorne SOMENTE JSON válido:
+'+
+          '{"empresa":"nome da empresa","segmento":"Alto padrão|Médio padrão|MCMV|Comercial","empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras|Pronto para morar","cidade":"string","bairro":"string","destaque":"string","link":"url completa ou null"}]}
+
+'+
+          'CONTEÚDO DO SITE:
+'+combined
+        }]
+      }).then(function(text){
+        try{
+          var m=text.match(/\{[\s\S]*\}/);
+          if(!m) throw new Error();
+          var d=JSON.parse(m[0]);
+          if(d.empresa&&!AG.empresa||AG.empresa===domKey.charAt(0).toUpperCase()+domKey.slice(1)) AG.empresa=d.empresa;
+          return {emps:d.empreendimentos||[],seg:d.segmento||null,emp:d.empresa||null};
+        }catch(e){return {emps:[],seg:null,emp:null};}
+      }).catch(function(){return {emps:[],seg:null,emp:null};});
     });
   }
 
