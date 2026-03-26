@@ -595,6 +595,25 @@ function agOrquestrador(domain) {
         .catch(function(){});
     }
 
+    // If nothing found, try Claude to identify company and get lançamentos
+    if(totalP===0&&AG.empreendimentos.length===0){
+      callClaude({model:"claude-sonnet-4-20250514",max_tokens:800,
+        messages:[{role:"user",content:'Você conhece a incorporadora com site "'+domain+'"? Se sim, responda JSON: {"empresa":"nome","segmento":"string","empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras","cidade":"string","bairro":"string","destaque":"string","link":""}]}. Se não conhecer, responda {"empresa":null}'}]
+      }).then(function(t){
+        try{
+          var m=t.match(/\{[\s\S]*\}/);
+          if(m){
+            var d=JSON.parse(m[0]);
+            if(d.empresa&&d.empresa!==null){
+              if(!AG.empresa||AG.empresa===domPrefix.charAt(0).toUpperCase()+domPrefix.slice(1)) AG.empresa=d.empresa;
+              if(d.empreendimentos&&d.empreendimentos.length) AG.empreendimentos=d.empreendimentos;
+              if(d.segmento) AG.segmento=d.segmento;
+            }
+          }
+        }catch(ex){}
+      }).catch(function(){});
+    }
+    var domPrefix=domain.split(".")[0];
     updateStep(1,"done","🔍 Agente Pesquisador",totalP+" contatos · "+AG.empreendimentos.length+" lançamentos"+(AG.cnpj?" · CNPJ ✓":""));
 
     updateStep(2,"running","📊 Agente Analista","Calculando score...");
@@ -665,6 +684,29 @@ function renderAgenteResult(empresa,msgs,decisorPrincipal){
       '<div class="card" style="padding:4px 20px">';
     decisores.slice(0,6).forEach(function(p){html+=renderContactRow(p,empresa);});
     html+='</div></div>';
+  } else {
+    // No contacts found — show LinkedIn search link + tips
+    html+='<div class="result-section">'+
+      '<div class="section-title">👥 Decisores e contatos</div>'+
+      '<div class="card-p" style="margin-bottom:12px">'+
+        '<p style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px">Busca manual recomendada</p>'+
+        '<p style="font-size:13px;color:var(--g5);margin-bottom:12px;line-height:1.6">Não encontramos contatos automaticamente. O site pode usar JavaScript dinâmico ou não ter emails indexados. Use os links abaixo para encontrar os decisores:</p>'+
+        '<div style="display:flex;flex-direction:column;gap:8px">'+
+          '<a class="link-btn" href="https://www.linkedin.com/search/results/people/?keywords='+encodeURIComponent('Diretor Marketing '+empresa)+'" target="_blank" style="justify-content:flex-start;gap:8px;padding:10px 14px">'+
+            '<span style="font-size:16px">💼</span>'+
+            '<div><p style="font-size:13px;font-weight:600;color:var(--navy)">Buscar Diretores de Marketing</p><p style="font-size:11px;color:var(--g4)">LinkedIn · '+empresa+'</p></div>'+
+          '</a>'+
+          '<a class="link-btn" href="https://www.linkedin.com/search/results/people/?keywords='+encodeURIComponent('Gerente Marketing '+empresa)+'" target="_blank" style="justify-content:flex-start;gap:8px;padding:10px 14px">'+
+            '<span style="font-size:16px">💼</span>'+
+            '<div><p style="font-size:13px;font-weight:600;color:var(--navy)">Buscar Gerentes de Marketing</p><p style="font-size:11px;color:var(--g4)">LinkedIn · '+empresa+'</p></div>'+
+          '</a>'+
+          '<a class="link-btn" href="https://www.google.com/search?q='+encodeURIComponent('diretor marketing '+empresa+' email site:linkedin.com')+'" target="_blank" style="justify-content:flex-start;gap:8px;padding:10px 14px">'+
+            '<span style="font-size:16px">🔍</span>'+
+            '<div><p style="font-size:13px;font-weight:600;color:var(--navy)">Pesquisar no Google</p><p style="font-size:11px;color:var(--g4)">Diretores + LinkedIn + '+empresa+'</p></div>'+
+          '</a>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
   }
 
   // ── Empreendimentos ─────────────────────────────────────────
