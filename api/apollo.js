@@ -152,11 +152,33 @@ export default async function handler(req, res) {
         if (people.some(p => (p.name||"").toLowerCase() === name.toLowerCase())) continue;
         if (liPeople.some(p => p.name.toLowerCase() === name.toLowerCase())) continue;
 
+        // Infer email using Hunter pattern or most common BR pattern
+        const fn = words[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+        const ln = words[words.length-1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+        let inferredEmail = null;
+        if (fn && ln) {
+          if (pattern) {
+            inferredEmail = pattern
+              .replace("{first}", fn).replace("{last}", ln)
+              .replace("{f}", fn[0]||"").replace("{l}", ln[0]||"")
+              + "@" + domain;
+          } else {
+            inferredEmail = fn + "." + ln + "@" + domain;
+          }
+        }
+
         liPeople.push({
           name, first_name: words[0], last_name: words[words.length-1],
-          title: title || null, email: null, email_status: "guessed",
+          title: title || null,
+          email: inferredEmail,
+          email_status: pattern ? "likely_to_engage" : "guessed",
+          email_alternatives: fn && ln ? [
+            fn+"@"+domain,
+            fn+"."+ln+"@"+domain,
+            fn[0]+ln+"@"+domain,
+          ].filter(e => e !== inferredEmail) : [],
           phone_numbers: [], organization: { name: empresa },
-          linkedin_url: url.split("?")[0], // clean URL
+          linkedin_url: url.split("?")[0],
           is_linkedin: true,
         });
       }

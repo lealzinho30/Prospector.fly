@@ -491,57 +491,77 @@ function agOrquestrador(domain) {
   var empRe=/residenc|condomin|lancam|apart|torre|park|garden|plaza|vila|living|home|prime|reserva|parque|jardim|comercial|studios|flat|loft|empreend/i;
 
   function scrapeEmps(){
-    // Only use DB if domain exactly matches a known company
     var domKey=domain.split(".")[0].toLowerCase();
-    var db=EMP_DB[domKey]||null; // exact match only
+    var db=EMP_DB[domKey]||null;
     if(db) return Promise.resolve({emps:db.empreendimentos,seg:db.segmento,emp:db.empresa});
 
-    // Scrape with LINKS — captures href of each empreendimento card
-    return Promise.all(["","empreendimentos","lancamentos","imoveis"].map(function(p){
+    // Scrape multiple pages simultaneously
+    var pages=["","empreendimentos","lancamentos","imoveis","residencial","comercial","produtos","portfolio"];
+    return Promise.all(pages.map(function(p){
       var pageUrl="https://"+domain+(p?"/"+p:"");
       return fetch("https://api.allorigins.win/get?url="+encodeURIComponent(pageUrl),{headers:{Accept:"application/json"}})
         .then(function(r){return r.json();})
         .then(function(px){
-          var doc=new DOMParser().parseFromString(px.contents||"","text/html");
+          var raw=px.contents||"";
+          if(!raw||raw.length<200) return [];
+          var doc=new DOMParser().parseFromString(raw,"text/html");
           var found=[],seen={};
 
-          // Strategy 1: find anchor tags that contain empreendimento keywords
+          // S1: Cards com link — padrão mais comum em sites imobiliários
+          doc.querySelectorAll("[class*='card'],[class*='empreend'],[class*='product'],[class*='lancam'],[class*='imovel'],[class*='residenc'],[class*='item']").forEach(function(card){
+            var links=card.querySelectorAll("a[href]");
+            var heads=card.querySelectorAll("h1,h2,h3,h4,h5,[class*='title'],[class*='name'],[class*='nome']");
+            var a=links[0], h=heads[0];
+            if(!h) return;
+            var text=(h.textContent||"").replace(/\s+/g," ").trim();
+            if(text.length<4||text.length>100||seen[text.toLowerCase()]) return;
+            var href=a?a.getAttribute("href"):"";
+            var fullUrl=href&&!href.match(/^(#|mailto|tel|javascript)/)?(href.startsWith("http")?href:("https://"+domain+(href.startsWith("/")?href:"/"+href))):null;
+            seen[text.toLowerCase()]=true;
+            found.push({nome:text,status:"Em lançamento",cidade:"",bairro:"",destaque:"",link:fullUrl});
+          });
+
+          // S2: Links diretos com texto relevante (href contém palavras-chave)
           doc.querySelectorAll("a[href]").forEach(function(a){
             var href=(a.getAttribute("href")||"").trim();
             var text=(a.textContent||"").replace(/\s+/g," ").trim();
             if(!href||href.match(/^(#|mailto|tel|javascript)/)) return;
-            if(text.length<4||text.length>80) return;
-            if(!empRe.test(text+href)) return;
+            if(text.length<5||text.length>100) return;
             if(seen[text.toLowerCase()]) return;
+            // href must contain empreendimento-like path
+            var hrefLower=href.toLowerCase();
+            if(!hrefLower.match(/empreend|lancam|imovel|residenc|comercial|apart|condomin|torre|parque|jardim|vila|reserva|living|studio|flat/)) return;
             var fullUrl=href.startsWith("http")?href:("https://"+domain+(href.startsWith("/")?href:"/"+href));
-            // Skip navigation/menu links
-            if(fullUrl===("https://"+domain)||fullUrl===("https://"+domain+"/")) return;
+            if(fullUrl==="https://"+domain||fullUrl==="https://"+domain+"/") return;
             seen[text.toLowerCase()]=true;
-            found.push({nome:text,status:"Em lancamento",cidade:"",bairro:"",destaque:"",link:fullUrl});
+            found.push({nome:text,status:"Em lançamento",cidade:"",bairro:"",destaque:"",link:fullUrl});
           });
 
-          // Strategy 2: headings inside a card/link
-          if(found.length<3){
-            doc.querySelectorAll("[class*='card'],[class*='empreend'],[class*='product'],[class*='lancam'],[class*='imovel']").forEach(function(card){
-              var a=card.querySelector("a[href]");
-              var h=card.querySelector("h1,h2,h3,h4,h5,[class*='title'],[class*='name']");
-              if(!h) return;
-              var text=(h.textContent||"").replace(/\s+/g," ").trim();
-              if(text.length<4||text.length>80||seen[text.toLowerCase()]) return;
-              var href=a?a.getAttribute("href"):"";
-              var fullUrl=href?(href.startsWith("http")?href:("https://"+domain+(href.startsWith("/")?href:"/"+href))):"";
-              seen[text.toLowerCase()]=true;
-              found.push({nome:text,status:"Em lancamento",cidade:"",bairro:"",destaque:"",link:fullUrl||null});
-            });
-          }
+          // S3: qualquer heading que soe como nome de empreendimento
+          doc.querySelectorAll("h1,h2,h3,h4").forEach(function(h){
+            var text=(h.textContent||"").replace(/\s+/g," ").trim();
+            if(text.length<5||text.length>80||seen[text.toLowerCase()]) return;
+            if(!empRe.test(text)) return;
+            // Find nearest link parent
+            var par=h.closest("a")||h.parentElement&&h.parentElement.closest("a");
+            var href=par?par.getAttribute("href"):null;
+            var fullUrl=href&&!href.match(/^(#|mailto|tel|javascript)/)?(href.startsWith("http")?href:("https://"+domain+(href.startsWith("/")?href:"/"+href))):null;
+            seen[text.toLowerCase()]=true;
+            found.push({nome:text,status:"Em lançamento",cidade:"",bairro:"",destaque:"",link:fullUrl});
+          });
+
           return found;
         }).catch(function(){return[];});
     })).then(function(all){
       var merged=[],seen={};
       all.forEach(function(r){r.forEach(function(e){
-        if(!seen[e.nome.toLowerCase()]){seen[e.nome.toLowerCase()]=true;merged.push(e);}
+        if(!seen[e.nome.toLowerCase()]){
+          // Skip generic navigation words
+          var skip=/^(home|início|sobre|contato|quem somos|blog|news|imóveis|empreendimentos|lançamentos|saiba mais|ver mais|acesse|clique)$/i;
+          if(!skip.test(e.nome.trim())){seen[e.nome.toLowerCase()]=true;merged.push(e);}
+        }
       });});
-      return {emps:merged.slice(0,15),seg:null,emp:null};
+      return {emps:merged.slice(0,20),seg:null,emp:null};
     });
   }
 
@@ -730,7 +750,10 @@ function renderContactRow(p,empresa){
         (verified?'<span class="tag-ok" style="font-size:10px">✓ email</span>':"")+
       '</div>'+
       '<p style="font-size:13px;color:var(--g5)">'+title+'</p>'+
-      (email?'<p style="font-size:12px;color:var(--g4);margin-top:2px;font-family:monospace">'+email+'</p>':"")+
+      (email?'<div style="margin-top:3px">'+
+        '<span style="font-size:12px;color:var(--g4);font-family:monospace">'+email+'</span>'+
+        (verified?'':' <span style="font-size:10px;color:#854d0e;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:1px 5px;font-family:sans-serif">inferido</span>')+
+        '</div>':"")+
       (phone?'<p style="font-size:12px;color:var(--g5);margin-top:2px">📞 '+phone+'</p>':"")+
     '</div>'+
     '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">'+
