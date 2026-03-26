@@ -169,7 +169,6 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6
 <div class="tabs" id="main-tabs">
   <button class="tab-btn active" id="tab-contatos"         onclick="switchTab('contatos')">📧 Contatos</button>
   <button class="tab-btn"        id="tab-cnpj"             onclick="switchTab('cnpj')">🏢 CNPJ</button>
-  <button class="tab-btn"        id="tab-radar"            onclick="switchTab('radar')">📡 Radar</button>
   <button class="tab-btn"        id="tab-mensagem"         onclick="switchTab('mensagem')">💬 Mensagem</button>
   <button class="tab-btn"        id="tab-empreendimentos"  onclick="switchTab('empreendimentos')">🏗️ Empreendimentos</button>
   <button class="tab-btn"        id="tab-historico"        onclick="switchTab('historico')">🕑 Histórico <span id="hist-notif" style="display:none" class="notif"></span></button>
@@ -254,35 +253,6 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6
   </div>
 
   <!-- ═══════════ RADAR ═══════════ -->
-  <div id="page-radar" style="display:none">
-    <div class="card" style="margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
-        <div style="width:46px;height:46px;background:#F3F0FF;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📡</div>
-        <div>
-          <p style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:2px">Radar de novas incorporadoras</p>
-          <p style="font-size:13px;color:#9ca3af">Empresas abertas nos últimos 12 meses ainda não têm parceiro de visual consolidado</p>
-        </div>
-      </div>
-      <div style="margin-bottom:16px">
-        <label style="margin-bottom:8px">Estado alvo</label>
-        <div id="estado-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-      </div>
-      <div style="margin-bottom:16px">
-        <label style="margin-bottom:8px">Tipo de empresa</label>
-        <div id="tipo-chips" style="display:flex;flex-wrap:wrap;gap:8px">
-          <button class="chip active" id="tipo-todas"    onclick="selectTipoRadar('todas')">Todas</button>
-          <button class="chip"        id="tipo-alto"     onclick="selectTipoRadar('alto')">Alto padrão</button>
-          <button class="chip"        id="tipo-medio"    onclick="selectTipoRadar('medio')">Médio padrão</button>
-          <button class="chip"        id="tipo-mcmv"     onclick="selectTipoRadar('mcmv')">MCMV / Econômico</button>
-          <button class="chip"        id="tipo-comercial" onclick="selectTipoRadar('comercial')">Comercial / Lajes</button>
-        </div>
-      </div>
-      <button class="btn btn-gold" onclick="gerarRadar()">🏆 Buscar top 10 com IA</button>
-    </div>
-    <div id="radar-results" style="display:none"></div>
-  </div>
-
-  <!-- ═══════════ MENSAGEM ═══════════ -->
   <div id="page-mensagem" style="display:none">
     <div class="card" style="margin-bottom:14px">
       <p style="font-size:13px;font-weight:700;color:#374151;margin-bottom:16px;display:flex;align-items:center;gap:8px">
@@ -593,11 +563,10 @@ function showError(elId,msg){
 // ═══════════════════════════════════════
 // TAB / MODE SWITCHES
 // ═══════════════════════════════════════
-var TABS=["contatos","cnpj","radar","mensagem","empreendimentos","historico"];
+var TABS=["contatos","cnpj","mensagem","empreendimentos","historico"];
 var HEADLINES={
   contatos:       ["Prospecção inteligente","Encontre decisores. Feche mais projetos."],
   cnpj:           ["Receita Federal","Busque qualquer CNPJ e veja sócios."],
-  radar:          ["Radar de mercado","Incorporadoras novas = oportunidade certa."],
   mensagem:       ["Apoio à abordagem","Mensagem certa. Decisor certo."],
   empreendimentos:["Inteligência de mercado","Conheça a carteira. Chegue na hora certa."],
   historico:      ["Histórico","Empresas já pesquisadas ficam salvas aqui."],
@@ -697,8 +666,8 @@ function renderHistList(list){
     el.innerHTML='<div class="card"><div class="empty-state"><p>Nenhuma pesquisa ainda</p><p>As empresas pesquisadas aparecem aqui automaticamente</p></div></div>';
     return;
   }
-  var typeIcons={cnpj:"🏢",contatos:"📧",empreendimentos:"🏗️",radar:"📡"};
-  var typeLabels={cnpj:"CNPJ","contatos":"Contatos",empreendimentos:"Empreendimentos",radar:"Radar"};
+  var typeIcons={cnpj:"🏢",contatos:"📧",empreendimentos:"🏗️"};
+  var typeLabels={cnpj:"CNPJ","contatos":"Contatos",empreendimentos:"Empreendimentos"};
   el.innerHTML='<div class="card" style="padding:4px 20px">'+
     list.map(function(h){
       var icon=typeIcons[h.type]||"🔍";
@@ -1104,256 +1073,6 @@ function buscarContatosEmpresa(nomeEnc){
 // ═══════════════════════════════════════
 // RADAR — CNPJs reais por CNAE/UF
 // ═══════════════════════════════════════
-// ═══════════════════════════════════════
-// RADAR — ranking embutido no app (sem API)
-// ═══════════════════════════════════════
-
-var RANKING_DB = {
-  "SP": {
-    "todas": [
-      {nome:"EZTec",segmento:"Misto",atuacao:"São Paulo, Grande SP",destaques:"Uma das maiores incorporadoras da Bolsa, com forte presença em médio e alto padrão em SP.",site:"eztec.com.br",linkedin:"https://linkedin.com/company/eztec",oportunidade:"Portfolio ativo com múltiplos lançamentos simultâneos — demanda contínua por visual 3D.",score:95},
-      {nome:"Cyrela Brazil Realty",segmento:"Alto padrão",atuacao:"SP, RJ e principais capitais",destaques:"Líder nacional em alto padrão residencial, com marcas como Living e Vivaz para diferentes segmentos.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Lançamentos de alto padrão exigem visualizações impecáveis — é o core da Flying Studio.",score:93},
-      {nome:"Gafisa",segmento:"Médio/Alto padrão",atuacao:"São Paulo e interior",destaques:"Marca histórica em processo de reposicionamento, com novos lançamentos residenciais em SP.",site:"gafisa.com.br",linkedin:"https://linkedin.com/company/gafisa",oportunidade:"Empresa em retomada — momento ideal para firmar parceria e entrar no pipeline.",score:87},
-      {nome:"Helbor",segmento:"Alto padrão",atuacao:"SP, litoral e interior paulista",destaques:"Especialista em alto padrão com projetos diferenciados em arquitetura e localização.",site:"helbor.com.br",linkedin:"https://linkedin.com/company/helbor",oportunidade:"Projetos arquitetonicamente diferenciados precisam de visual que faça jus ao produto.",score:88},
-      {nome:"Trisul",segmento:"Médio padrão",atuacao:"Grande São Paulo",destaques:"Foco em médio padrão residencial na RMSP, com ritmo constante de lançamentos.",site:"trisul.com.br",linkedin:"https://linkedin.com/company/trisul",oportunidade:"Volume alto de lançamentos = demanda recorrente por visualizações.",score:82},
-      {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Todo o Brasil, forte em SP",destaques:"Maior construtora de imóveis populares do país, com aceleração de lançamentos MCMV.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Escala massiva de lançamentos — parceria com volume garantido.",score:80},
-      {nome:"Vitacon",segmento:"Alto padrão / Micro-living",atuacao:"São Paulo capital",destaques:"Pioneira em micro-studios em SP, com projetos urbanos de alto impacto visual.",site:"vitacon.com.br",linkedin:"https://linkedin.com/company/vitacon",oportunidade:"Produtos urbanos inovadores precisam de apresentação visual moderna e impactante.",score:86},
-      {nome:"SKR Incorporações",segmento:"Médio/Alto padrão",atuacao:"São Paulo e RMSP",destaques:"Incorporadora em crescimento com projetos residenciais e mistos na RMSP.",site:"skr.com.br",linkedin:"https://linkedin.com/company/skr-incorporacoes",oportunidade:"Empresa em expansão — boa janela para entrar como parceiro de visual.",score:78},
-      {nome:"Even Construtora",segmento:"Médio/Alto padrão",atuacao:"SP e RS",destaques:"Construtora sólida com foco em qualidade construtiva e design de interiores.",site:"even.com.br",linkedin:"https://linkedin.com/company/even",oportunidade:"Foco em qualidade = cliente valoriza apresentação visual de alto nível.",score:83},
-      {nome:"Plano&Plano",segmento:"MCMV / Econômico",atuacao:"Grande São Paulo",destaques:"Uma das mais ativas no segmento econômico em SP, com ritmo intenso de lançamentos.",site:"plano-plano.com.br",linkedin:"https://linkedin.com/company/plano-e-plano",oportunidade:"Ritmo de lançamentos muito alto — potencial de contrato recorrente.",score:79}
-    ],
-    "alto": [
-      {nome:"Cyrela Brazil Realty",segmento:"Alto padrão",atuacao:"SP, RJ e principais capitais",destaques:"Líder nacional em alto padrão residencial.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Lançamentos de luxo exigem visual impecável — core da Flying Studio.",score:95},
-      {nome:"Helbor",segmento:"Alto padrão",atuacao:"SP, litoral e interior paulista",destaques:"Especialista em alto padrão com projetos diferenciados em localização e arquitetura.",site:"helbor.com.br",linkedin:"https://linkedin.com/company/helbor",oportunidade:"Arquitetura diferenciada precisa de visual que valorize cada detalhe.",score:92},
-      {nome:"Vitacon",segmento:"Alto padrão / Micro-living",atuacao:"São Paulo capital",destaques:"Pioneira em micro-studios urbanos de alto padrão e design.",site:"vitacon.com.br",linkedin:"https://linkedin.com/company/vitacon",oportunidade:"Produto urbano inovador = apresentação visual é diferencial de vendas.",score:89},
-      {nome:"Gafisa",segmento:"Alto padrão",atuacao:"São Paulo e interior",destaques:"Marca histórica em reposicionamento com foco em alto padrão.",site:"gafisa.com.br",linkedin:"https://linkedin.com/company/gafisa",oportunidade:"Reposicionamento de marca = momento ideal para renovar a apresentação visual.",score:87},
-      {nome:"Brookfield",segmento:"Alto padrão",atuacao:"São Paulo",destaques:"Projetos residenciais e comerciais de alto padrão em SP.",site:"brookfield.com.br",linkedin:"https://linkedin.com/company/brookfield-incorporacoes",oportunidade:"Segmento premium sempre investe em apresentação visual de qualidade.",score:84},
-      {nome:"Tegra Incorporadora",segmento:"Alto padrão",atuacao:"SP e RJ",destaques:"Foco exclusivo em alto padrão residencial com design premiado.",site:"tegra.com.br",linkedin:"https://linkedin.com/company/tegra",oportunidade:"Empresa com foco em qualidade visual — fit perfeito com Flying Studio.",score:88},
-      {nome:"EZTec",segmento:"Misto/Alto padrão",atuacao:"São Paulo e Grande SP",destaques:"Forte em alto padrão em SP, com landbank privilegiado.",site:"eztec.com.br",linkedin:"https://linkedin.com/company/eztec",oportunidade:"Portfolio diversificado com lançamentos constantes.",score:90},
-      {nome:"Klabin Segall",segmento:"Alto padrão",atuacao:"São Paulo",destaques:"Projetos residenciais de alto padrão com foco em experiência do morador.",site:"klabinsegall.com.br",linkedin:"https://linkedin.com/company/klabin-segall",oportunidade:"Alto padrão com foco em experiência — visual 3D é ferramenta de venda essencial.",score:83},
-      {nome:"REM Incorporações",segmento:"Alto padrão",atuacao:"São Paulo capital",destaques:"Incorporadora boutique com projetos exclusivos no Jardins e Itaim.",site:"rem.com.br",linkedin:"https://linkedin.com/company/rem-incorporacoes",oportunidade:"Projetos boutique exigem apresentação visual de nível internacional.",score:82},
-      {nome:"Multiplan",segmento:"Comercial/Misto alto padrão",atuacao:"SP e principais capitais",destaques:"Referência em empreendimentos mistos e de uso misto premium.",site:"multiplan.com.br",linkedin:"https://linkedin.com/company/multiplan",oportunidade:"Projetos mistos com alto padrão de acabamento precisam de visual sofisticado.",score:81}
-    ],
-    "medio": [
-      {nome:"EZTec",segmento:"Médio padrão",atuacao:"São Paulo e Grande SP",destaques:"Forte presença em médio padrão residencial em SP.",site:"eztec.com.br",linkedin:"https://linkedin.com/company/eztec",oportunidade:"Volume de lançamentos no segmento médio = demanda recorrente por visual.",score:88},
-      {nome:"Trisul",segmento:"Médio padrão",atuacao:"Grande São Paulo",destaques:"Especialista em médio padrão residencial na RMSP.",site:"trisul.com.br",linkedin:"https://linkedin.com/company/trisul",oportunidade:"Ritmo constante de lançamentos = parceria de longo prazo.",score:85},
-      {nome:"Even Construtora",segmento:"Médio padrão",atuacao:"SP e RS",destaques:"Qualidade construtiva acima da média no segmento médio.",site:"even.com.br",linkedin:"https://linkedin.com/company/even",oportunidade:"Valoriza qualidade — cliente receptivo a visual diferenciado.",score:83},
-      {nome:"Tecnisa",segmento:"Médio padrão",atuacao:"São Paulo e capitais",destaques:"Incorporadora experiente em médio padrão com projetos sustentáveis.",site:"tecnisa.com.br",linkedin:"https://linkedin.com/company/tecnisa",oportunidade:"Projetos sustentáveis precisam de visual que comunique o diferencial.",score:80},
-      {nome:"PDG Realty",segmento:"Médio padrão",atuacao:"São Paulo e capitais",destaques:"Empresa em recuperação com novos projetos de médio padrão.",site:"pdg.com.br",linkedin:"https://linkedin.com/company/pdg",oportunidade:"Empresa em retomada — boa janela para entrar como parceiro.",score:75},
-      {nome:"Rossi Residencial",segmento:"Médio padrão",atuacao:"SP, RS, SC",destaques:"Construtora com forte presença regional e foco em médio padrão.",site:"rossi.com.br",linkedin:"https://linkedin.com/company/rossi-residencial",oportunidade:"Marca reconhecida com lançamentos regulares.",score:76},
-      {nome:"Diálogo Engenharia",segmento:"Médio padrão",atuacao:"Grande São Paulo",destaques:"Incorporadora regional sólida com projetos residenciais na RMSP.",site:"dialogoengenharia.com.br",linkedin:"https://linkedin.com/company/dialogo-engenharia",oportunidade:"Regional com volume interessante de lançamentos.",score:74},
-      {nome:"SKR Incorporações",segmento:"Médio padrão",atuacao:"SP e RMSP",destaques:"Em expansão com projetos residenciais de médio padrão.",site:"skr.com.br",linkedin:"https://linkedin.com/company/skr-incorporacoes",oportunidade:"Empresa em crescimento — parceria estratégica agora.",score:78},
-      {nome:"Kallas",segmento:"Médio padrão",atuacao:"Grande São Paulo",destaques:"Incorporadora familiar com trajetória sólida no médio padrão paulistano.",site:"kallas.com.br",linkedin:"https://linkedin.com/company/kallas",oportunidade:"Tradição no segmento + lançamentos regulares = parceria de valor.",score:77},
-      {nome:"Setin Incorporadora",segmento:"Médio padrão",atuacao:"São Paulo capital",destaques:"Foco em médio padrão urbano com bons projetos de localização.",site:"setin.com.br",linkedin:"https://linkedin.com/company/setin",oportunidade:"Projetos bem localizados precisam de visual que valorize a posição.",score:76}
-    ],
-    "mcmv": [
-      {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Todo o Brasil",destaques:"Maior construtora MCMV do país, com centenas de lançamentos por ano.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Escala enorme — mesmo pequena participação resulta em grande volume.",score:90},
-      {nome:"Plano&Plano",segmento:"MCMV",atuacao:"Grande São Paulo",destaques:"Líder regional MCMV na RMSP com ritmo intenso de lançamentos.",site:"plano-plano.com.br",linkedin:"https://linkedin.com/company/plano-e-plano",oportunidade:"Alta frequência de lançamentos = contrato recorrente.",score:85},
-      {nome:"Direcional Engenharia",segmento:"MCMV",atuacao:"SP, Centro-Oeste, Norte",destaques:"Especialista em MCMV com forte presença em regiões emergentes.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"Empresa listada em bolsa com crescimento acelerado.",score:83},
-      {nome:"Cury Construtora",segmento:"MCMV",atuacao:"São Paulo e capitais",destaques:"Uma das mais ativas no MCMV em SP, com forte crescimento pós-pandemia.",site:"construtora.com.br",linkedin:"https://linkedin.com/company/cury",oportunidade:"Crescimento acelerado = novas demandas por visual.",score:82},
-      {nome:"Tegra / Yuny",segmento:"MCMV/Econômico",atuacao:"São Paulo",destaques:"Projetos econômicos com foco em localização e infraestrutura.",site:"tegra.com.br",linkedin:"https://linkedin.com/company/tegra",oportunidade:"Posicionamento por localização precisa de visual que comunique valor.",score:75},
-      {nome:"Tenda",segmento:"MCMV",atuacao:"SP, RJ, MG, RS",destaques:"Construtora com foco exclusivo em econômico e MCMV.",site:"tenda.com",linkedin:"https://linkedin.com/company/tenda",oportunidade:"Foco exclusivo no segmento = parceiro estratégico de visual.",score:78},
-      {nome:"Melnick",segmento:"MCMV/Médio",atuacao:"RS e SP",destaques:"Forte no Sul, em expansão para SP com projetos econômicos.",site:"melnick.com.br",linkedin:"https://linkedin.com/company/melnick",oportunidade:"Expansão para SP = momento para entrar antes da concorrência.",score:77},
-      {nome:"Patriani Construtora",segmento:"MCMV",atuacao:"Interior de SP",destaques:"Construtora regional ativa no interior paulista com MCMV.",site:"patriani.com.br",linkedin:"https://linkedin.com/company/patriani",oportunidade:"Interior de SP com MCMV aquecido e demanda crescente.",score:72},
-      {nome:"Albuquerque Construtora",segmento:"MCMV",atuacao:"Grande SP",destaques:"Construtora ativa em MCMV na região metropolitana.",site:"albuquerque.com.br",linkedin:"https://linkedin.com/company/albuquerque-construtora",oportunidade:"Volume de lançamentos MCMV na RMSP.",score:70},
-      {nome:"Método Engenharia",segmento:"MCMV",atuacao:"São Paulo",destaques:"Construtora com experiência em empreendimentos populares em SP.",site:"metodoengenharia.com.br",linkedin:"https://linkedin.com/company/metodo-engenharia",oportunidade:"Lançamentos populares em SP com boa demanda.",score:68}
-    ],
-    "comercial": [
-      {nome:"Brookfield Asset Management",segmento:"Comercial/Corporativo",atuacao:"São Paulo",destaques:"Referência em lajes corporativas AAA no eixo Faria Lima-Itaim.",site:"brookfield.com.br",linkedin:"https://linkedin.com/company/brookfield-asset-management",oportunidade:"Empreendimentos corporativos de alto padrão precisam de visual sofisticado.",score:90},
-      {nome:"Multiplan",segmento:"Comercial/Misto",atuacao:"SP e principais capitais",destaques:"Referência em empreendimentos mistos com shoppings e torres comerciais.",site:"multiplan.com.br",linkedin:"https://linkedin.com/company/multiplan",oportunidade:"Projetos de uso misto com lajes corporativas precisam de visualização completa.",score:88},
-      {nome:"SYN Prop e Tech",segmento:"Comercial",atuacao:"São Paulo",destaques:"Especialista em empreendimentos corporativos no eixo Paulista-Faria Lima.",site:"syn.com.br",linkedin:"https://linkedin.com/company/syn-prop",oportunidade:"Portfolio de escritórios premium que valorizam apresentação visual.",score:85},
-      {nome:"BR Properties",segmento:"Comercial/Logístico",atuacao:"SP e capitais",destaques:"Portfólio diversificado entre lajes, galpões e ativos logísticos.",site:"brproperties.com.br",linkedin:"https://linkedin.com/company/br-properties",oportunidade:"Lajes e galpões premium precisam de visual para captação de locatários.",score:82},
-      {nome:"WTorre",segmento:"Comercial/Corporativo",atuacao:"São Paulo",destaques:"Grandes projetos corporativos e multiuso em SP, incluindo o WTC.",site:"wtorre.com.br",linkedin:"https://linkedin.com/company/wtorre",oportunidade:"Projetos icônicos precisam de apresentação visual de nível internacional.",score:87},
-      {nome:"GOR Properties",segmento:"Comercial",atuacao:"São Paulo",destaques:"Incorporadora focada em lajes corporativas e imóveis de renda.",site:"gorproperties.com.br",linkedin:"https://linkedin.com/company/gor-properties",oportunidade:"Foco em produto comercial premium com boa demanda por visual.",score:78},
-      {nome:"Ático Incorporações",segmento:"Comercial/Misto",atuacao:"São Paulo capital",destaques:"Projetos comerciais e mistos no centro expandido de SP.",site:"atico.com.br",linkedin:"https://linkedin.com/company/atico-incorporacoes",oportunidade:"Projetos mistos no centro expandido com grande visibilidade.",score:76},
-      {nome:"Inpar",segmento:"Comercial",atuacao:"São Paulo e capitais",destaques:"Empreendimentos corporativos e comerciais em localizações estratégicas.",site:"inpar.com.br",linkedin:"https://linkedin.com/company/inpar",oportunidade:"Portfólio comercial em boas localizações com demanda por visual de qualidade.",score:75},
-      {nome:"Ancar Ivanhoe",segmento:"Comercial/Shopping",atuacao:"SP, RJ e capitais",destaques:"Gestora de shoppings e empreendimentos de uso misto no Brasil.",site:"ancarivanhoe.com.br",linkedin:"https://linkedin.com/company/ancar-ivanhoe",oportunidade:"Expansões e revitalizações de shoppings precisam de visual 3D atualizado.",score:80},
-      {nome:"Jhsf Participações",segmento:"Comercial/Luxo",atuacao:"São Paulo e capitais",destaques:"Grupo de luxo com shoppings, hotéis e escritórios premium.",site:"jhsf.com.br",linkedin:"https://linkedin.com/company/jhsf",oportunidade:"Projetos de luxo e lifestyle precisam de visual à altura da marca.",score:83}
-    ]
-  },
-  "RJ": {
-    "todas": [
-      {nome:"Cyrela",segmento:"Alto padrão",atuacao:"Rio de Janeiro e Niterói",destaques:"Forte presença no RJ com projetos na Barra da Tijuca e Zona Sul.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Alto padrão carioca com apelo visual forte para vendas.",score:90},
-      {nome:"Tegra Incorporadora",segmento:"Alto padrão",atuacao:"Rio de Janeiro",destaques:"Focada em alto padrão residencial no RJ com projetos em Ipanema e Leblon.",site:"tegra.com.br",linkedin:"https://linkedin.com/company/tegra",oportunidade:"Projetos em endereços nobres do RJ precisam de visual que valorize a localização.",score:88},
-      {nome:"Carvalho Hosken",segmento:"Alto padrão",atuacao:"Rio de Janeiro — Barra da Tijuca",destaques:"Maior incorporadora da Barra da Tijuca, com megaprojetos como o Ilha Pura.",site:"carvalhohosken.com.br",linkedin:"https://linkedin.com/company/carvalho-hosken",oportunidade:"Megaprojetos na Barra precisam de apresentação visual completa e imersiva.",score:92},
-      {nome:"Multiplan",segmento:"Comercial/Misto",atuacao:"Rio de Janeiro e capitais",destaques:"BarraShopping e projetos mistos de alto padrão no RJ.",site:"multiplan.com.br",linkedin:"https://linkedin.com/company/multiplan",oportunidade:"Projetos mistos com shoppings precisam de visual corporativo de alto nível.",score:85},
-      {nome:"Odebrecht Realizações",segmento:"Misto",atuacao:"Rio de Janeiro",destaques:"Grandes projetos urbanos e residenciais no RJ.",site:"odebrechtr.com.br",linkedin:"https://linkedin.com/company/odebrecht-realizacoes",oportunidade:"Projetos de grande porte precisam de visualização de impacto.",score:82},
-      {nome:"RJZ Cyrela",segmento:"Médio/Alto padrão",atuacao:"Rio de Janeiro",destaques:"Joint venture especializada no mercado carioca com lançamentos frequentes.",site:"rjzcyrela.com.br",linkedin:"https://linkedin.com/company/rjz-cyrela",oportunidade:"Parceria consolidada no RJ com alto volume de lançamentos.",score:87},
-      {nome:"EBM Incorporadora",segmento:"Médio padrão",atuacao:"Rio de Janeiro",destaques:"Construtora ativa no médio padrão carioca.",site:"ebm.com.br",linkedin:"https://linkedin.com/company/ebm-incorporadora",oportunidade:"Volume de lançamentos no médio padrão do RJ.",score:75},
-      {nome:"Calçada",segmento:"Alto padrão",atuacao:"Rio de Janeiro — Zona Sul",destaques:"Boutique de alto padrão na Zona Sul com projetos exclusivos.",site:"calcadario.com.br",linkedin:"https://linkedin.com/company/calcada-incorporacoes",oportunidade:"Projetos boutique na Zona Sul precisam de visual de altíssimo nível.",score:84},
-      {nome:"Direcional",segmento:"MCMV",atuacao:"Rio de Janeiro e Norte/CO",destaques:"Forte em MCMV no RJ e regiões emergentes.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"MCMV no RJ com demanda crescente.",score:78},
-      {nome:"MRV",segmento:"MCMV",atuacao:"Rio de Janeiro e região",destaques:"Lançamentos MCMV constantes na RMRJ.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Volume garantido em MCMV na região metropolitana do RJ.",score:80}
-    ]
-  },
-  "MG": {
-    "todas": [
-      {nome:"Direcional Engenharia",segmento:"MCMV/Médio",atuacao:"BH, Contagem, Betim",destaques:"Origem mineira, líder em MCMV em MG e referência nacional no segmento.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"Empresa listada em bolsa com crescimento acelerado em MG.",score:90},
-      {nome:"Cyrela",segmento:"Alto padrão",atuacao:"Belo Horizonte",destaques:"Forte em alto padrão em BH com projetos nos bairros mais valorizados.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Alto padrão em BH com demanda crescente por visual impactante.",score:86},
-      {nome:"Patrimar Engenharia",segmento:"Médio/Alto padrão",atuacao:"Belo Horizonte e RMBH",destaques:"Construtora mineira sólida com foco em qualidade e bom ritmo de lançamentos.",site:"patrimar.com.br",linkedin:"https://linkedin.com/company/patrimar",oportunidade:"Empresa local consolidada com portfólio diversificado.",score:84},
-      {nome:"Bairro Novo",segmento:"MCMV",atuacao:"Minas Gerais",destaques:"Especialista em MCMV em MG com projetos em cidades do interior.",site:"bairronovo.com.br",linkedin:"https://linkedin.com/company/bairro-novo",oportunidade:"MCMV em MG com forte expansão no interior.",score:76},
-      {nome:"Baldan Incorporações",segmento:"Médio padrão",atuacao:"Belo Horizonte",destaques:"Incorporadora BH com foco em médio padrão e bairros em valorização.",site:"baldan.com.br",linkedin:"https://linkedin.com/company/baldan",oportunidade:"Projetos em bairros em valorização — visual forte acelera vendas.",score:77},
-      {nome:"Construtora Barbosa Mello",segmento:"Comercial",atuacao:"Belo Horizonte e BH",destaques:"Construtora de grande porte com projetos comerciais e residenciais em MG.",site:"cbm.com.br",linkedin:"https://linkedin.com/company/cbm",oportunidade:"Portfólio comercial e residencial com demanda por visual variado.",score:79},
-      {nome:"Habitare Incorporadora",segmento:"Médio padrão",atuacao:"Belo Horizonte",destaques:"Incorporadora regional ativa no médio padrão BH.",site:"habitare.com.br",linkedin:"https://linkedin.com/company/habitare",oportunidade:"Mercado de médio padrão em BH com boa demanda.",score:74},
-      {nome:"Invent Construtora",segmento:"Médio/Alto padrão",atuacao:"Belo Horizonte e Sul de MG",destaques:"Construtora com projetos diferenciados em BH e sul mineiro.",site:"invent.com.br",linkedin:"https://linkedin.com/company/invent",oportunidade:"Projetos diferenciados com necessidade de visual que valorize o produto.",score:76},
-      {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Toda Minas Gerais",destaques:"Presença massiva em MG com origem em BH.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Origem em MG = forte presença e volume de lançamentos.",score:85},
-      {nome:"Kauffmann Construtora",segmento:"Médio padrão",atuacao:"Uberlândia e Triângulo Mineiro",destaques:"Referência no mercado imobiliário de Uberlândia e região.",site:"kauffmann.com.br",linkedin:"https://linkedin.com/company/kauffmann",oportunidade:"Mercado de Uberlândia em expansão acelerada.",score:75}
-    ]
-  },
-  "GO": {
-    "todas": [
-      {nome:"Residencial Eldorado",segmento:"Médio/Alto padrão",atuacao:"Goiânia e Aparecida de Goiânia",destaques:"Uma das maiores incorporadoras de Goiânia, com forte presença no Setor Bueno e Marista.",site:"eldorado.com.br",linkedin:"https://linkedin.com/company/eldorado-goiania",oportunidade:"Mercado de Goiânia em forte expansão — parceiro de visual pode crescer junto.",score:86},
-      {nome:"Rodobens Negócios Imobiliários",segmento:"MCMV/Médio",atuacao:"Goiás e interior do Brasil",destaques:"Especialista em loteamentos e condomínios fechados em GO e interior.",site:"rodobens.com.br",linkedin:"https://linkedin.com/company/rodobens",oportunidade:"Loteamentos em GO com alta demanda por visualização de produto.",score:83},
-      {nome:"Bairro Novo / Cyrela",segmento:"MCMV",atuacao:"Goiânia e Anápolis",destaques:"Projetos MCMV em GO através da plataforma de MCMV da Cyrela.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"MCMV em GO com volume crescente de lançamentos.",score:78},
-      {nome:"Goiás Construtora",segmento:"Médio padrão",atuacao:"Goiânia e região metropolitana",destaques:"Construtora goiana sólida com projetos residenciais de médio padrão.",site:"goiasconstrutora.com.br",linkedin:"https://linkedin.com/company/goias-construtora",oportunidade:"Construtora regional com portfólio ativo em GO.",score:75},
-      {nome:"Patriani",segmento:"MCMV",atuacao:"Goiás e SP interior",destaques:"Ativa em MCMV no interior de GO e SP.",site:"patriani.com.br",linkedin:"https://linkedin.com/company/patriani",oportunidade:"Presença em GO com projetos MCMV em cidades do interior.",score:72},
-      {nome:"Direcional",segmento:"MCMV",atuacao:"Goiás e Centro-Oeste",destaques:"Forte presença em MCMV no Centro-Oeste, especialmente em GO.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"Líder MCMV no Centro-Oeste com muitos lançamentos em GO.",score:84},
-      {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Goiás",destaques:"Presente em Goiânia e cidades do interior de GO.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Volume garantido em MCMV em GO.",score:80},
-      {nome:"Incomfort Incorporações",segmento:"Médio/Alto padrão",atuacao:"Goiânia",destaques:"Incorporadora goiana com foco em médio e alto padrão na capital.",site:"incomfort.com.br",linkedin:"https://linkedin.com/company/incomfort",oportunidade:"Médio e alto padrão em Goiânia com demanda crescente.",score:77},
-      {nome:"Construmax",segmento:"Médio padrão",atuacao:"Goiânia e Aparecida de Goiânia",destaques:"Construtora ativa na região metropolitana de Goiânia.",site:"construmax.com.br",linkedin:"https://linkedin.com/company/construmax",oportunidade:"Região metropolitana de GO com projetos ativos.",score:72},
-      {nome:"PHV Engenharia",segmento:"MCMV/Médio",atuacao:"Goiás",destaques:"Construtora com projetos em cidades polo de GO.",site:"phvengenharia.com.br",linkedin:"https://linkedin.com/company/phv",oportunidade:"Cidades polo de GO com mercado imobiliário em crescimento.",score:70}
-    ]
-  },
-  "DF": {
-    "todas": [
-      {nome:"GDF/Terracap parceiros",segmento:"Misto",atuacao:"Brasília e entorno do DF",destaques:"Mercado imobiliário do DF tem dinâmica única com parcerias com a Terracap.",site:"terracap.df.gov.br",linkedin:"https://linkedin.com/company/terracap",oportunidade:"Parcerias com Terracap geram grandes projetos com necessidade de visual 3D.",score:80},
-      {nome:"Direcional Engenharia",segmento:"MCMV",atuacao:"Distrito Federal e entorno",destaques:"Forte em MCMV no DF e cidades do entorno como Luziânia e Águas Lindas.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"MCMV no DF e entorno com alto volume de lançamentos.",score:85},
-      {nome:"Construtora Andrade Mendonça",segmento:"Médio/Alto padrão",atuacao:"Brasília",destaques:"Construtora brasiliense com projetos no Lago Sul, Noroeste e Águas Claras.",site:"andrademendoca.com.br",linkedin:"https://linkedin.com/company/andrade-mendonca",oportunidade:"Alto padrão em Brasília com demanda por visual impactante.",score:84},
-      {nome:"Grupo Serveng",segmento:"Médio padrão",atuacao:"DF e entorno",destaques:"Grupo com diversas incorporações no DF em médio padrão.",site:"serveng.com.br",linkedin:"https://linkedin.com/company/serveng",oportunidade:"Portfólio diversificado no DF com projetos regulares.",score:77},
-      {nome:"Plano&Plano DF",segmento:"MCMV",atuacao:"Cidades satélites do DF",destaques:"Ativa em MCMV nas cidades satélites e entorno do DF.",site:"plano-plano.com.br",linkedin:"https://linkedin.com/company/plano-e-plano",oportunidade:"MCMV nas cidades satélites do DF com alta demanda.",score:78},
-      {nome:"GP Empreendimentos",segmento:"Alto padrão",atuacao:"Brasília — Lago Sul e Noroeste",destaques:"Projetos de alto padrão nos bairros mais valorizados de Brasília.",site:"gpempreendimentos.com.br",linkedin:"https://linkedin.com/company/gp-empreendimentos",oportunidade:"Alto padrão em Brasília com visual que valoriza a arquitetura modernista.",score:83},
-      {nome:"Cyrela",segmento:"Alto padrão",atuacao:"Brasília",destaques:"Cyrela presente no DF com projetos de alto padrão no Noroeste.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Alto padrão em Brasília com demanda crescente.",score:82},
-      {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Distrito Federal e entorno",destaques:"Presente no DF com lançamentos MCMV no entorno.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Volume MCMV garantido no DF e entorno.",score:79},
-      {nome:"Habitar Construtora",segmento:"Médio padrão",atuacao:"Taguatinga e Ceilândia",destaques:"Construtora regional ativa no médio padrão nas regiões administrativas.",site:"habitar.com.br",linkedin:"https://linkedin.com/company/habitar",oportunidade:"Médio padrão nas RAs com projetos ativos.",score:73},
-      {nome:"Emplavi",segmento:"Médio/Alto padrão",atuacao:"Brasília — Asa Norte e Sul",destaques:"Incorporadora com projetos nas asas norte e sul de Brasília.",site:"emplavi.com.br",linkedin:"https://linkedin.com/company/emplavi",oportunidade:"Projetos nas asas de Brasília com boa demanda.",score:76}
-    ]
-  }
-};
-
-// Default para estados não mapeados
-var RANKING_DEFAULT = {
-  "todas": [
-    {nome:"MRV Engenharia",segmento:"MCMV",atuacao:"Todo o Brasil",destaques:"Maior construtora MCMV do país com presença em todos os estados.",site:"mrv.com.br",linkedin:"https://linkedin.com/company/mrv-engenharia",oportunidade:"Presença nacional — demanda constante por visual em todos os estados.",score:88},
-    {nome:"Cyrela Brazil Realty",segmento:"Alto padrão",atuacao:"Capitais e grandes cidades",destaques:"Líder nacional em alto padrão com expansão contínua para novos mercados.",site:"cyrela.com.br",linkedin:"https://linkedin.com/company/cyrela",oportunidade:"Cyrela em expansão para novas praças — janela para entrar como parceiro.",score:85},
-    {nome:"Direcional Engenharia",segmento:"MCMV/Médio",atuacao:"Todo o Brasil, forte no CO/N/NE",destaques:"Forte presença em mercados emergentes e MCMV em todo o Brasil.",site:"direcional.com.br",linkedin:"https://linkedin.com/company/direcional",oportunidade:"Expansão para mercados emergentes = demanda crescente por visual.",score:83},
-    {nome:"Cury Construtora",segmento:"MCMV",atuacao:"SP, RJ e expansão nacional",destaques:"Uma das mais ativas no MCMV com expansão nacional acelerada.",site:"construtora.com.br",linkedin:"https://linkedin.com/company/cury",oportunidade:"Expansão nacional com novos mercados a conquistar.",score:80},
-    {nome:"Tenda",segmento:"MCMV",atuacao:"SP, RJ, MG, RS e expansão",destaques:"Especialista em MCMV com foco em digitalização do processo de compra.",site:"tenda.com",linkedin:"https://linkedin.com/company/tenda",oportunidade:"Foco em digital = receptiva a visualizações de alto impacto.",score:78},
-    {nome:"Helbor",segmento:"Alto padrão",atuacao:"SP e expansão para outras capitais",destaques:"Alto padrão com expansão para novas praças além de SP.",site:"helbor.com.br",linkedin:"https://linkedin.com/company/helbor",oportunidade:"Alto padrão em novas praças = oportunidade de ser o parceiro pioneiro.",score:82},
-    {nome:"Even Construtora",segmento:"Médio/Alto padrão",atuacao:"SP e RS",destaques:"Qualidade acima da média com projetos diferenciados.",site:"even.com.br",linkedin:"https://linkedin.com/company/even",oportunidade:"Foco em qualidade = cliente receptivo a visual diferenciado.",score:79},
-    {nome:"PDG Realty",segmento:"Médio padrão",atuacao:"Diversas regiões do Brasil",destaques:"Construtora em recuperação com retomada de lançamentos.",site:"pdg.com.br",linkedin:"https://linkedin.com/company/pdg",oportunidade:"Empresa em retomada — boa janela para entrar.",score:72},
-    {nome:"Rodobens",segmento:"MCMV/Loteamentos",atuacao:"Interior do Brasil",destaques:"Especialista em loteamentos e condomínios no interior.",site:"rodobens.com.br",linkedin:"https://linkedin.com/company/rodobens",oportunidade:"Loteamentos em cidades do interior com demanda crescente.",score:76},
-    {nome:"Trisul",segmento:"Médio padrão",atuacao:"São Paulo — referência para outros mercados",destaques:"Modelo de negócio de médio padrão bem-sucedido em SP.",site:"trisul.com.br",linkedin:"https://linkedin.com/company/trisul",oportunidade:"Empresa que pode expandir para outros mercados.",score:74}
-  ]
-};
-
-function gerarRadar(){
-  var uf       = selectedEstado;
-  var tipo     = selectedTipoRadar || "todas";
-  var el       = document.getElementById("radar-results");
-  var tipoLabel= {todas:"Incorporadoras e Construtoras",alto:"Alto padrão",medio:"Médio padrão",mcmv:"MCMV / Econômico",comercial:"Comercial / Lajes"}[tipo]||"Todas";
-
-  // Usa banco de dados embutido (instantâneo)
-  var regDB = RANKING_DB[uf]||{};
-  var lista = (regDB[tipo]||regDB["todas"]||RANKING_DEFAULT["todas"]).slice().sort(function(a,b){return b.score-a.score;}).slice(0,10);
-  renderRankingIA({empresas:lista, resumo:"Top 10 "+tipoLabel+" em "+uf+" — maior potencial de prospecção para a Flying Studio."}, uf, tipoLabel);
-}
-
-var selectedTipoRadar = "todas";
-function selectTipoRadar(id){
-  selectedTipoRadar = id;
-  ["todas","alto","medio","mcmv","comercial"].forEach(function(x){
-    var el = document.getElementById("tipo-"+x);
-    if(el) el.classList.toggle("active", x===id);
-  });
-}
-
-
-
-function renderRankingIA(data, uf, tipoLabel){
-  var el = document.getElementById("radar-results");
-  var empresas = data.empresas || [];
-  var html = '<div class="fade">';
-
-  // Header
-  html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px">' +
-    '<div>' +
-      '<h2 style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:4px">Top 10 · '+tipoLabel+' · '+uf+'</h2>' +
-      (data.resumo ? '<p style="font-size:13px;color:#6b7280;line-height:1.5">'+data.resumo+'</p>' : "") +
-    '</div>' +
-    '<span class="badge" style="background:#F3F0FF;color:#5a3dd4;border-color:#c4b5fd;flex-shrink:0;font-size:12px">Powered by IA</span>' +
-  '</div>';
-
-  // Ranking list
-  empresas.forEach(function(emp, i){
-    var score = emp.score || 70;
-    var scoreCol = score>=80?"#166534":score>=60?"#854d0e":"#9a3412";
-    var scoreBg2  = score>=80?"#f0fdf4":score>=60?"#fefce8":"#fff7ed";
-    var scoreBd2  = score>=80?"#bbf7d0":score>=60?"#fde68a":"#fed7aa";
-
-    html += '<div class="card" style="margin-bottom:10px;position:relative;overflow:hidden">';
-
-    // Rank badge
-    html += '<div style="position:absolute;top:0;left:0;width:32px;height:32px;background:'+(i===0?"#7C5CFC":i===1?"#9ca3af":i===2?"#b45309":"#f3f4f6")+';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:'+(i<3?"#fff":"#6b7280")+';border-radius:0 0 8px 0">'+( i+1)+'</div>';
-
-    html += '<div style="padding-left:36px">';
-
-    // Company header
-    html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px">';
-    html += '<div style="flex:1"><p style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:2px">'+emp.nome+'</p>';
-    if (emp.atuacao) html += '<p style="font-size:12px;color:#9ca3af;display:flex;align-items:center;gap:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#7C5CFC" stroke-width="2.5" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+emp.atuacao+'</p>';
-    html += '</div>';
-    html += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">';
-    html += '<span class="badge" style="background:'+scoreBg2+';color:'+scoreCol+';border-color:'+scoreBd2+'">'+score+' pts</span>';
-    if (emp.segmento) html += '<span class="badge" style="background:#f9fafb;color:#6b7280;border-color:#e5e7eb;font-size:10px">'+emp.segmento+'</span>';
-    html += '</div></div>';
-
-    // Destaque e oportunidade
-    if (emp.destaques) html += '<p style="font-size:13px;color:#374151;line-height:1.5;margin-bottom:6px">'+emp.destaques+'</p>';
-    if (emp.oportunidade) html += '<div style="background:#F3F0FF;border-left:3px solid #7C5CFC;padding:8px 12px;border-radius:0 6px 6px 0;margin-bottom:8px"><p style="font-size:12px;font-weight:600;color:#5a3dd4;margin-bottom:1px">Oportunidade Flying Studio</p><p style="font-size:12px;color:#5a3dd4;line-height:1.5">'+emp.oportunidade+'</p></div>';
-
-    // Actions
-    html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
-    if (emp.site) {
-      html += '<button class="btn-icon" data-domain="'+encodeURIComponent(emp.site)+'" data-nome="'+encodeURIComponent(emp.nome)+'" onclick="usarEmpresaRadar(this.dataset.nome,this.dataset.domain)">📧 Buscar contatos</button>';
-      html += '<button class="btn-icon" data-domain="'+encodeURIComponent(emp.site)+'" data-nome="'+encodeURIComponent(emp.nome)+'" onclick="buscarEmpRadar(this.dataset.nome,this.dataset.domain)">🏗️ Empreendimentos</button>';
-    }
-    html += '<button class="btn-icon" data-nome="'+encodeURIComponent(emp.nome)+'" onclick="usarEmpresaMensagem(this.dataset.nome,\'\')">✉️ Gerar mensagem</button>';
-    if (emp.linkedin) html += '<a class="btn-icon" href="'+emp.linkedin+'" target="_blank">💼 LinkedIn</a>';
-    html += '</div>';
-
-    html += '</div></div>';
-  });
-
-  html += '<div class="card-flat tip-green" style="margin-top:4px">' +
-    '<p style="font-size:12px;font-weight:700;color:#166534;margin-bottom:6px">🔄 Próximos passos</p>' +
-    '<p style="font-size:13px;color:#15803d;line-height:1.8">' +
-      '<strong>1.</strong> "Buscar contatos" → mapeia emails do domínio da empresa<br>' +
-      '<strong>2.</strong> "✉ Gerar mensagem" → abre aba Mensagem com contexto preenchido<br>' +
-      '<strong>3.</strong> "Empreendimentos" → abre aba Empreendimentos com o site da empresa' +
-    '</p></div>';
-  html += '</div>';
-  el.innerHTML = html; el.style.display = "block";
-}
-
-function usarEmpresaRadar(nomeEnc, domainEnc){
-  document.getElementById("inp-company").value = decodeURIComponent(nomeEnc);
-  document.getElementById("inp-domain").value  = decodeURIComponent(domainEnc);
-  onDomainInput("inp-domain","domain-hint");
-  switchTab("contatos"); toast("✅ Empresa preenchida! Clique em Mapear contatos.",3000);
-}
-function buscarEmpRadar(nomeEnc, domainEnc){
-  document.getElementById("emp-company").value = decodeURIComponent(nomeEnc);
-  document.getElementById("emp-domain").value  = decodeURIComponent(domainEnc);
-  switchTab("empreendimentos"); setTimeout(buscarEmp, 100);
-}
-function usarCnpjRadar(cnpj){
-  var fmt=cnpjFmt(cnpj.replace(/\D/g,""));
-  document.getElementById("inp-cnpj").value=fmt;
-  maskCnpj(document.getElementById("inp-cnpj"));
-  switchTab("cnpj"); setTimeout(buscarCnpj,150);
-}
-
-
-
 
 // ═══════════════════════════════════════
 // MENSAGEM
