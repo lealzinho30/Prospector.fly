@@ -17,9 +17,10 @@ export default async function handler(req, res) {
   const snovSecret = process.env.SNOV_CLIENT_SECRET;
   const apolloKey  = process.env.APOLLO_API_KEY;
 
-  const companyGuess = domain.split(".")[0].charAt(0).toUpperCase() + domain.split(".")[0].slice(1);
+  const domainPrefix = domain.split(".")[0]; // "cyrela"
+  const companyGuess = domainPrefix.charAt(0).toUpperCase() + domainPrefix.slice(1);
 
-  async function fetchProxy(url, timeout = 9000) {
+  async function fetchProxy(url, timeout = 10000) {
     try {
       const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {
         headers: { Accept: "application/json" }, signal: AbortSignal.timeout(timeout),
@@ -28,26 +29,28 @@ export default async function handler(req, res) {
     } catch(e) { return ""; }
   }
 
-  // Get company name from Hunter or site
+  // ── Get company name + email pattern from Hunter ───────────────────
   let orgName = null, pattern = null;
   try {
     const r = await fetch(`https://api.hunter.io/v2/domain-search?api_key=${hunterKey}&domain=${encodeURIComponent(domain)}&limit=5`, { headers: { Accept: "application/json" } });
     const d = await r.json();
-    orgName  = d.data?.organization || null;
-    pattern  = d.data?.pattern || null;
+    orgName = d.data?.organization || null;
+    pattern = d.data?.pattern || null;
   } catch(e) {}
 
+  // Get company name from site if Hunter didn't return it
   if (!orgName) {
-    // Get from site og:site_name
     const html = await fetchProxy(`https://${domain}`, 6000);
     const og = html.match(/og:site_name"[^>]*content="([^"]+)"/i) || html.match(/content="([^"]+)"[^>]*og:site_name/i);
     const title = html.match(/<title[^>]*>([^<|–\-]{3,40})/i);
     if (og) orgName = og[1].trim();
     else if (title) orgName = title[1].trim().split(/[-|–]/)[0].trim();
-    else orgName = companyGuess;
   }
+  if (!orgName) orgName = companyGuess;
 
-  const empresa = orgName;
+  // Short name = first meaningful word (e.g. "Cyrela" from "Cyrela Brazil Realty")
+  const shortName = orgName.split(/\s+/)[0];
+
   let people = [], source = "";
 
   // ── 1. Snov.io ────────────────────────────────────────────────────
@@ -70,7 +73,7 @@ export default async function handler(req, res) {
             first_name: e.firstName, last_name: e.lastName, email: e.email,
             email_status: e.emailStatus === "valid" ? "verified" : "likely_to_engage",
             title: e.currentPosition?.position || null, linkedin_url: e.linkedInUrl || null,
-            phone_numbers: [], organization: { name: empresa },
+            phone_numbers: [], organization: { name: orgName },
           }));
           source = "snov";
         }
@@ -104,7 +107,7 @@ export default async function handler(req, res) {
           first_name: e.first_name, last_name: e.last_name,
           email: e.value, email_status: e.confidence >= 70 ? "verified" : "likely_to_engage",
           title: e.position, linkedin_url: e.linkedin || null,
-          phone_numbers: [], organization: { name: empresa }, confidence: e.confidence,
+          phone_numbers: [], organization: { name: orgName }, confidence: e.confidence,
         }));
         source = "hunter";
       }
@@ -112,70 +115,80 @@ export default async function handler(req, res) {
   }
 
   // ── 4. LinkedIn via DuckDuckGo ─────────────────────────────────────
-  // Always runs — searches for people who work AT this company
-  // Uses company's exact name for precision
+  // Uses BOTH full name AND short name to maximize hits
   const liPeople = [];
-  try {
-    const cargos = ["Diretor","Diretora","Gerente","Head","Marketing","Comercial","CEO","Presidente","Fundador","Sócio","Superintendente","Coordenador"];
-    // Exact company name in quotes to avoid false positives
-    const q = `site:linkedin.com/in "${empresa}" ${cargos.slice(0,4).join(" OR ")}`;
-    const html = await fetchProxy(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}&kl=br-pt`, 10000);
+  const seenLinkedIn = new Set(people.map(p => (p.name||"").toLowerCase()));
 
-    if (html) {
+  // Helper to infer email from a name
+  function inferEmail(firstName, lastName) {
+    const fn = (firstName||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z]/g,"");
+    const ln = (lastName||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z]/g,"");
+    if (!fn) return null;
+    if (pattern) {
+      return pattern.replace("{first}",fn).replace("{last}",ln).replace("{f}",fn[0]||"").replace("{l}",ln[0]||"") + "@" + domain;
+    }
+    return ln ? `${fn}.${ln}@${domain}` : `${fn}@${domain}`;
+  }
+
+  try {
+    // Multiple queries: use short name (more likely to match LinkedIn titles)
+    // LinkedIn titles typically say "at Cyrela" not "at Cyrela Brazil Realty"
+    const queries = [
+      `site:linkedin.com/in "${shortName}" Diretor OR Diretora OR Gerente marketing OR comercial`,
+      `site:linkedin.com/in "${shortName}" CEO OR Presidente OR Fundador OR Head`,
+      `site:linkedin.com/in "${orgName}" Diretor OR Gerente marketing`,
+    ];
+
+    for (const q of queries) {
+      if (liPeople.length >= 8) break;
+      const html = await fetchProxy(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}&kl=br-pt`, 10000);
+      if (!html) continue;
+
+      // Parse DuckDuckGo results
+      // Format: <a class="result__a" href="...linkedin.com/in/slug...">Name - Title at Company | LinkedIn</a>
       const re = /<a[^>]+class="result__a"[^>]*href="([^"]*linkedin\.com\/in\/([^"?/]+))[^"]*"[^>]*>([^<]+)<\/a>/gi;
       let m;
-      while ((m = re.exec(html)) !== null && liPeople.length < 8) {
-        const url = m[1].startsWith("http") ? m[1] : "https://www.linkedin.com/in/"+m[2];
-        
-        // Clean: "Ragnar Prado Nuner – Gerente de negócios na Plano&Plano | LinkedIn"
-        const raw = m[3].trim()
-          .replace(/\s*\|\s*LinkedIn.*$/i, "")  // remove "| LinkedIn"
-          .replace(/\s*–\s*LinkedIn.*$/i, "")
-          .trim();
+      while ((m = re.exec(html)) !== null) {
+        if (liPeople.length >= 8) break;
+        const rawUrl = m[1];
+        const slug   = m[2];
+        const rawText = m[3].trim();
 
-        // Split on dash/em-dash to separate name from title
-        const sepIdx = raw.search(/\s+[–\-]\s+/);
-        const name  = (sepIdx > 0 ? raw.slice(0, sepIdx) : raw.split(/[–\-]/)[0]).trim();
-        const after = (sepIdx > 0 ? raw.slice(sepIdx).replace(/^\s*[–\-]\s*/,"") : "").trim();
+        // Parse "João Silva - Diretor de Marketing at Cyrela | LinkedIn"
+        const parts = rawText.split(/\s*[-–|]\s*/);
+        const name = parts[0].trim();
 
-        // Extract title (before "na/at/em + Company")
-        const titleM = after.match(/^(.+?)\s+(?:na|at|em|no)\s+/i);
-        const title  = titleM ? titleM[1].trim() : after.split(/\s+(?:na|at)\s+/i)[0].trim().slice(0,60) || null;
-
-        // Validate real person name
+        // Validate name: 2-4 words, no digits, no company-like content
         const words = name.split(/\s+/).filter(Boolean);
         if (words.length < 2 || words.length > 5) continue;
-        if (/[0-9@#&]/.test(name)) continue;
-        if (name.toLowerCase().includes("linkedin")) continue;
+        if (/\d|@/.test(name)) continue;
+        // Skip if slug looks like the company page
+        if (slug === domainPrefix || slug.includes("company")) continue;
+        // Skip if name IS the company
+        if (name.toLowerCase() === shortName.toLowerCase()) continue;
+        // Skip duplicates
+        if (seenLinkedIn.has(name.toLowerCase())) continue;
 
-        const slug = m[2].toLowerCase();
-        if (slug === domain.split(".")[0].toLowerCase()) continue;
+        // Extract title - between first dash and "at Company"
+        const titlePart = parts.slice(1).join(" ").replace(/\|.*$/,"").trim();
+        const atIdx = titlePart.toLowerCase().lastIndexOf(" at ");
+        const title = atIdx > 0 ? titlePart.slice(0, atIdx).trim() : titlePart.split("·")[0].trim();
 
-        if (people.some(p => (p.name||"").toLowerCase() === name.toLowerCase())) continue;
-        if (liPeople.some(p => p.name.toLowerCase() === name.toLowerCase())) continue;
+        const cleanUrl = rawUrl.startsWith("http")
+          ? rawUrl.split("?")[0]
+          : `https://www.linkedin.com/in/${slug}`;
 
-        // Infer email from name + domain
-        const fn = words[0].toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z]/g,"");
-        const ln = words[words.length-1].toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z]/g,"");
-        let inferredEmail = null;
-        if (fn && ln) {
-          inferredEmail = pattern
-            ? pattern.replace("{first}",fn).replace("{last}",ln).replace("{f}",fn[0]||"").replace("{l}",ln[0]||"")+"@"+domain
-            : fn+"."+ln+"@"+domain;
-        }
+        const email = inferEmail(words[0], words[words.length-1]);
+        seenLinkedIn.add(name.toLowerCase());
 
         liPeople.push({
           name, first_name: words[0], last_name: words[words.length-1],
-          title: title || null,
-          email: inferredEmail,
+          title: title.slice(0,80) || null,
+          email,
           email_status: pattern ? "likely_to_engage" : "guessed",
-          email_alternatives: fn && ln ? [
-            fn+"@"+domain,
-            fn+"."+ln+"@"+domain,
-            fn[0]+ln+"@"+domain,
-          ].filter(e => e !== inferredEmail) : [],
-          phone_numbers: [], organization: { name: empresa },
-          linkedin_url: url.split("?")[0],
+          phone_numbers: [],
+          organization: { name: orgName },
+          linkedin_url: cleanUrl,
           is_linkedin: true,
         });
       }
@@ -186,7 +199,7 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     source: merged.length ? (people.length ? source : "linkedin") : "none",
-    people: merged, pattern, orgName: empresa,
+    people: merged, pattern, orgName,
     pagination: { total_entries: merged.length },
   });
 }
