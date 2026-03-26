@@ -272,6 +272,12 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
     <p class="sec-sub">Nome, email, cargo e telefone dos decisores — direto da maior base B2B do mundo.</p>
   </div>
   <div class="card" style="margin-bottom:14px">
+    <!-- Mode tabs -->
+    <div style="display:flex;gap:4px;border-bottom:1.5px solid var(--gray-2);margin-bottom:18px;margin:-22px -22px 18px -22px;padding:0 22px;overflow-x:auto">
+      <button class="tab-btn active" id="mode-domain" onclick="switchMode('domain')" style="padding:10px 12px 12px;font-size:13px">📧 Por domínio</button>
+      <button class="tab-btn"        id="mode-role"   onclick="switchMode('role')"   style="padding:10px 12px 12px;font-size:13px">🎯 Por cargo</button>
+      <button class="tab-btn"        id="mode-socios" onclick="switchMode('socios')" style="padding:10px 12px 12px;font-size:13px">🏢 CNPJ + Sócios</button>
+    </div>
     <div class="grid-2" style="margin-bottom:12px">
       <div>
         <label>Empresa</label>
@@ -283,13 +289,24 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
         <p id="domain-hint" class="field-ok" style="display:none"></p>
       </div>
     </div>
-    <div style="margin-bottom:14px">
-      <label style="margin-bottom:8px">Área / Departamento</label>
-      <div id="dept-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    <div id="filters-block">
+      <div style="margin-bottom:14px">
+        <label style="margin-bottom:8px">Área / Departamento</label>
+        <div id="dept-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="margin-bottom:8px">Nível hierárquico</label>
+        <div id="sen-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
     </div>
-    <div style="margin-bottom:16px">
-      <label style="margin-bottom:8px">Nível hierárquico</label>
-      <div id="sen-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    <div id="socios-info" style="display:none;margin-bottom:16px;background:var(--purple-l);border:1.5px solid var(--purple-m);border-radius:10px;padding:14px 16px">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">🔍</span>
+        <div>
+          <p style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px">Como funciona</p>
+          <p style="font-size:13px;color:var(--purple-d);line-height:1.6">Buscamos o CNPJ da empresa → extraímos os sócios da Receita Federal → inferimos os emails com o padrão do domínio.</p>
+        </div>
+      </div>
     </div>
     <button class="btn btn-primary" id="btn-search" onclick="doSearch()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -704,10 +721,20 @@ function switchTab(tab){
 }
 function switchMode(m){
   currentMode=m;
-  document.getElementById("mode-domain").classList.toggle("active",m==="domain");
-  document.getElementById("mode-role").classList.toggle("active",m==="role");
-  document.getElementById("role-filters").style.display=m==="role"?"block":"none";
-  document.getElementById("btn-search").textContent=m==="role"?"Buscar por cargo":"Mapear todos os contatos";
+  ["domain","role","socios"].forEach(function(x){
+    var el=document.getElementById("mode-"+x);
+    if(el) el.classList.toggle("active",x===m);
+  });
+  var filtersBlock=document.getElementById("filters-block");
+  var sociosInfo=document.getElementById("socios-info");
+  if(filtersBlock) filtersBlock.style.display=m==="role"?"block":"none";
+  if(sociosInfo)   sociosInfo.style.display=m==="socios"?"block":"none";
+  var btn=document.getElementById("btn-search");
+  if(btn) btn.innerHTML=m==="socios"
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Buscar via CNPJ + Sócios'
+    : m==="role"
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Buscar por cargo'
+    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Buscar contatos';
 }
 
 // ═══════════════════════════════════════
@@ -852,6 +879,34 @@ function doSearch(){
   document.getElementById("search-loader").style.display="block";
   document.getElementById("btn-search").disabled=true;
 
+  // ── CNPJ + Sócios mode ──────────────────────────────────────────
+  if (currentMode === "socios") {
+    document.getElementById("prog-step").textContent = "Buscando CNPJ...";
+    document.getElementById("prog-fill").style.width = "20%";
+    document.getElementById("prog-pct").textContent = "20%";
+    setTimeout(function(){document.getElementById("prog-step").textContent="Consultando Receita Federal...";document.getElementById("prog-fill").style.width="55%";document.getElementById("prog-pct").textContent="55%";},1000);
+    setTimeout(function(){document.getElementById("prog-step").textContent="Inferindo emails...";document.getElementById("prog-fill").style.width="85%";document.getElementById("prog-pct").textContent="85%";},2500);
+    fetch("/api/socios", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({company:company, domain:domain})})
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      stopProgress();
+      document.getElementById("search-loader").style.display = "none";
+      document.getElementById("btn-search").disabled = false;
+      if (data.error) { showError("search-error", data.error); return; }
+      allResults = data.people || [];
+      if (data.warning && !allResults.length) { showError("search-error", data.warning); return; }
+      addHistory({key:"s:"+(domain||company), type:"contatos", label:company||domain, sublabel:allResults.length+" sócios · CNPJ "+(data.cnpj||""), domain:domain, company:company, ts:Date.now()});
+      renderSocios(data, domain||company);
+    })
+    .catch(function(e){
+      stopProgress();
+      document.getElementById("search-loader").style.display = "none";
+      document.getElementById("btn-search").disabled = false;
+      showError("search-error", "Erro: " + e.message);
+    });
+    return;
+  }
+
   startProgress([
     {pct:20,label:"Conectando ao Apollo.io...",delay:200},
     {pct:50,label:"Buscando decisores...",delay:1200},
@@ -899,6 +954,57 @@ function doSearch(){
     document.getElementById("btn-search").disabled=false;
     showError("search-error","Falha na conexão: "+e.message);
   });
+}
+
+
+function renderSocios(data, compOrDomain){
+  var people = data.people || [];
+  var html = '<div class="fade">';
+
+  // Header com info da empresa
+  html += '<div class="card" style="margin-bottom:14px">' +
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">' +
+      '<div style="width:42px;height:42px;background:var(--purple-l);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏢</div>' +
+      '<div>' +
+        '<p style="font-size:16px;font-weight:700;color:var(--navy)">' + (data.empresa||compOrDomain) + '</p>' +
+        '<p style="font-size:12px;color:var(--gray-4);font-family:monospace">CNPJ ' + (data.cnpj||"") + '</p>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<span class="tag-purple">' + people.length + ' sócio' + (people.length!==1?"s":"") + '</span>' +
+      (data.pattern ? '<span class="tag-ok">✓ Padrão de email: ' + data.pattern + '@' + (compOrDomain||"") + '</span>' :
+        '<span class="tag-warn">⚠️ Email inferido (padrão mais comum)</span>') +
+    '</div>' +
+  '</div>';
+
+  if (data.warning) {
+    html += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;margin-bottom:12px">' +
+      '<p style="font-size:13px;color:#854d0e">⚠️ ' + data.warning + '</p></div>';
+  }
+
+  if (!people.length) {
+    html += '<div class="card"><div class="empty-state"><p>Nenhum sócio encontrado</p><p>Tente buscar pelo CNPJ direto na aba CNPJ</p></div></div>';
+    html += '</div>';
+    document.getElementById("search-results").innerHTML = html;
+    document.getElementById("search-results").style.display = "block";
+    return;
+  }
+
+  html += '<div class="card" style="padding:4px 20px" id="contacts-list">';
+  people.forEach(function(p){ html += buildContactRow(p, compOrDomain); });
+  html += '</div>';
+
+  html += '<div style="background:var(--purple-l);border:1.5px solid var(--purple-m);border-radius:10px;padding:14px 16px;margin-top:12px">' +
+    '<p style="font-size:12px;font-weight:700;color:var(--purple-d);margin-bottom:6px">💡 Sobre os emails inferidos</p>' +
+    '<p style="font-size:13px;color:var(--purple-d);line-height:1.5">Os emails foram gerados com base no padrão do domínio da empresa. ' +
+    (data.pattern ? 'Padrão detectado pelo Hunter: <strong>' + data.pattern + '@' + compOrDomain + '</strong>.' :
+      'Padrão mais comum: <strong>primeiro.ultimo@' + compOrDomain + '</strong>.') +
+    ' Valide antes de enviar.</p>' +
+  '</div>';
+
+  html += '</div>';
+  document.getElementById("search-results").innerHTML = html;
+  document.getElementById("search-results").style.display = "block";
 }
 
 

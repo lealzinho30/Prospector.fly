@@ -3,11 +3,13 @@
   "builds": [
     { "src": "api/claude.js",  "use": "@vercel/node" },
     { "src": "api/apollo.js",  "use": "@vercel/node" },
+    { "src": "api/socios.js",  "use": "@vercel/node" },
     { "src": "index.html",     "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/api/claude",  "dest": "/api/claude.js"  },
     { "src": "/api/apollo",  "dest": "/api/apollo.js"  },
+    { "src": "/api/socios",  "dest": "/api/socios.js"  },
     { "src": "/(.*)",        "dest": "/index.html"      }
   ]
 }
