@@ -680,6 +680,7 @@ function renderContactRow(p,empresa){
   var linkedin=p.linkedin_url||null;
   var verified=p.email_status==="verified"||p.email_status==="likely_to_engage";
   var isSocio=p.is_socio;
+  var alternatives=p.email_alternatives||[];
   var cols=getAvColors(name);
   var ini=initials((p.first_name||name.split(" ")[0]||""),(p.last_name||name.split(" ")[1]||""));
   var photo=p.photo_url||null;
@@ -696,7 +697,8 @@ function renderContactRow(p,empresa){
         (verified?'<span class="tag-ok" style="font-size:10px">✓ email</span>':"")+
       '</div>'+
       '<p style="font-size:13px;color:var(--g5)">'+title+'</p>'+
-      (email?'<p style="font-size:12px;color:var(--g4);margin-top:2px;font-family:monospace">'+email+'</p>':"")+
+      (email?'<p style="font-size:12px;color:var(--g4);margin-top:2px;font-family:monospace">'+email+(verified?'':' <span style="font-size:10px;color:#854d0e">(inferido)</span>')+'</p>':"")+
+      (!email&&alternatives.length?'<p style="font-size:11px;color:var(--g4);margin-top:2px">Possíveis: '+alternatives.slice(0,2).join(" · ")+'</p>':"")+
       (phone?'<p style="font-size:12px;color:var(--g5);margin-top:2px">📞 '+phone+'</p>':"")+
     '</div>'+
     '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">'+
