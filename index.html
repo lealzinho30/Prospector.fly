@@ -639,140 +639,9 @@ function agenteAnalista(domain) {
   return callClaude({
     model: "claude-sonnet-4-20250514",
     max_tokens: 300,
-    messages: [{role:"user", content:
-      'Analise esta incorporadora para prospecção da Flying Studio (visualização 3D imobiliária SP):
-'+
-      'Empresa: "'+AG.empresa+'"
-Domínio: '+domain+'
-Segmento: '+(AG.segmento||"não identificado")+'
-Lançamentos: '+AG.empreendimentos.length+'
-'+
-      'Responda APENAS JSON: {"insight":"1 frase sobre a empresa","urgencia":"Alta|Media|Baixa","melhor_angulo":"como abordar em 1 frase"}'
-    }]
-  }).then(function(text){
-    try {
-      var m = text.match(/\{[\s\S]*\}/);
-      if (m) {
-        var ai = JSON.parse(m[0]);
-        analiseLocal.insight = ai.insight;
-        analiseLocal.melhor_angulo = ai.melhor_angulo;
-        if (ai.urgencia === "Alta") analiseLocal.score = Math.max(analiseLocal.score, 75);
-      }
-    } catch(e) {}
-    return analiseLocal;
-  }).catch(function(){ return analiseLocal; });
-}
-
-// ─── AGENTE 3: Estrategista ───────────────────────────────
-// Define tom, contexto e ângulo de abordagem
-function agenteEstratgista(analise) {
-  updateStep(3,"running","🎯 Agente Estrategista","Definindo estratégia de abordagem...");
-
-  var allPeople = [].concat(AG.socios, AG.contatos);
-  var decisor = allPeople.find(function(p){ return isDecisive(p.title||p.position||""); }) || allPeople[0];
-  var nomeDec  = decisor ? (decisor.name||"").split(" ")[0] : "";
-  var cargoDec = decisor ? (decisor.title||decisor.position||"Diretor") : "Diretor de Marketing";
-  var lanc     = AG.empreendimentos[0] ? AG.empreendimentos[0].nome : "";
-
-  // Estrategista decide o contexto e tom com base na análise
-  var tom = analise.score >= 75 ? "proativo" : analise.score >= 55 ? "consultivo" : "curioso";
-  var angulo = analise.melhor_angulo || (
-    AG.empreendimentos.length
-      ? "Mencionar o lançamento "+lanc+" como gancho"
-      : "Posicionar Flying Studio como referência no segmento "+(AG.segmento||"imobiliário")
-  );
-
-  return Promise.resolve({
-    decisor: decisor,
-    nome: nomeDec,
-    cargo: cargoDec,
-    lancamento: lanc,
-    empresa: AG.empresa,
-    segmento: AG.segmento || "incorporadora",
-    contexto: "frio",
-    tom: tom,
-    angulo: angulo,
-    score: analise.score,
-    nivel: analise.nivel,
-    recomendacao: analise.recomendacao,
-  });
-}
-
-// ─── AGENTE 4: Comunicador ────────────────────────────────
-// Redige a mensagem final com base em todo o contexto
-function agenteComunicador(estrategia) {
-  updateStep(4,"running","✍️ Agente Comunicador","Redigindo mensagem personalizada...");
-  var msgs = buildMsgs(estrategia.nome, estrategia.cargo, estrategia.empresa, estrategia.segmento, estrategia.lancamento, "frio");
-  return Promise.resolve(msgs);
-}
-
-// Step 1: Contacts — returns Promise
-function agStep1(domain){
-  updateStep(1,"running","Buscando decisores...","LinkedIn + Hunter + Snov");
-  return callApollo(domain)
-  .then(function(data){
-    var people=data.people||[];
-    AG.contatos=people;
-    AG.fonte=data.source||"none";
-    if(people.length>0&&people[0].organization&&people[0].organization.name){
-      AG.empresa=people[0].organization.name;
-    }
-    var n=people.length;
-    updateStep(1,"done","Decisores encontrados",n+" contatos · "+AG.fonte);
+    messages: [{role:"user", content: 'Analise esta incorporadora para prospecção da Flying Studio (visualização 3D imobiliária SP). Empresa: "'+AG.empresa+'". Domínio: '+domain+'. Segmento: '+(AG.segmento||"não identificado")+'. Lançamentos: '+AG.empreendimentos.length+'. Responda APENAS JSON: {"insight":"1 frase sobre a empresa","urgencia":"Alta|Media|Baixa","melhor_angulo":"como abordar em 1 frase"}'}]
   })
-  .catch(function(){
-    updateStep(1,"skip","Contatos não encontrados","Continuando...");
-  });
-}
 
-// Step 2: CNPJ + Socios — returns Promise
-function agStep2(domain){
-  updateStep(2,"running","Buscando CNPJ e sócios...","Receita Federal");
-  return callSocios(domain)
-  .then(function(data){
-    if(data.people&&data.people.length){
-      AG.socios=data.people;
-      if(!AG.empresa&&data.empresa) AG.empresa=data.empresa;
-      updateStep(2,"done","Sócios encontrados",data.people.length+" sócios · CNPJ: "+(data.cnpj||"encontrado"));
-    } else {
-      if(!AG.empresa&&data.empresa) AG.empresa=data.empresa;
-      updateStep(2,"skip","Sócios não encontrados",data.warning||"CNPJ não localizado");
-    }
-  })
-  .catch(function(){
-    updateStep(2,"skip","Não foi possível consultar","");
-  });
-}
-
-// Step 3: Empreendimentos
-function agStep3(domain){
-  updateStep(3,"running","Pesquisando lançamentos...","Consultando banco de dados");
-
-  // Identify company name if not yet
-  if(!AG.empresa){
-    AG.empresa=domain.split(".")[0];
-    AG.empresa=AG.empresa.charAt(0).toUpperCase()+AG.empresa.slice(1);
-  }
-
-  // Try local DB first
-  var dbResult=findInDB(AG.empresa,domain);
-  if(dbResult){
-    AG.empreendimentos=dbResult.empreendimentos||[];
-    AG.segmento=dbResult.segmento;
-    AG.totalLancamentos=dbResult.totalLancamentos||AG.empreendimentos.length;
-    AG.totalLancamentos=dbResult.totalLancamentos||AG.empreendimentos.length;
-    updateStep(3,"done",dbResult.empresa+" — "+dbResult.totalLancamentos+" lançamentos",dbResult.segmento+" · "+dbResult.atuacao);
-    agStep4();
-    return;
-  }
-
-  // Try Claude
-  var prompt='Empresa imobiliária "'+AG.empresa+'". Liste os empreendimentos que você conhece do seu treinamento. Retorne SOMENTE JSON: {"empresa":"string","segmento":"Alto padrão|Médio padrão|MCMV|Comercial","atuacao":"cidades","totalLancamentos":0,"empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras|Pronto para morar","cidade":"string","bairro":"string","destaque":"string"}]}';
-  var done=false;
-  var timer=setTimeout(function(){
-    if(!done){done=true;updateStep(3,"skip","Lançamentos não encontrados","Empresa fora do banco de dados");agStep4();}
-  },7000);
-  callClaude({model:"claude-sonnet-4-20250514",max_tokens:1500,messages:[{role:"user",content:prompt}]})
   .then(function(text){
     if(done)return;done=true;clearTimeout(timer);
     var match=text.match(/\{[\s\S]*\}/);
@@ -869,7 +738,7 @@ function renderAgenteResult(empresa,msgs,decisorPrincipal){
     '</div>'+
 
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-      '<button class="btn-ghost" style="font-size:12px;padding:7px 14px;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7)" onclick="agenteUsarMensagem(''+encodeURIComponent(empresa)+'')">✉ Usar na mensagem</button>'+
+      '<button class="btn-ghost" style="font-size:12px;padding:7px 14px;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7)" data-emp="'+encodeURIComponent(empresa)+'" onclick="agenteUsarMensagem(this.dataset.emp)">✉ Usar na mensagem</button>'+
       '<button class="btn-ghost" style="font-size:12px;padding:7px 14px;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7)" onclick="novaProspeccao()">↺ Nova prospecção</button>'+
     '</div>'+
   '</div>';
