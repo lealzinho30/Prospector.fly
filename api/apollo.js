@@ -122,35 +122,28 @@ export default async function handler(req, res) {
     const html = await fetchProxy(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}&kl=br-pt`, 10000);
 
     if (html) {
-      // DuckDuckGo result format: <a class="result__a" href="linkedin_url">Name - Title at Company | LinkedIn</a>
       const re = /<a[^>]+class="result__a"[^>]*href="([^"]*linkedin\.com\/in\/([^"?/]+))[^"]*"[^>]*>([^<]+)<\/a>/gi;
       let m;
       while ((m = re.exec(html)) !== null && liPeople.length < 8) {
-        const url    = m[1].startsWith("http") ? m[1] : "https://www.linkedin.com/in/"+m[2];
-        const raw    = m[3].trim(); // "João Silva - Diretor de Marketing at Cyrela | LinkedIn"
+        const url = m[1].startsWith("http") ? m[1] : "https://www.linkedin.com/in/"+m[2];
+        const raw = m[3].trim();
+        // Format: "Nome Sobrenome – Cargo na Empresa | LinkedIn"
+        // Split on – or | first
+        const segments = raw.split(/\s*[–|\|]\s*/);
+        const namePart = segments[0].trim();
+        // Title is in segment[1], remove "na/at/em Empresa" suffix
+        const titleRaw = (segments[1]||"").replace(/\s+(na|at|em|em|·)\s+.+$/i,"").replace(/linkedin/gi,"").trim();
+        const title = titleRaw.slice(0,60) || null;
 
-        // Parse: name is before the dash, title is between dashes
-        const parts  = raw.split(/\s*[-–|]\s*/);
-        const name   = parts[0].trim();
-        const rest   = parts.slice(1).join(" ").replace(/linkedin/gi,"").trim();
-
-        // Extract title (part before "at Company")
-        const titleM = rest.match(/^(.+?)\s+(?:at|na|em|·)\s/i);
-        const title  = titleM ? titleM[1].trim() : (rest.split("at")[0]||"").trim().slice(0,60);
-
-        // Validate name looks like a real person (2-4 words, no special chars)
-        const words = name.split(/\s+/).filter(Boolean);
+        // Validate: name should be 2-4 words, no numbers, no "LinkedIn"
+        const words = namePart.split(/\s+/).filter(Boolean);
         if (words.length < 2 || words.length > 5) continue;
-        if (/[0-9@#]/.test(name)) continue;
-
-        // Validate it's not the company page itself
+        if (/[0-9@#]|linkedin/i.test(namePart)) continue;
         const slug = m[2].toLowerCase();
         if (slug === domain.split(".")[0].toLowerCase()) continue;
-        if (slug.includes("company") || slug.includes("empresa")) continue;
-
-        // Avoid duplicates
-        if (people.some(p => (p.name||"").toLowerCase() === name.toLowerCase())) continue;
-        if (liPeople.some(p => p.name.toLowerCase() === name.toLowerCase())) continue;
+        if (people.some(p => (p.name||"").toLowerCase() === namePart.toLowerCase())) continue;
+        if (liPeople.some(p => p.name.toLowerCase() === namePart.toLowerCase())) continue;
+        const name = namePart;
 
         // Infer email using Hunter pattern or most common BR pattern
         const fn = words[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
