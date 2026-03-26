@@ -194,6 +194,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
   <button class="tab-btn" id="tab-cnpj"            onclick="switchTab('cnpj')">🏢 CNPJ</button>
   <button class="tab-btn" id="tab-mensagem"        onclick="switchTab('mensagem')">💬 Mensagem</button>
   <button class="tab-btn" id="tab-empreendimentos" onclick="switchTab('empreendimentos')">🏗️ Empreendimentos</button>
+  <button class="tab-btn" id="tab-agente"          onclick="switchTab('agente')">🤖 Agente</button>
   <button class="tab-btn" id="tab-historico"       onclick="switchTab('historico')">🕑 Pipeline<span id="hist-notif" style="display:none" class="notif"></span></button>
 </div>
 
@@ -468,6 +469,55 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
   <div id="emp-results" style="display:none"></div>
 </div>
 
+<!-- ═══════════════════════════════════════ AGENTE ═══════════════════════════════════════ -->
+<div id="page-agente" style="display:none">
+  <div style="margin-bottom:20px">
+    <p class="sec-eyebrow">Agente Autônomo</p>
+    <h1 class="sec-title">Prospecção completa com 1 clique</h1>
+    <p class="sec-sub">Cole o domínio e o agente pesquisa contatos, empreendimentos e gera a mensagem automaticamente.</p>
+  </div>
+
+  <!-- Input -->
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1">
+        <label>Domínio da empresa</label>
+        <input id="agente-domain" type="text" placeholder="cyrela.com.br" style="font-size:15px;padding:13px 16px" onkeydown="if(event.key===&apos;Enter&apos;)iniciarAgente()"/>
+      </div>
+      <button class="btn btn-primary" onclick="iniciarAgente()" style="width:auto;padding:13px 22px;white-space:nowrap;font-size:15px">
+        🤖 Iniciar agente
+      </button>
+    </div>
+  </div>
+
+  <!-- Steps -->
+  <div id="agente-steps" style="display:none;margin-bottom:14px">
+    <div id="step-1" class="card-flat" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:14px 16px">
+      <div id="step-1-icon" style="width:32px;height:32px;border-radius:50%;background:var(--gray-2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">1</div>
+      <div style="flex:1"><p id="step-1-label" style="font-size:13px;font-weight:600;color:var(--navy)">Identificar empresa</p><p id="step-1-sub" style="font-size:12px;color:var(--gray-4);margin-top:2px">Aguardando...</p></div>
+      <div id="step-1-status"></div>
+    </div>
+    <div id="step-2" class="card-flat" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:14px 16px">
+      <div id="step-2-icon" style="width:32px;height:32px;border-radius:50%;background:var(--gray-2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">2</div>
+      <div style="flex:1"><p id="step-2-label" style="font-size:13px;font-weight:600;color:var(--navy)">Buscar decisores</p><p id="step-2-sub" style="font-size:12px;color:var(--gray-4);margin-top:2px">Aguardando...</p></div>
+      <div id="step-2-status"></div>
+    </div>
+    <div id="step-3" class="card-flat" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:14px 16px">
+      <div id="step-3-icon" style="width:32px;height:32px;border-radius:50%;background:var(--gray-2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">3</div>
+      <div style="flex:1"><p id="step-3-label" style="font-size:13px;font-weight:600;color:var(--navy)">Pesquisar empreendimentos</p><p id="step-3-sub" style="font-size:12px;color:var(--gray-4);margin-top:2px">Aguardando...</p></div>
+      <div id="step-3-status"></div>
+    </div>
+    <div id="step-4" class="card-flat" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:14px 16px">
+      <div id="step-4-icon" style="width:32px;height:32px;border-radius:50%;background:var(--gray-2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">4</div>
+      <div style="flex:1"><p id="step-4-label" style="font-size:13px;font-weight:600;color:var(--navy)">Gerar mensagem personalizada</p><p id="step-4-sub" style="font-size:12px;color:var(--gray-4);margin-top:2px">Aguardando...</p></div>
+      <div id="step-4-status"></div>
+    </div>
+  </div>
+
+  <!-- Resultado final -->
+  <div id="agente-resultado" style="display:none"></div>
+</div>
+
 <!-- ═══════════════════════════════════════ PIPELINE ═══════════════════════════════════════ -->
 <div id="page-historico" style="display:none">
   <div style="margin-bottom:20px">
@@ -692,7 +742,7 @@ function showError(elId,msg){
 // ═══════════════════════════════════════
 // TAB / MODE SWITCHES
 // ═══════════════════════════════════════
-var TABS=["home","contatos","cnpj","mensagem","empreendimentos","historico"];
+var TABS=["home","contatos","cnpj","mensagem","empreendimentos","agente","historico"];
 var HEADLINES={
   home:["Início","O que vamos fazer hoje?"],
   contatos:       ["Prospecção inteligente","Encontre decisores. Feche mais projetos."],
@@ -1968,6 +2018,254 @@ function prefillEmpreendimentos(nomeEnc,domainEnc){
 </script>
 </body>
         '<button class="btn btn-primary" style="width:auto;padding:11px 18px;white-space:nowrap" onclick="buscarSociosCnpjManual()">Buscar sócios</button>'+
+
+// ═══════════════════════════════════════════════════════════
+// AGENTE AUTÔNOMO DE PROSPECÇÃO
+// ═══════════════════════════════════════════════════════════
+
+var agenteState = {};
+
+function stepUpdate(n, status, sub) {
+  var icon = document.getElementById("step-"+n+"-icon");
+  var subEl = document.getElementById("step-"+n+"-sub");
+  var stepEl = document.getElementById("step-"+n);
+  if (subEl) subEl.textContent = sub || "";
+  if (icon) {
+    if (status === "running") {
+      icon.innerHTML = '<div class="dot" style="margin:0"></div>';
+      icon.style.background = "var(--purple-l)";
+    } else if (status === "done") {
+      icon.innerHTML = "✅";
+      icon.style.background = "#f0fdf4";
+    } else if (status === "error") {
+      icon.innerHTML = "⚠️";
+      icon.style.background = "#fffbeb";
+    } else if (status === "skip") {
+      icon.innerHTML = "⏭";
+      icon.style.background = "var(--gray-1)";
+    }
+  }
+}
+
+function iniciarAgente() {
+  var domain = cleanDomain(document.getElementById("agente-domain").value);
+  if (!domain) { toast("⚠️ Informe o domínio da empresa"); return; }
+
+  agenteState = { domain: domain, empresa: null, contatos: [], empreendimentos: [], mensagem: null };
+
+  document.getElementById("agente-steps").style.display = "block";
+  document.getElementById("agente-resultado").style.display = "none";
+
+  // Reset steps
+  for (var i=1; i<=4; i++) {
+    var icon = document.getElementById("step-"+i+"-icon");
+    if (icon) { icon.innerHTML = i; icon.style.background = "var(--gray-2)"; }
+    var sub = document.getElementById("step-"+i+"-sub");
+    if (sub) sub.textContent = "Aguardando...";
+  }
+
+  addHistory({key:"agente:"+domain, type:"agente", label:domain, sublabel:"Agente autônomo", domain:domain, ts:Date.now()});
+
+  // Executa os passos em sequência
+  agenteStep1(domain);
+}
+
+// ── Step 1: Identifica empresa via Hunter ────────────────────
+function agenteStep1(domain) {
+  stepUpdate(1, "running", "Identificando empresa...");
+  fetch("/api/apollo", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({domain: domain, seniority: "executive"})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data) {
+    var people = data.people || [];
+    agenteState.contatos = people;
+    agenteState.fonte = data.source || "hunter";
+
+    // Tenta pegar nome da empresa
+    if (people.length > 0 && people[0].organization) {
+      agenteState.empresa = people[0].organization.name || domain;
+    } else {
+      agenteState.empresa = domain.split(".")[0];
+      agenteState.empresa = agenteState.empresa.charAt(0).toUpperCase() + agenteState.empresa.slice(1);
+    }
+
+    var decisores = people.filter(function(p){ return isTarget(p.title||p.position||""); });
+    stepUpdate(1, "done", "Empresa: "+agenteState.empresa+" · "+people.length+" contatos encontrados");
+    agenteStep2(domain, people);
+  })
+  .catch(function() {
+    agenteState.empresa = domain.split(".")[0];
+    agenteState.empresa = agenteState.empresa.charAt(0).toUpperCase() + agenteState.empresa.slice(1);
+    stepUpdate(1, "error", "Empresa identificada pelo domínio: "+agenteState.empresa);
+    agenteStep2(domain, []);
+  });
+}
+
+// ── Step 2: Decisores (já temos do step 1, agora exibe) ──────
+function agenteStep2(domain, people) {
+  stepUpdate(2, "running", "Filtrando decisores...");
+  setTimeout(function() {
+    var decisores = people.filter(function(p){ return isTarget(p.title||p.position||""); });
+    if (!decisores.length) decisores = people.slice(0,3);
+    agenteState.decisores = decisores;
+    if (decisores.length > 0) {
+      stepUpdate(2, "done", decisores.length+" decisores · "+decisores.map(function(d){return (d.name||"").split(" ")[0];}).slice(0,3).join(", "));
+    } else {
+      stepUpdate(2, "skip", "Sem decisores identificados pelo cargo");
+    }
+    agenteStep3(domain);
+  }, 400);
+}
+
+// ── Step 3: Empreendimentos ──────────────────────────────────
+function agenteStep3(domain) {
+  stepUpdate(3, "running", "Pesquisando lançamentos...");
+  var nome = agenteState.empresa || domain;
+
+  // Tenta banco de dados local primeiro
+  var key = nome.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"");
+  var domKey = domain.split(".")[0].toLowerCase();
+  var dbResult = EMP_DB[key] || EMP_DB[domKey] || findEmpDB(nome);
+
+  if (dbResult) {
+    agenteState.empreendimentos = dbResult.empreendimentos || [];
+    stepUpdate(3, "done", dbResult.totalLancamentos+" lançamentos · "+dbResult.segmento);
+    agenteStep4();
+    return;
+  }
+
+  // Tenta via Claude
+  var prompt = 'Quantos empreendimentos imobiliários a empresa "'+nome+'" tem ativos? Liste os principais (máximo 5). Retorne JSON: {"totalLancamentos":0,"empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras","cidade":"string","tipo":"string"}]}';
+  callClaude({model:"claude-sonnet-4-20250514",max_tokens:600,messages:[{role:"user",content:prompt}]})
+  .then(function(text) {
+    var match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      var d = JSON.parse(match[0]);
+      agenteState.empreendimentos = d.empreendimentos || [];
+      stepUpdate(3, "done", (d.totalLancamentos||agenteState.empreendimentos.length)+" lançamentos encontrados");
+    } else {
+      throw new Error("sem dados");
+    }
+    agenteStep4();
+  })
+  .catch(function() {
+    stepUpdate(3, "skip", "Empreendimentos não encontrados automaticamente");
+    agenteStep4();
+  });
+}
+
+// ── Step 4: Gera mensagem personalizada ─────────────────────
+function agenteStep4() {
+  stepUpdate(4, "running", "Gerando mensagem personalizada...");
+  var empresa = agenteState.empresa;
+  var decisor = agenteState.decisores && agenteState.decisores[0];
+  var nome = decisor ? (decisor.name||"").split(" ")[0] : "";
+  var cargo = decisor ? (decisor.title||decisor.position||"Diretor") : "Diretor de Marketing";
+  var lancamento = agenteState.empreendimentos && agenteState.empreendimentos[0] ? agenteState.empreendimentos[0].nome : "";
+
+  // Gera mensagem local (mesmo sem API)
+  var msgs = gerarMensagemLocal(nome, cargo, empresa, lancamento, "frio");
+  agenteState.mensagem = msgs;
+  stepUpdate(4, "done", "WhatsApp e email prontos para usar");
+
+  // Renderiza resultado
+  setTimeout(function(){ renderAgenteResultado(); }, 300);
+}
+
+function renderAgenteResultado() {
+  var s = agenteState;
+  var el = document.getElementById("agente-resultado");
+  var html = '<div class="fade">';
+
+  // Header
+  html += '<div class="card-dark" style="margin-bottom:14px">'+
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">'+
+      '<span style="font-size:28px">🏢</span>'+
+      '<div>'+
+        '<p style="font-size:18px;font-weight:800;color:#fff;font-family:Syne,sans-serif">'+s.empresa+'</p>'+
+        '<p style="font-size:12px;color:#9ca3af;margin-top:2px">'+s.domain+' · Prospecção completa</p>'+
+      '</div>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<span class="tag-purple">'+s.contatos.length+' contatos</span>'+
+      (s.empreendimentos.length ? '<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700">'+s.empreendimentos.length+' empreendimentos</span>' : "")+
+      '<span style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700">'+s.fonte+'</span>'+
+    '</div>'+
+  '</div>';
+
+  // Decisores
+  if (s.decisores && s.decisores.length) {
+    html += '<p style="font-size:12px;font-weight:700;color:var(--gray-4);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Decisores encontrados</p>';
+    html += '<div class="card" style="padding:4px 20px;margin-bottom:14px">';
+    s.decisores.slice(0,4).forEach(function(p){
+      html += buildContactRow(p, s.empresa);
+    });
+    html += '</div>';
+  } else if (s.contatos.length) {
+    html += '<p style="font-size:12px;font-weight:700;color:var(--gray-4);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Contatos encontrados</p>';
+    html += '<div class="card" style="padding:4px 20px;margin-bottom:14px">';
+    s.contatos.slice(0,3).forEach(function(p){
+      html += buildContactRow(p, s.empresa);
+    });
+    html += '</div>';
+  }
+
+  // Empreendimentos
+  if (s.empreendimentos && s.empreendimentos.length) {
+    html += '<p style="font-size:12px;font-weight:700;color:var(--gray-4);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Empreendimentos ativos</p>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">';
+    s.empreendimentos.slice(0,4).forEach(function(e){
+      var statusColor = e.status&&e.status.includes("lançamento")?"#166534":e.status&&e.status.includes("obras")?"#854d0e":"#374151";
+      html += '<div class="card-flat" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px">'+
+        '<div style="display:flex;align-items:center;gap:10px">'+
+          '<span style="font-size:16px">🏗️</span>'+
+          '<div>'+
+            '<p style="font-size:13px;font-weight:600;color:var(--navy)">'+e.nome+'</p>'+
+            '<p style="font-size:11px;color:'+statusColor+';font-weight:600">'+e.status+(e.cidade?" · "+e.cidade:"")+'</p>'+
+          '</div>'+
+        '</div>'+
+        '<button class="btn-icon" onclick="preencherMensagemAgente(''+encodeURIComponent(s.empresa)+'',''+encodeURIComponent(e.nome)+'')">✉ Abordar</button>'+
+      '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Mensagem gerada
+  if (s.mensagem) {
+    html += '<p style="font-size:12px;font-weight:700;color:var(--gray-4);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Mensagem gerada</p>';
+    html += '<div class="card" style="margin-bottom:14px">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'+
+        '<span style="font-size:16px">💬</span>'+
+        '<p style="font-size:13px;font-weight:700;color:var(--navy)">WhatsApp</p>'+
+      '</div>'+
+      '<div class="msg-editable" contenteditable="true" id="agente-wpp">'+s.mensagem.wpp+'</div>'+
+      '<div style="display:flex;gap:8px;margin-top:10px">'+
+        '<button class="btn-copy" onclick="copyEl('agente-wpp',this)">📋 Copiar</button>'+
+        '<a class="btn-wpp" href="https://wa.me/?text='+encodeURIComponent(s.mensagem.wpp)+'" target="_blank">WhatsApp ↗</a>'+
+      '</div>'+
+    '</div>';
+  }
+
+  // CTA
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+    '<button class="btn btn-primary" style="width:auto" onclick="switchTab('contatos')">📧 Ver todos os contatos</button>'+
+    '<button class="btn-ghost btn" style="width:auto" onclick="document.getElementById('agente-domain').value='';document.getElementById('agente-steps').style.display='none';document.getElementById('agente-resultado').style.display='none'">Nova prospecção</button>'+
+  '</div>';
+
+  html += '</div>';
+  el.innerHTML = html;
+  el.style.display = "block";
+}
+
+function preencherMensagemAgente(empresaEnc, lancEnc) {
+  document.getElementById("msg-empresa").value = decodeURIComponent(empresaEnc);
+  document.getElementById("msg-lancamento").value = decodeURIComponent(lancEnc);
+  switchTab("mensagem");
+}
+
 </script>
 </body>
 </html>
