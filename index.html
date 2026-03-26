@@ -479,169 +479,79 @@ function iniciarAgente(){
     stepHtml(3,"waiting","Mapear lançamentos","Aguardando...")+
     stepHtml(4,"waiting","Gerar análise e abordagem","Aguardando...");
 
-  // ── ORQUESTRADOR: coordena os 4 agentes especializados ──
-  agOrquestrador(domain);
+  // Steps 1+2 em paralelo, depois 3, depois 4
+  Promise.all([agStep1(domain), agStep2(domain)])
+    .then(function(){ return agStep3(domain); })
+    .then(function(){ agStep4(); });
 }
 
-// ═══════════════════════════════════════════════════════
-// SISTEMA MULTI-AGENTE
-// Agente 1: Pesquisador  — coleta dados brutos
-// Agente 2: Analista     — analisa oportunidade
-// Agente 3: Estrategista — define abordagem
-// Agente 4: Comunicador  — escreve a mensagem final
-// Orquestrador           — coordena e passa contexto
-// ═══════════════════════════════════════════════════════
-
-function agOrquestrador(domain) {
-  // Atualiza steps para mostrar os 4 agentes
-  document.getElementById("ag-steps").innerHTML =
-    stepHtml(1,"waiting","🔍 Agente Pesquisador","Coletando dados da empresa, contatos e lançamentos")+
-    stepHtml(2,"waiting","📊 Agente Analista","Avaliando oportunidade e segmento")+
-    stepHtml(3,"waiting","🎯 Agente Estrategista","Definindo melhor abordagem")+
-    stepHtml(4,"waiting","✍️ Agente Comunicador","Redigindo mensagem personalizada");
-
-  // AGENTE 1: Pesquisador — coleta tudo em paralelo
-  updateStep(1,"running","🔍 Agente Pesquisador","Buscando contatos, CNPJ e lançamentos...");
-  
-  Promise.all([
-    callApollo(domain).catch(function(){return {people:[],source:"none"};}),
-    callSocios(domain).catch(function(){return {people:[],empresa:null};}),
-    agenteScrapeEmpresas(domain),
-  ]).then(function(results) {
-    var contatosData = results[0];
-    var sociosData   = results[1];
-    var empData      = results[2];
-
-    AG.contatos = contatosData.people || [];
-    AG.fonte    = contatosData.source || "none";
-    AG.socios   = sociosData.people || [];
-    AG.cnpj     = sociosData.cnpj || null;
-    AG.empresa  = contatosData.orgName || sociosData.empresa || AG.empresa || domain.split(".")[0].charAt(0).toUpperCase()+domain.split(".")[0].slice(1);
-    AG.empreendimentos = empData.empreendimentos || [];
-    AG.segmento        = empData.segmento || null;
-
-    var totalContatos = AG.contatos.length + AG.socios.length;
-    updateStep(1,"done","🔍 Agente Pesquisador",
-      totalContatos+" contatos · "+(AG.empreendimentos.length||0)+" lançamentos · CNPJ: "+(AG.cnpj||"não encontrado"));
-
-    // Passa contexto para AGENTE 2
-    return agenteAnalista(domain);
-
-  }).then(function(analise) {
-    AG.analise = analise;
-    updateStep(2,"done","📊 Agente Analista",
-      "Oportunidade: "+analise.nivel+" · Score: "+analise.score+"/100");
-
-    // Passa contexto para AGENTE 3
-    return agenteEstratgista(analise);
-
-  }).then(function(estrategia) {
-    AG.estrategia = estrategia;
-    updateStep(3,"done","🎯 Agente Estrategista",
-      "Contexto: "+estrategia.contexto+" · Tom: "+estrategia.tom);
-
-    // Passa contexto para AGENTE 4
-    return agenteComunicador(estrategia);
-
-  }).then(function(msgs) {
-    AG.mensagem = msgs;
-    updateStep(4,"done","✍️ Agente Comunicador","WhatsApp + email prontos");
-    setTimeout(function(){ renderAgenteResult(AG.empresa, msgs, null); }, 200);
-
-  }).catch(function(e) {
-    console.error("Orquestrador erro:", e);
-    updateStep(4,"error","Erro no agente",""+e.message);
-  });
-}
-
-// ─── AGENTE 1-B: Scrape de empreendimentos ───────────────
-function agenteScrapeEmpresas(domain) {
-  // Tenta DB local primeiro (instantâneo)
-  var dbKey = domain.split(".")[0].toLowerCase();
-  var tempEmpresa = domain.split(".")[0].charAt(0).toUpperCase()+domain.split(".")[0].slice(1);
-  var db = findInDB(tempEmpresa, domain);
-  if (db) return Promise.resolve({ empreendimentos: db.empreendimentos, segmento: db.segmento });
-
-  // Scrape site + Claude em paralelo
-  var empRe = /residenc|condomin|lançam|lanc|apart|torre|park|garden|plaza|vila|living|home|prime|reserva|parque|jardim|comercial|studios?|flat|loft|empreend/i;
-
-  var scrape = Promise.all(["","empreendimentos","lancamentos"].map(function(path){
-    var url = "https://"+domain+(path?"/"+path:"");
-    return fetch("https://api.allorigins.win/get?url="+encodeURIComponent(url),{headers:{Accept:"application/json"}})
-      .then(function(r){return r.json();})
-      .then(function(p){
-        var doc = new DOMParser().parseFromString(p.contents||"","text/html");
-        var found = [], seen = {};
-        doc.querySelectorAll("h1,h2,h3,h4,[class*='title'],[class*='empreend'],[class*='product'],[class*='lancam'],[class*='card'] h3").forEach(function(el){
-          var t = (el.textContent||"").replace(/\s+/g," ").trim();
-          if(t.length>4&&t.length<80&&!seen[t]&&empRe.test(t)){seen[t]=true;found.push({nome:t,status:"Em lançamento",cidade:"",bairro:"",destaque:""});}
-        });
-        return found;
-      }).catch(function(){return[];});
-  })).then(function(all){
-    var merged=[],seen={};
-    all.forEach(function(r){r.forEach(function(e){if(!seen[e.nome]){seen[e.nome]=true;merged.push(e);}});});
-    return { empreendimentos: merged.slice(0,12), segmento: null };
-  });
-
-  return scrape;
-}
-
-// ─── AGENTE 2: Analista ───────────────────────────────────
-// Avalia a oportunidade comercial com base nos dados coletados
-function agenteAnalista(domain) {
-  updateStep(2,"running","📊 Agente Analista","Calculando score de oportunidade...");
-
-  var ctx = {
-    empresa: AG.empresa,
-    domain: domain,
-    contatos: AG.contatos.length,
-    socios: AG.socios.length,
-    lancamentos: AG.empreendimentos.length,
-    segmento: AG.segmento,
-    cnpj: AG.cnpj,
-  };
-
-  // Análise local rápida baseada em dados coletados
-  var score = 50;
-  var nivel = "Média";
-  var motivo = [];
-  var seg = (AG.segmento||"").toLowerCase();
-
-  if (AG.empreendimentos.length >= 3) { score += 20; motivo.push("múltiplos lançamentos ativos"); }
-  if (AG.empreendimentos.length >= 1) { score += 10; motivo.push("lançamento em andamento"); }
-  if (AG.contatos.length > 0 || AG.socios.length > 0) { score += 15; motivo.push("decisores identificados"); }
-  if (seg.includes("alto padrão")) { score += 15; motivo.push("alto padrão = maior investimento em visual 3D"); }
-  else if (seg.includes("médio")) { score += 8; motivo.push("médio padrão — bom volume de lançamentos"); }
-  if (AG.cnpj) { score += 5; motivo.push("empresa ativa na Receita Federal"); }
-
-  score = Math.min(score, 99);
-  if (score >= 80) nivel = "Alta";
-  else if (score >= 60) nivel = "Média-Alta";
-  else if (score >= 40) nivel = "Média";
-  else nivel = "Baixa";
-
-  // Enriquece com IA se disponível
-  var analiseLocal = {
-    score: score,
-    nivel: nivel,
-    motivos: motivo,
-    segmento: AG.segmento || "Incorporadora",
-    recomendacao: score >= 70
-      ? "Prioridade alta — abordar esta semana com Max Barbosa"
-      : score >= 50
-      ? "Boa oportunidade — abordar com proposta de casos similares"
-      : "Oportunidade moderada — aquecer relacionamento antes da proposta",
-    contexto: ctx,
-  };
-
-  // Tenta enriquecer com Claude (não bloqueia se falhar)
-  return callClaude({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 300,
-    messages: [{role:"user", content: 'Analise esta incorporadora para prospecção da Flying Studio (visualização 3D imobiliária SP). Empresa: "'+AG.empresa+'". Domínio: '+domain+'. Segmento: '+(AG.segmento||"não identificado")+'. Lançamentos: '+AG.empreendimentos.length+'. Responda APENAS JSON: {"insight":"1 frase sobre a empresa","urgencia":"Alta|Media|Baixa","melhor_angulo":"como abordar em 1 frase"}'}]
+// Step 1: Contacts — returns Promise
+function agStep1(domain){
+  updateStep(1,"running","Buscando decisores...","LinkedIn + Hunter + Snov");
+  return callApollo(domain)
+  .then(function(data){
+    var people=data.people||[];
+    AG.contatos=people;
+    AG.fonte=data.source||"none";
+    if(people.length>0&&people[0].organization&&people[0].organization.name){
+      AG.empresa=people[0].organization.name;
+    }
+    var n=people.length;
+    updateStep(1,"done","Decisores encontrados",n+" contatos · "+AG.fonte);
   })
+  .catch(function(){
+    updateStep(1,"skip","Contatos não encontrados","Continuando...");
+  });
+}
 
+// Step 2: CNPJ + Socios — returns Promise
+function agStep2(domain){
+  updateStep(2,"running","Buscando CNPJ e sócios...","Receita Federal");
+  return callSocios(domain)
+  .then(function(data){
+    if(data.people&&data.people.length){
+      AG.socios=data.people;
+      if(!AG.empresa&&data.empresa) AG.empresa=data.empresa;
+      updateStep(2,"done","Sócios encontrados",data.people.length+" sócios · CNPJ: "+(data.cnpj||"encontrado"));
+    } else {
+      if(!AG.empresa&&data.empresa) AG.empresa=data.empresa;
+      updateStep(2,"skip","Sócios não encontrados",data.warning||"CNPJ não localizado");
+    }
+  })
+  .catch(function(){
+    updateStep(2,"skip","Não foi possível consultar","");
+  });
+}
+
+// Step 3: Empreendimentos
+function agStep3(domain){
+  updateStep(3,"running","Pesquisando lançamentos...","Consultando banco de dados");
+
+  // Identify company name if not yet
+  if(!AG.empresa){
+    AG.empresa=domain.split(".")[0];
+    AG.empresa=AG.empresa.charAt(0).toUpperCase()+AG.empresa.slice(1);
+  }
+
+  // Try local DB first
+  var dbResult=findInDB(AG.empresa,domain);
+  if(dbResult){
+    AG.empreendimentos=dbResult.empreendimentos||[];
+    AG.segmento=dbResult.segmento;
+    AG.totalLancamentos=dbResult.totalLancamentos||AG.empreendimentos.length;
+    AG.totalLancamentos=dbResult.totalLancamentos||AG.empreendimentos.length;
+    updateStep(3,"done",dbResult.empresa+" — "+dbResult.totalLancamentos+" lançamentos",dbResult.segmento+" · "+dbResult.atuacao);
+    agStep4();
+    return;
+  }
+
+  // Try Claude
+  var prompt='Empresa imobiliária "'+AG.empresa+'". Liste os empreendimentos que você conhece do seu treinamento. Retorne SOMENTE JSON: {"empresa":"string","segmento":"Alto padrão|Médio padrão|MCMV|Comercial","atuacao":"cidades","totalLancamentos":0,"empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras|Pronto para morar","cidade":"string","bairro":"string","destaque":"string"}]}';
+  var done=false;
+  var timer=setTimeout(function(){
+    if(!done){done=true;updateStep(3,"skip","Lançamentos não encontrados","Empresa fora do banco de dados");agStep4();}
+  },7000);
+  callClaude({model:"claude-sonnet-4-20250514",max_tokens:1500,messages:[{role:"user",content:prompt}]})
   .then(function(text){
     if(done)return;done=true;clearTimeout(timer);
     var match=text.match(/\{[\s\S]*\}/);
@@ -697,46 +607,45 @@ function renderAgenteResult(empresa,msgs,decisorPrincipal){
   // ── Company header ──────────────────────────────────────────
   var analise    = AG.analise    || {};
   var estrategia = AG.estrategia || {};
-  var scoreColor = (analise.score||0)>=80?"#A8E63D":(analise.score||0)>=60?"#fbbf24":"#9ca3af";
+  var scoreCor   = (analise.score||0)>=80?"#A8E63D":(analise.score||0)>=65?"#fbbf24":"#9ca3af";
   var faviconUrl = 'https://www.google.com/s2/favicons?domain='+AG.domain+'&sz=64';
 
-  html+='<div class="card-dark" style="margin-bottom:16px">'+
+  html += '<div class="card-dark" style="margin-bottom:16px">'+
     '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">'+
       '<div style="display:flex;align-items:center;gap:12px">'+
-        '<img src="'+faviconUrl+'" style="width:36px;height:36px;border-radius:8px;object-fit:cover" onerror="this.remove()"/>'+
+        '<img src="'+faviconUrl+'" style="width:36px;height:36px;border-radius:8px;object-fit:cover" onError="this.remove()"/>'+
         '<div>'+
           '<p style="font-size:22px;font-weight:800;font-family:Syne,sans-serif;color:#fff;line-height:1.1">'+empresa+'</p>'+
-          '<p style="font-size:12px;color:#9ca3af;margin-top:3px">'+AG.domain+(AG.segmento?' · '+AG.segmento:'')+'</p>'+
+          '<p style="font-size:12px;color:#9ca3af;margin-top:2px">'+AG.domain+(AG.segmento?' · '+AG.segmento:'')+'</p>'+
         '</div>'+
       '</div>'+
-      (analise.score?'<div style="text-align:center;flex-shrink:0">'+
-        '<p style="font-size:34px;font-weight:800;color:'+scoreColor+';line-height:1;font-family:Syne,sans-serif">'+analise.score+'</p>'+
-        '<p style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Score</p>'+
-        '<p style="font-size:11px;color:'+scoreColor+';font-weight:700">'+analise.nivel+'</p>'+
-      '</div>':"")+
+      (analise.score?
+        '<div style="text-align:center;flex-shrink:0;background:rgba(255,255,255,.06);border-radius:10px;padding:8px 14px">'+
+          '<p style="font-size:30px;font-weight:800;color:'+scoreCor+';line-height:1;font-family:Syne,sans-serif">'+analise.score+'</p>'+
+          '<p style="font-size:10px;font-weight:700;color:'+scoreCor+';text-transform:uppercase;letter-spacing:.04em">'+analise.nivel+'</p>'+
+        '</div>':"")+
     '</div>'+
 
     (analise.insight?
-      '<div style="background:rgba(255,255,255,.06);border-radius:8px;padding:11px 14px;margin-bottom:10px">'+
-        '<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">📊 Agente Analista</p>'+
-        '<p style="font-size:13px;color:#e2e8f0;line-height:1.6">'+analise.insight+'</p>'+
+      '<div style="background:rgba(255,255,255,.05);border-radius:8px;padding:10px 14px;margin-bottom:10px">'+
+        '<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">📊 Analista</p>'+
+        '<p style="font-size:13px;color:#e2e8f0;line-height:1.5">'+analise.insight+'</p>'+
       '</div>':"")+
 
-    (estrategia.angulo?
-      '<div style="background:rgba(168,230,61,.08);border:1px solid rgba(168,230,61,.2);border-radius:8px;padding:11px 14px;margin-bottom:10px">'+
-        '<p style="font-size:10px;font-weight:700;color:#A8E63D;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">🎯 Agente Estrategista</p>'+
-        '<p style="font-size:13px;color:#d1fae5;line-height:1.6">'+estrategia.angulo+'</p>'+
+    (analise.angulo||estrategia.angulo?
+      '<div style="background:rgba(168,230,61,.07);border:1px solid rgba(168,230,61,.15);border-radius:8px;padding:10px 14px;margin-bottom:12px">'+
+        '<p style="font-size:10px;font-weight:700;color:#A8E63D;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">🎯 Estrategista</p>'+
+        '<p style="font-size:13px;color:#d1fae5;line-height:1.5">'+(analise.angulo||estrategia.angulo)+'</p>'+
       '</div>':"")+
 
     (analise.recomendacao?
-      '<p style="font-size:12px;color:#94a3b8;line-height:1.5;margin-bottom:12px">'+analise.recomendacao+'</p>':"")+
+      '<p style="font-size:12px;color:#94a3b8;margin-bottom:12px;line-height:1.4">'+analise.recomendacao+'</p>':"")+
 
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
       (decisores.length?'<span class="tag-p">'+decisores.length+' decisores</span>':'')+
       (AG.empreendimentos.length?'<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700">'+AG.empreendimentos.length+' lançamentos</span>':'')+
-      (AG.cnpj?'<span style="background:rgba(255,255,255,.06);color:#9ca3af;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:3px 9px;font-size:11px;font-weight:600">'+AG.cnpj+'</span>':'')+
+      (AG.cnpj?'<span style="background:rgba(255,255,255,.06);color:#9ca3af;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:3px 9px;font-size:11px">'+AG.cnpj+'</span>':'')+
     '</div>'+
-
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<button class="btn-ghost" style="font-size:12px;padding:7px 14px;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7)" data-emp="'+encodeURIComponent(empresa)+'" onclick="agenteUsarMensagem(this.dataset.emp)">✉ Usar na mensagem</button>'+
       '<button class="btn-ghost" style="font-size:12px;padding:7px 14px;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7)" onclick="novaProspeccao()">↺ Nova prospecção</button>'+
@@ -1062,3 +971,120 @@ switchTab("agente");
 </script>
 </body>
 </html>
+  // ── 4 AGENTES em pipeline ──
+  agOrquestrador(domain);
+}
+
+function agOrquestrador(domain) {
+  var stepsEl = document.getElementById("ag-steps");
+  stepsEl.innerHTML =
+    stepHtml(1,"waiting","🔍 Agente Pesquisador","Contatos + CNPJ + Lançamentos em paralelo")+
+    stepHtml(2,"waiting","📊 Agente Analista","Avalia oportunidade e score")+
+    stepHtml(3,"waiting","🎯 Agente Estrategista","Define tom e ângulo")+
+    stepHtml(4,"waiting","✍️ Agente Comunicador","Redige mensagem personalizada");
+
+  updateStep(1,"running","🔍 Agente Pesquisador","Pesquisando...");
+
+  var empRe = /residenc|condomin|lançam|lanc|apart|torre|park|garden|plaza|vila|living|home|prime|reserva|parque|jardim|comercial|studios?|flat|loft|empreend/i;
+
+  function scrapeEmps() {
+    var db = findInDB(AG.empresa||"", domain);
+    if (db) return Promise.resolve({emps:db.empreendimentos, seg:db.segmento, emp:db.empresa});
+    return Promise.all(["","empreendimentos","lancamentos"].map(function(p){
+      return fetch("https://api.allorigins.win/get?url="+encodeURIComponent("https://"+domain+(p?"/"+p:"")),{headers:{Accept:"application/json"}})
+        .then(function(r){return r.json();})
+        .then(function(px){
+          var doc=new DOMParser().parseFromString(px.contents||"","text/html");
+          var found=[],seen={};
+          doc.querySelectorAll("h2,h3,h4,[class*='empreend'],[class*='product'],[class*='lancam'],[class*='card'] h3").forEach(function(el){
+            var t=(el.textContent||"").replace(/\s+/g," ").trim();
+            if(t.length>4&&t.length<80&&!seen[t]&&empRe.test(t)){seen[t]=true;found.push({nome:t,status:"Em lançamento",cidade:"",bairro:"",destaque:""});}
+          });
+          return found;
+        }).catch(function(){return[];});
+    })).then(function(all){
+      var merged=[],seen={};
+      all.forEach(function(r){r.forEach(function(e){if(!seen[e.nome]){seen[e.nome]=true;merged.push(e);}});});
+      return {emps:merged.slice(0,12), seg:null, emp:null};
+    });
+  }
+
+  Promise.all([
+    callApollo(domain).catch(function(){return {people:[],source:"none",orgName:null};}),
+    callSocios(domain).catch(function(){return {people:[],empresa:null,cnpj:null};}),
+    scrapeEmps().catch(function(){return {emps:[],seg:null,emp:null};}),
+  ])
+  .then(function(res) {
+    var cont=res[0], soc=res[1], emp=res[2];
+
+    AG.contatos = cont.people||[];
+    AG.fonte     = cont.source||"none";
+    AG.socios    = soc.people||[];
+    AG.cnpj      = soc.cnpj||null;
+    AG.empreendimentos = emp.emps||[];
+    AG.segmento  = emp.seg||null;
+    AG.empresa   = emp.emp || cont.orgName || soc.empresa || AG.empresa ||
+      (domain.split(".")[0].charAt(0).toUpperCase()+domain.split(".")[0].slice(1));
+
+    var totalP = AG.contatos.length + AG.socios.length;
+    updateStep(1,"done","🔍 Agente Pesquisador",
+      totalP+" contatos · "+AG.empreendimentos.length+" lançamentos"+(AG.cnpj?" · CNPJ ✓":""));
+
+    // ── Agente 2: Analista ───────────────────────────────
+    updateStep(2,"running","📊 Agente Analista","Calculando score...");
+
+    var score = 50, motivos = [];
+    var seg = (AG.segmento||"").toLowerCase();
+    if (AG.empreendimentos.length >= 3) { score += 20; motivos.push("múltiplos lançamentos"); }
+    else if (AG.empreendimentos.length >= 1) { score += 10; motivos.push("lançamento ativo"); }
+    if (totalP > 0) { score += 15; motivos.push("decisores identificados"); }
+    if (seg.includes("alto")) { score += 15; motivos.push("alto padrão"); }
+    else if (seg.includes("médio")) { score += 8; }
+    if (AG.cnpj) { score += 5; }
+    score = Math.min(score, 99);
+
+    var nivel = score>=80?"Alta":score>=65?"Média-Alta":score>=45?"Média":"Baixa";
+    var cor   = score>=80?"#A8E63D":score>=65?"#fbbf24":"#9ca3af";
+    var rec   = score>=70?"Prioridade alta — abordar esta semana com Max Barbosa":
+                score>=50?"Boa oportunidade — apresentar cases similares":
+                "Aquecer relacionamento antes de proposta";
+
+    AG.analise = {score:score, nivel:nivel, cor:cor, recomendacao:rec, insight:null, angulo:null};
+    updateStep(2,"done","📊 Agente Analista","Score: "+score+"/100 · "+nivel);
+
+    // Enriquece com Claude em background (não bloqueia)
+    callClaude({model:"claude-sonnet-4-20250514", max_tokens:200,
+      messages:[{role:"user", content:'Empresa imobiliária "'+AG.empresa+'". Segmento: '+(AG.segmento||"?")+'. Lançamentos: '+AG.empreendimentos.length+'. JSON apenas: {"insight":"1 frase sobre a empresa","angulo":"melhor forma de abordar em 1 frase"}'}]
+    }).then(function(t){
+      try { var m=t.match(/\{[\s\S]*\}/); if(m){ var d=JSON.parse(m[0]); AG.analise.insight=d.insight; AG.analise.angulo=d.angulo; } } catch(e){}
+    }).catch(function(){});
+
+    // ── Agente 3: Estrategista ───────────────────────────
+    updateStep(3,"running","🎯 Agente Estrategista","Definindo abordagem...");
+
+    var allP = [].concat(AG.socios||[], AG.contatos||[]);
+    var dec  = allP.find(function(p){ return isDecisive(p.title||p.position||""); }) || allP[0] || null;
+    var lanc = AG.empreendimentos[0] ? AG.empreendimentos[0].nome : "";
+    var angulo = lanc ? "Mencionar o "+lanc+" como gancho inicial" : "Posicionar Flying Studio em casos de "+( AG.segmento||"incorporadoras");
+
+    AG.estrategia = {
+      decisor:dec,
+      nome: dec ? (dec.name||"").split(" ")[0] : "",
+      cargo: dec ? (dec.title||dec.position||"Diretor") : "Diretor de Marketing",
+      lancamento: lanc, angulo: angulo,
+      empresa: AG.empresa, segmento: AG.segmento||"incorporadora",
+    };
+    updateStep(3,"done","🎯 Agente Estrategista", angulo.slice(0,55)+"...");
+
+    // ── Agente 4: Comunicador ────────────────────────────
+    updateStep(4,"running","✍️ Agente Comunicador","Redigindo mensagem...");
+    var msgs = buildMsgs(AG.estrategia.nome, AG.estrategia.cargo, AG.estrategia.empresa, AG.estrategia.segmento, lanc, "frio");
+    AG.mensagem = msgs;
+    updateStep(4,"done","✍️ Agente Comunicador","WhatsApp + email prontos para usar");
+    setTimeout(function(){ renderAgenteResult(AG.empresa, msgs, dec); }, 300);
+  })
+  .catch(function(e){
+    updateStep(4,"error","Erro no agente", e.message||"Erro inesperado");
+    document.getElementById("btn-agente").disabled = false;
+  });
+}
