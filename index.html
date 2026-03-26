@@ -395,18 +395,27 @@ var EMP_DB={
 };
 
 function findInDB(nome,domain){
-  var n=(nome||"").toLowerCase();
-  var dk=(domain||"").split(".")[0].toLowerCase();
+  var n=(nome||"").toLowerCase().trim();
+  var dk=(domain||"").split(".")[0].toLowerCase().trim();
   var keys=Object.keys(EMP_DB);
-  // Exact key match
+
+  // 1. Exact domain key match (eztec.com.br -> "eztec")
   if(EMP_DB[dk]) return EMP_DB[dk];
-  if(EMP_DB[n.replace(/\s+/g,"-")]) return EMP_DB[n.replace(/\s+/g,"-")];
-  // Partial match
+
+  // 2. Exact company name match
   for(var i=0;i<keys.length;i++){
     var k=keys[i];
     var en=EMP_DB[k].empresa.toLowerCase();
-    if(n.indexOf(k)>=0||dk.indexOf(k)>=0||en.indexOf(n.split(" ")[0])>=0||n.indexOf(en.split(" ")[0])>=0)
-      return EMP_DB[k];
+    if(n===en||dk===k) return EMP_DB[k];
+  }
+
+  // 3. Strong partial: company name IS the domain key (not the other way)
+  // e.g. domain="cyrela.com.br" -> dk="cyrela" -> matches EMP_DB["cyrela"]
+  for(var i=0;i<keys.length;i++){
+    var k=keys[i];
+    // Only match if the DB key is contained in domain/name (not reverse)
+    if(dk.indexOf(k)>=0&&k.length>=4) return EMP_DB[k];
+    if(n.indexOf(k)>=0&&k.length>=5&&n.length<k.length*2) return EMP_DB[k];
   }
   return null;
 }
@@ -482,7 +491,9 @@ function agOrquestrador(domain) {
   var empRe=/residenc|condomin|lancam|apart|torre|park|garden|plaza|vila|living|home|prime|reserva|parque|jardim|comercial|studios|flat|loft|empreend/i;
 
   function scrapeEmps(){
-    var db=findInDB(AG.empresa||"",domain);
+    // Only use DB if domain exactly matches a known company
+    var domKey=domain.split(".")[0].toLowerCase();
+    var db=EMP_DB[domKey]||null; // exact match only
     if(db) return Promise.resolve({emps:db.empreendimentos,seg:db.segmento,emp:db.empresa});
 
     // Scrape with LINKS — captures href of each empreendimento card
@@ -546,10 +557,24 @@ function agOrquestrador(domain) {
     AG.cnpj=soc.cnpj||null;
     AG.empreendimentos=emp.emps||[];
     AG.segmento=emp.seg||null;
-    AG.empresa=emp.emp||cont.orgName||soc.empresa||AG.empresa||(domain.split(".")[0].charAt(0).toUpperCase()+domain.split(".")[0].slice(1));
+    // Trust Hunter orgName or site name — never guess from DB if domain doesn't match
+    var domPrefix=domain.split(".")[0].toLowerCase();
+    var dbMatch=emp.emp&&EMP_DB[domPrefix]?emp.emp:null; // only use DB name if domain matches exactly
+    AG.empresa=cont.orgName||soc.empresa||dbMatch||AG.empresa||(domPrefix.charAt(0).toUpperCase()+domPrefix.slice(1));
 
     var totalP=AG.contatos.length+AG.socios.length;
-    updateStep(1,"done","🔍 Agente Pesquisador",totalP+" contatos · "+AG.empreendimentos.length+" lancamentos"+(AG.cnpj?" · CNPJ verificado":""));
+
+    // Validate company name with Claude if it looks wrong or unknown
+    var domPrefix=domain.split(".")[0].toLowerCase();
+    var empresaFinal=AG.empresa;
+    // If company name == domain prefix (we didn't find real name), ask Claude
+    if(!empresaFinal||empresaFinal.toLowerCase()===domPrefix){
+      callClaude({model:"claude-sonnet-4-20250514",max_tokens:100,messages:[{role:"user",content:'Qual é o nome da empresa do domínio "'+domain+'"? Responda APENAS o nome real da empresa, nada mais.'}]})
+        .then(function(t){if(t&&t.trim()&&t.trim().length<60){AG.empresa=t.trim().replace(/['"]/g,"");empresaFinal=AG.empresa;}})
+        .catch(function(){});
+    }
+
+    updateStep(1,"done","🔍 Agente Pesquisador",totalP+" contatos · "+AG.empreendimentos.length+" lançamentos"+(AG.cnpj?" · CNPJ ✓":""));
 
     updateStep(2,"running","📊 Agente Analista","Calculando score...");
     var score=50;
