@@ -951,6 +951,1981 @@ function doSearch(){
 }
 
 
+function renderSociosCnpjManual(domain, warning){
+  var el = document.getElementById("search-results");
+  el.style.display = "block";
+  el.innerHTML =
+    '<div class="fade">' +
+    '<div class="card" style="margin-bottom:12px;background:#fffbeb;border-color:#fde68a">' +
+      '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px">' +
+        '<span style="font-size:18px">⚠️</span>' +
+        '<div><p style="font-size:13px;font-weight:700;color:#854d0e;margin-bottom:4px">CNPJ não encontrado automaticamente</p>' +
+        '<p style="font-size:13px;color:#92400e;line-height:1.5">O site não tem o CNPJ no HTML. Cole abaixo para buscar os sócios.</p></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px">' +
+        '<input id="cnpj-manual-input" type="text" placeholder="00.000.000/0001-00" maxlength="18" style="flex:1" oninput="maskCnpj(this)"/>' +
+        '<button class="btn btn-primary" style="width:auto;padding:11px 18px;white-space:nowrap" onclick="buscarSociosCnpjManual()">Buscar sócios</button>' +
+      '</div>' +
+    '</div>' +
+    '</div>';
+}
+
+
+function buscarSociosCnpjManual(){
+  var domain = cleanDomain(document.getElementById('inp-domain').value);
+  var cnpjRaw = (document.getElementById("cnpj-manual-input")||{value:""}).value.replace(/\D/g,"");
+  if(cnpjRaw.length!==14){ toast("⚠️ CNPJ deve ter 14 dígitos"); return; }
+
+  var el = document.getElementById("search-results");
+  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;color:var(--gray-4);margin-top:12px">Consultando Receita Federal...</p></div>';
+
+  var hunterKey = "8f122be7c8440172a49875acc9356073cb141ce2";
+  var pattern = null;
+
+  // Busca padrão Hunter + dados CNPJ em paralelo
+  Promise.all([
+    fetch("https://api.hunter.io/v2/domain-search?domain="+encodeURIComponent(domain)+"&api_key="+hunterKey+"&limit=3",{headers:{Accept:"application/json"}}).then(function(r){return r.json();}).catch(function(){return{};}),
+    fetch("https://brasilapi.com.br/api/cnpj/v1/"+cnpjRaw,{headers:{Accept:"application/json"}}).then(function(r){return r.json();})
+  ]).then(function(results){
+    var hunterData = results[0];
+    var cnpjData   = results[1];
+    pattern = hunterData?.data?.pattern || null;
+
+    var socios = cnpjData.qsa || [];
+    var empresa = cnpjData.nome_fantasia || cnpjData.razao_social || domain;
+    var cnpjFmted = cnpjRaw.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5");
+
+    if(!socios.length){
+      el.innerHTML='<div class="card"><div class="empty-state"><p>Nenhum sócio registrado para este CNPJ</p><p>Tente buscar na aba CNPJ para ver detalhes</p></div></div>';
+      return;
+    }
+
+    var people = socios.map(function(s){
+      var nomeCompleto=(s.nome_socio||s.nome||"").trim();
+      var partes=nomeCompleto.toLowerCase().split(" ").filter(Boolean);
+      var fn=partes[0]||"", ln=partes[partes.length-1]||"";
+      var qual=s.qualificacao_socio||s.descricao_qualificacao_socio||"Sócio";
+      var email=fn?(pattern?pattern.replace("{first}",fn).replace("{last}",ln).replace("{f}",fn[0]||"").replace("{l}",ln[0]||"")+"@"+domain:fn+"."+ln+"@"+domain):null;
+      return {name:nomeCompleto,first_name:fn,last_name:ln,title:qual,email:email,
+        email_status:pattern?"likely_to_engage":"guessed",phone_numbers:[],
+        organization:{name:empresa},
+        linkedin_url:"https://www.linkedin.com/search/results/people/?keywords="+encodeURIComponent(nomeCompleto+" "+empresa),
+        is_socio:true};
+    });
+
+    allResults = people;
+    addHistory({key:"s:"+domain,type:"contatos",label:empresa,sublabel:people.length+" sócios · CNPJ "+cnpjFmted,domain:domain,company:empresa,ts:Date.now()});
+    renderSocios({source:"socios",people:people,empresa:empresa,cnpj:cnpjFmted,pattern:pattern,pagination:{total_entries:people.length}},domain);
+  })
+  .catch(function(e){
+    el.innerHTML='<div class="card"><div class="empty-state"><p>Erro ao buscar: '+e.message+'</p></div></div>';
+  });
+}
+
+
+function renderSocios(data, compOrDomain){
+  var people = data.people || [];
+  var html = '<div class="fade">';
+
+  // Header com info da empresa
+  html += '<div class="card" style="margin-bottom:14px">' +
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">' +
+      '<div style="width:42px;height:42px;background:var(--purple-l);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏢</div>' +
+      '<div>' +
+        '<p style="font-size:16px;font-weight:700;color:var(--navy)">' + (data.empresa||compOrDomain) + '</p>' +
+        '<p style="font-size:12px;color:var(--gray-4);font-family:monospace">CNPJ ' + (data.cnpj||"") + '</p>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<span class="tag-purple">' + people.length + ' sócio' + (people.length!==1?"s":"") + '</span>' +
+      (data.pattern ? '<span class="tag-ok">✓ Padrão de email: ' + data.pattern + '@' + (compOrDomain||"") + '</span>' :
+        '<span class="tag-warn">⚠️ Email inferido (padrão mais comum)</span>') +
+    '</div>' +
+  '</div>';
+
+  if (data.warning) {
+    html += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;margin-bottom:12px">' +
+      '<p style="font-size:13px;color:#854d0e">⚠️ ' + data.warning + '</p></div>';
+  }
+
+  if (!people.length) {
+    html += '<div class="card"><div class="empty-state"><p>Nenhum sócio encontrado</p><p>Tente buscar pelo CNPJ direto na aba CNPJ</p></div></div>';
+    html += '</div>';
+    document.getElementById("search-results").innerHTML = html;
+    document.getElementById("search-results").style.display = "block";
+    return;
+  }
+
+  html += '<div class="card" style="padding:4px 20px" id="contacts-list">';
+  people.forEach(function(p){ html += buildContactRow(p, compOrDomain); });
+  html += '</div>';
+
+  html += '<div style="background:var(--purple-l);border:1.5px solid var(--purple-m);border-radius:10px;padding:14px 16px;margin-top:12px">' +
+    '<p style="font-size:12px;font-weight:700;color:var(--purple-d);margin-bottom:6px">💡 Sobre os emails inferidos</p>' +
+    '<p style="font-size:13px;color:var(--purple-d);line-height:1.5">Os emails foram gerados com base no padrão do domínio da empresa. ' +
+    (data.pattern ? 'Padrão detectado pelo Hunter: <strong>' + data.pattern + '@' + compOrDomain + '</strong>.' :
+      'Padrão mais comum: <strong>primeiro.ultimo@' + compOrDomain + '</strong>.') +
+    ' Valide antes de enviar.</p>' +
+  '</div>';
+
+  html += '</div>';
+  document.getElementById("search-results").innerHTML = html;
+  document.getElementById("search-results").style.display = "block";
+}
+
+
+function renderContatosApollo(people, domain, company){
+  var compOrDomain = company||domain||"";
+
+  // Ordena: decisores primeiro
+  var sorted = people.slice().sort(function(a,b){
+    var aT = isTarget(a.title||""), bT = isTarget(b.title||"");
+    if(aT&&!bT) return -1; if(!aT&&bT) return 1; return 0;
+  });
+
+  var decisores = sorted.filter(function(p){return isTarget(p.title||"");});
+  var html = '<div class="fade">';
+
+  // Stats
+  html += '<div class="grid-3" style="margin-bottom:14px">'+
+    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:var(--navy);line-height:1;margin-bottom:4px;font-family:Syne,sans-serif">'+sorted.length+'</p><p style="font-size:12px;color:var(--gray-4);font-weight:500">Contatos</p></div>'+
+    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:var(--purple);line-height:1;margin-bottom:4px;font-family:Syne,sans-serif">'+decisores.length+'</p><p style="font-size:12px;color:var(--gray-4);font-weight:500">Decisores</p></div>'+
+    '<div class="stat-card"><p style="font-size:28px;font-weight:800;color:#166534;line-height:1;margin-bottom:4px;font-family:Syne,sans-serif">'+sorted.filter(function(p){return p.email;}).length+'</p><p style="font-size:12px;color:var(--gray-4);font-weight:500">Com email</p></div>'+
+  '</div>';
+
+  // Toolbar
+  html += '<div style="display:flex;gap:10px;margin-bottom:12px">'+
+    '<div class="search-wrap" style="flex:1">'+
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+
+      '<input class="search-inp" placeholder="Filtrar..." data-comp="'+encodeURIComponent(compOrDomain)+'" oninput="filterContatos(this.value,this.dataset.comp)"/>'+ 
+    '</div>'+
+    '<button class="btn-sm" onclick="exportXlsx()">↓ Excel</button>'+
+  '</div>';
+
+  // List
+  html += '<div class="card" style="padding:4px 20px" id="contacts-list">';
+  sorted.forEach(function(p){ html += buildContactRowApollo(p, compOrDomain); });
+  html += '</div>';
+
+  html += '<div style="margin-top:10px;display:flex;align-items:center;gap:8px">'+
+    '<div style="width:8px;height:8px;border-radius:50%;background:var(--purple);flex-shrink:0"></div>'+
+    '<span style="font-size:12px;color:var(--gray-4);font-weight:500">Dados via Apollo.io — nome, email, cargo e telefone direto</span>'+
+  '</div>';
+  html += '</div>';
+
+  var el = document.getElementById("search-results");
+  el.innerHTML = html; el.style.display = "block";
+}
+
+
+function buildContactRow(p, compOrDomain){
+  // Delegates to Apollo version
+  return buildContactRowApollo(p, compOrDomain);
+}
+
+
+function renderContatosApollo(people, compOrDomain, pagination, data){
+  data = data || {};
+  var decisores = people.filter(function(p){ return isTarget(p.title||p.position||""); });
+  var comEmail  = people.filter(function(p){ return p.email&&p.email!=="-"; });
+  var comTel    = people.filter(function(p){ return p.phone_numbers&&p.phone_numbers.length>0||p.direct_phone||p.mobile_phone; });
+
+  var html='<div class="fade">';
+
+  // Stats
+  var srcBadge = data.source==="apollo"
+    ? '<span class="tag-purple" style="font-size:11px">✦ Apollo.io</span>'
+    : '<span class="tag-ok" style="font-size:11px">Hunter.io</span>';
+
+  html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">'+
+    '<div class="grid-3" style="flex:1">'+
+      '<div class="stat-card"><p style="font-size:26px;font-weight:800;color:var(--navy);line-height:1;margin-bottom:4px">'+people.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Pessoas</p></div>'+
+      '<div class="stat-card"><p style="font-size:26px;font-weight:800;color:var(--purple);line-height:1;margin-bottom:4px">'+decisores.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Decisores</p></div>'+
+      '<div class="stat-card"><p style="font-size:26px;font-weight:800;color:#166534;line-height:1;margin-bottom:4px">'+comTel.length+'</p><p style="font-size:12px;font-weight:500;color:var(--gray-4)">Com telefone</p></div>'+
+    '</div>'+
+  '</div>'+
+  '<div style="margin-bottom:12px">'+srcBadge+'</div>';
+
+  // Toolbar
+  html+='<div style="display:flex;gap:10px;margin-bottom:12px">'+
+    '<div class="search-wrap" style="flex:1">'+
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+
+      '<input class="search-inp" placeholder="Filtrar..." data-comp="'+encodeURIComponent(compOrDomain)+'" oninput="filterContatos(this.value,this.dataset.comp)"/>'+
+    '<button class="btn-sm" onclick="exportXlsx()">↓ Excel</button>'+
+  '</div>';
+
+  // Sort: decisores first, then by email verified
+  var sorted = people.slice().sort(function(a,b){
+    var at=a.title||a.position||"", bt=b.title||b.position||"";
+    if(isTarget(at)&&!isTarget(bt)) return -1;
+    if(!isTarget(at)&&isTarget(bt)) return 1;
+    var ae=a.email_status==="verified"?1:0, be=b.email_status==="verified"?1:0;
+    return be-ae;
+  });
+
+  html+='<div class="card" style="padding:4px 20px" id="contacts-list">';
+  sorted.forEach(function(p){ html+=buildContactRow(p,compOrDomain); });
+  html+='</div>';
+
+  if(pagination&&pagination.total_entries>people.length){
+    html+='<p style="font-size:12px;color:var(--gray-4);text-align:center;margin-top:10px">'+
+      pagination.total_entries+' pessoas encontradas · mostrando '+people.length+'</p>';
+  }
+  html+='</div>';
+
+  var el=document.getElementById("search-results");
+  el.innerHTML=html; el.style.display="block";
+}
+
+
+function filterContatos(q,enc){
+  var comp=decodeURIComponent(enc);
+  var list=document.getElementById("contacts-list");
+  if(!list) return;
+  var filtered=q?allResults.filter(function(r){
+    var name=(r.name||r.first_name+" "+r.last_name||"").toLowerCase();
+    var email=(r.email||r.value||"").toLowerCase();
+    var title=(r.title||r.position||"").toLowerCase();
+    return name.includes(q.toLowerCase())||email.includes(q.toLowerCase())||title.includes(q.toLowerCase());
+  }):allResults;
+  var sorted=filtered.slice().sort(function(a,b){
+    var at=a.title||a.position||"",bt=b.title||b.position||"";
+    if(isTarget(at)&&!isTarget(bt)) return -1;
+    if(!isTarget(at)&&isTarget(bt)) return 1;
+    return 0;
+  });
+  list.innerHTML=sorted.length?sorted.map(function(r){return buildContactRow(r,comp);}).join(""):
+    '<div style="text-align:center;padding:28px;color:var(--gray-4)"><p>Nenhum resultado para "'+q+'"</p></div>';
+}
+
+function exportXlsx(){
+  if(!allResults.length){toast("Sem dados para exportar");return;}
+  var company=document.getElementById("inp-company").value.trim();
+  var domain=cleanDomain(document.getElementById("inp-domain").value);
+  var rows=allResults.map(function(r){
+    var phone=r.phone_numbers&&r.phone_numbers[0]?r.phone_numbers[0].sanitized_number:(r.direct_phone||r.mobile_phone||"-");
+    return {
+      "Nome":r.name||((r.first_name||"")+" "+(r.last_name||"")).trim()||"-",
+      "Cargo":r.title||r.position||"-",
+      "Email":r.email||r.value||"-",
+      "Telefone":phone,
+      "Status Email":r.email_status||"-",
+      "Empresa":r.organization&&r.organization.name?r.organization.name:(company||domain),
+      "LinkedIn":r.linkedin_url||"-",
+    };
+  });
+  var ws=XLSX.utils.json_to_sheet(rows);
+  ws["!cols"]=[24,28,36,14,14,10,24,22,60].map(function(w){return{wch:w};});
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Leads");
+  XLSX.writeFile(wb,"leads_"+(domain||"export").replace(/\./g,"_")+".xlsx");
+  toast("📊 Excel exportado com sucesso!");
+}
+
+function atalhoMensagem(nameEnc,cargoEnc,empresaEnc){
+  var parts=decodeURIComponent(nameEnc).split(" ");
+  document.getElementById("msg-nome").value=parts[0]||"";
+  document.getElementById("msg-cargo").value=decodeURIComponent(cargoEnc)||"Diretor de Marketing";
+  document.getElementById("msg-empresa").value=decodeURIComponent(empresaEnc);
+  switchTab("mensagem"); toast("✅ Dados preenchidos! Clique em Gerar mensagem.",3000);
+}
+
+// ═══════════════════════════════════════
+// CNPJ
+// ═══════════════════════════════════════
+function buscarCnpj(){
+  var raw=document.getElementById("inp-cnpj").value.replace(/\D/g,"");
+  if(raw.length!==14){document.getElementById("inp-cnpj").classList.add("error");toast("⚠️ CNPJ deve ter 14 dígitos");return;}
+  document.getElementById("inp-cnpj").classList.remove("error");
+  document.getElementById("cnpj-error").style.display="none";
+  document.getElementById("cnpj-results").style.display="none";
+  document.getElementById("cnpj-loader").style.display="block";
+  document.getElementById("btn-cnpj").disabled=true;
+  fetch("https://brasilapi.com.br/api/cnpj/v1/"+raw)
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d};});})
+    .then(function(res){
+      document.getElementById("cnpj-loader").style.display="none";
+      document.getElementById("btn-cnpj").disabled=false;
+      if(!res.ok){
+        showError("cnpj-error",res.data.message||"CNPJ não encontrado na Receita Federal.");
+        return;
+      }
+      var d=res.data;
+      var months=monthsAgo(d.data_inicio_atividade);
+      var isNew=months<=12;
+      var fmt=cnpjFmt(raw);
+      addHistory({key:"cnpj:"+raw,type:"cnpj",label:d.nome_fantasia||d.razao_social||raw,sublabel:"CNPJ "+fmt+(isNew?" · 🔥 Nova empresa":""),cnpjFormatted:fmt,isNew:isNew,ts:Date.now()});
+      renderCnpj(d,isNew,months);
+    })
+    .catch(function(e){
+      document.getElementById("cnpj-loader").style.display="none";
+      document.getElementById("btn-cnpj").disabled=false;
+      showError("cnpj-error","Falha na conexão: "+e.message);
+    });
+}
+
+function renderCnpj(d,isNew,months){
+  var score=leadScore(d);
+  var scoreClass=score>=80?"score-90":score>=60?"score-70":score>=40?"score-50":"score-30";
+  var scoreMsg=score>=80?"Lead quente 🔥":score>=60?"Lead promissor ⭐":score>=40?"Lead morno 🔸":"Lead frio ❄️";
+  var phone=fmtPhone(d.ddd_telefone_1,d.telefone_1);
+  var phone2=fmtPhone(d.ddd_telefone_2,d.telefone_2);
+  var capital=fmtCapital(d.capital_social);
+  var html='<div class="fade">';
+  // Score card
+  html+='<div class="score-card '+scoreClass+'" style="margin-bottom:12px">'+
+    '<div style="width:56px;height:56px;border-radius:50%;border:3px solid '+(score>=80?"#16a34a":score>=60?"#7C5CFC":score>=40?"#ea580c":"#9ca3af")+';display:flex;align-items:center;justify-content:center;flex-shrink:0">'+
+      '<span style="font-size:16px;font-weight:800;color:'+(score>=80?"#166534":score>=60?"#5a3dd4":score>=40?"#9a3412":"#6b7280")+'">'+score+'</span>'+
+    '</div>'+
+    '<div>'+
+      '<p style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:2px">'+scoreMsg+'</p>'+
+      '<p style="font-size:12px;color:#6b7280">Score de oportunidade baseado em sinais da empresa</p>'+
+    '</div>'+
+  '</div>';
+  // Header
+  html+='<div class="card" style="margin-bottom:12px">'+
+    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px">'+
+      '<div style="flex:1">'+
+        '<h2 style="font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:4px;letter-spacing:-.01em">'+d.razao_social+'</h2>'+
+        (d.nome_fantasia&&d.nome_fantasia!==d.razao_social?'<p style="font-size:14px;color:#6b7280;font-weight:500;margin-bottom:4px">'+d.nome_fantasia+'</p>':"")+
+        '<p style="font-size:12px;color:#9ca3af;font-family:monospace">'+cnpjFmt(d.cnpj||"")+'</p>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">'+
+        (isNew?'<span class="tag-hot">🔥 Nova empresa</span>':"")+
+        '<span class="badge" style="background:'+(d.descricao_situacao_cadastral==="ATIVA"?"#f0fdf4":"#fff7ed")+';color:'+(d.descricao_situacao_cadastral==="ATIVA"?"#166534":"#9a3412")+';border-color:'+(d.descricao_situacao_cadastral==="ATIVA"?"#bbf7d0":"#fed7aa")+'">'+( d.descricao_situacao_cadastral||"-")+'</span>'+
+      '</div>'+
+    '</div>'+
+    // Info grid
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid #f3f4f6">'+
+    [
+      ["📅","Fundação",fmtDate(d.data_inicio_atividade)+(isNew?" ("+months+"m)":"")],
+      ["🏭","CNAE",d.cnae_fiscal_descricao||"-"],
+      ["🏢","Porte",d.porte||"-"],
+      ["💰","Capital",capital||"-"],
+      ["📞","Telefone",phone||(phone2||"-")],
+      ["📧","Email",d.email||"-"],
+    ].map(function(row,i){
+      if(!row[2]||row[2]==="-") return "";
+      var isEmail=row[0]==="📧"&&row[2]!=="-";
+      var isPhone=row[0]==="📞"&&row[2]!=="-";
+      return '<div class="info-row" style="grid-column:span 1;margin:0 0;padding:10px 0;border-bottom:1px solid #f9fafb'+(i%2===0?";padding-right:12px":";padding-left:12px;border-left:1px solid #f9fafb")+'"  >'+
+        '<span style="font-size:15px;flex-shrink:0">'+row[0]+'</span>'+
+        '<div style="min-width:0">'+
+          '<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">'+row[1]+'</p>'+
+          '<p style="font-size:13px;color:#374151;word-break:break-all">'+
+          (isEmail?'<a href="mailto:'+row[2]+'" style="color:#7C5CFC;text-decoration:none">'+row[2]+'</a>':
+           isPhone?'<a href="tel:'+row[2].replace(/\D/g,"")+'" style="color:#374151;text-decoration:none">'+row[2]+'</a>':row[2])+
+          '</p>'+
+        '</div>'+
+      '</div>';
+    }).join("")+
+    '</div>';
+  // Address
+  var addr=[d.logradouro,d.numero,d.complemento,d.bairro,d.municipio,d.uf].filter(Boolean).join(", ");
+  if(addr){
+    html+='<div style="padding-top:10px;border-top:1px solid #f9fafb;display:flex;gap:8px;align-items:flex-start">'+
+      '<span style="font-size:15px">📍</span>'+
+      '<div><p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Endereço</p>'+
+      '<p style="font-size:13px;color:#374151">'+addr+'</p></div>'+
+    '</div>';
+  }
+  html+='</div>';
+
+  // Sócios
+  if(d.qsa&&d.qsa.length){
+    html+='<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+d.qsa.length+' sócio'+(d.qsa.length!==1?"s":"")+'</p>';
+    d.qsa.forEach(function(s){
+      var nome=s.nome_socio||s.nome||"-";
+      var qual=s.qualificacao_socio||s.descricao_qualificacao_socio||"";
+      var nomeParts=nome.split(" ");
+      var fn=nomeParts[0]||"";
+      var ln=nomeParts[nomeParts.length-1]||"";
+      html+='<div class="socio-card row-in">'+
+        '<div style="display:flex;align-items:center;gap:12px">'+
+          '<div style="width:38px;height:38px;border-radius:9px;background:'+getAvBg(nome)+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:'+getAvColor(nome)+';flex-shrink:0">'+((nome[0]||"").toUpperCase())+'</div>'+
+          '<div style="flex:1;min-width:0">'+
+            '<p style="font-size:14px;font-weight:700;color:#1a1a2e;margin-bottom:1px">'+nome+'</p>'+
+            '<p style="font-size:12px;color:#9ca3af">'+qual+'</p>'+
+          '</div>'+
+          '<div style="display:flex;gap:5px;flex-shrink:0">'+
+            '<a class="link-btn" href="https://www.linkedin.com/search/results/people/?keywords='+encodeURIComponent(nome)+'" target="_blank">LinkedIn</a>'+
+            '<button class="link-btn" onclick="atalhoMensagemSocio(\''+encodeURIComponent(fn)+'\',\''+encodeURIComponent(ln)+'\',\''+encodeURIComponent(d.nome_fantasia||d.razao_social||"")+'\')">✉ Msg</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    });
+  }
+
+  // Ações
+  html+='<div style="background:#F3F0FF;border:1px solid #c4b5fd;border-radius:10px;padding:16px;margin-top:4px">'+
+    '<p style="font-size:12px;font-weight:700;color:#5a3dd4;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Ações rápidas</p>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button class="btn-icon" onclick="buscarContatosEmpresa(\''+encodeURIComponent(d.nome_fantasia||d.razao_social||"")+'\')">📧 Buscar contatos</button>'+
+      '<a class="btn-icon" href="https://www.google.com/search?q='+encodeURIComponent((d.nome_fantasia||d.razao_social||"")+" lançamentos imóveis 2025 2026")+'" target="_blank">🏗️ Ver lançamentos</a>'+
+      '<a class="btn-icon" href="https://www.linkedin.com/search/results/companies/?keywords='+encodeURIComponent(d.nome_fantasia||d.razao_social||"")+'" target="_blank">💼 LinkedIn</a>'+
+      (d.email?'<a class="btn-icon" href="mailto:'+d.email+'" target="_blank">📧 Enviar email</a>':"")+
+      (phone?'<a class="btn-icon" href="https://wa.me/55'+d.ddd_telefone_1+(d.telefone_1||"").replace(/\D/g,"")+'" target="_blank">💬 WhatsApp</a>':"")+
+    '</div>'+
+  '</div>';
+
+  html+='</div>';
+  var el=document.getElementById("cnpj-results");
+  el.innerHTML=html; el.style.display="block";
+}
+
+function atalhoMensagemSocio(fnEnc,lnEnc,empresaEnc){
+  document.getElementById("msg-nome").value=decodeURIComponent(fnEnc);
+  document.getElementById("msg-cargo").value="Sócio / Fundador";
+  document.getElementById("msg-empresa").value=decodeURIComponent(empresaEnc);
+  selectCtx("cnpj");
+  switchTab("mensagem"); toast("✅ Sócio preenchido!",2500);
+}
+function buscarContatosEmpresa(nomeEnc){
+  document.getElementById("inp-company").value=decodeURIComponent(nomeEnc);
+  switchTab("contatos"); toast("✅ Empresa preenchida! Informe o domínio e busque.",3000);
+}
+
+// ═══════════════════════════════════════
+// RADAR — CNPJs reais por CNAE/UF
+// ═══════════════════════════════════════
+
+// ═══════════════════════════════════════
+// MENSAGEM
+// ═══════════════════════════════════════
+function gerarMensagem(){
+  var nome    =document.getElementById("msg-nome").value.trim();
+  var cargo   =document.getElementById("msg-cargo").value;
+  var empresa =document.getElementById("msg-empresa").value.trim();
+  var seg     =document.getElementById("msg-segmento").value;
+  var lanc    =document.getElementById("msg-lancamento").value.trim();
+  var cidade  =document.getElementById("msg-cidade").value.trim();
+
+  if(!nome||!empresa){
+    if(!nome) document.getElementById("msg-nome").classList.add("error");
+    if(!empresa) document.getElementById("msg-empresa").classList.add("error");
+    toast("⚠️ Preencha nome e empresa"); return;
+  }
+  document.getElementById("msg-nome").classList.remove("error");
+  document.getElementById("msg-empresa").classList.remove("error");
+
+  var fn  = nome.split(" ")[0];
+  var hora= new Date().getHours();
+  var saud= hora<12?"Bom dia":hora<18?"Boa tarde":"Boa noite";
+  var ctx = selectedCtx;
+  var wpp = "", assunto = "", email = "";
+
+  // ── PRIMEIRO CONTATO ──────────────────────────────────────────────────────
+  if(ctx==="frio"){
+    if(lanc){
+      wpp = saud+", "+fn+"!\n\n";
+      wpp+= "Meu nome é Lucas, da Flying Studio — somos especialistas em visualização 3D para incorporadoras e construtoras";
+      if(cidade) wpp+=" em "+cidade;
+      wpp+= ".\n\n";
+      wpp+= "Vi que a "+empresa+" está com o *"+lanc+"* no ar. ";
+      if(seg==="alto padrão")       wpp+="Um produto de alto padrão com apresentação visual forte fecha em menos tempo — é o que a gente entrega. ";
+      else if(seg==="econômico / MCMV") wpp+="Mesmo no segmento econômico, uma visualização bem feita acelera as vendas e reduz custo de marketing. ";
+      else                          wpp+="Uma boa visualização nesse segmento faz diferença real na velocidade de vendas. ";
+      wpp+= "\n\nFalei com o Max, meu CEO, e ele abriu agenda essa semana pra uma conversa rápida.\n\nQual o melhor dia pra você? 🙏";
+
+      assunto = empresa+" | "+lanc+" — Visualização 3D";
+      email = saud+", "+fn+",\n\n";
+      email+= "Lucas Leal aqui, da Flying Studio. Assumi o atendimento de vocês e queria me apresentar.\n\n";
+      email+= "Acompanhei o lançamento do "+lanc+" e identifiquei pontos onde a apresentação visual pode ser ainda mais impactante — tanto no site quanto nos materiais de vendas e no book do produto.\n\n";
+      email+= "Trabalhamos com incorporadoras de "+seg+(cidade?" em "+cidade:"")+", e os resultados em velocidade de vendas falam por si.\n\n";
+      email+= "O Max Barbosa, nosso CEO, tem disponibilidade ainda essa semana para uma conversa de 15 minutos — sem compromisso.\n\n";
+      email+= "Qual dia funciona melhor pra você?\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+    } else {
+      wpp = saud+", "+fn+"!\n\n";
+      wpp+= "Meu nome é Lucas, da Flying Studio — somos especialistas em imagens e filmes 3D para o mercado imobiliário.\n\n";
+      wpp+= "Acompanho o portfólio da "+empresa+" e acredito que posso agregar bastante na apresentação visual dos próximos projetos";
+      if(cidade) wpp+=" em "+cidade;
+      wpp+= ".\n\nFalei com o Max, meu CEO, e ele tem agenda livre essa semana pra uma conversa de 15 minutos.\n\nQual o melhor dia pra você? 🙏";
+
+      assunto = empresa+" | Flying Studio — Apresentação";
+      email = saud+", "+fn+",\n\n";
+      email+= "Lucas Leal aqui, da Flying Studio. Assumi o atendimento da sua região e queria me apresentar.\n\n";
+      email+= "Somos especialistas em imagens e filmes 3D para incorporadoras e construtoras"+(cidade?" — com projetos em "+cidade+" e em mais de 9 estados do Brasil":"")+". Nosso diferencial está na qualidade visual e no envolvimento direto do nosso CEO Max Barbosa em cada projeto.\n\n";
+      email+= "Gostaria de apresentar cases do segmento "+seg+" e entender como podemos contribuir com os próximos lançamentos da "+empresa+".\n\n";
+      email+= "Tem disponibilidade para uma conversa de 15 minutos essa semana?\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+    }
+  }
+
+  // ── PROPOSTA JÁ ENVIADA ───────────────────────────────────────────────────
+  else if(ctx==="proposta"){
+    wpp = saud+", "+fn+"!\n\n";
+    wpp+= "Tudo bem por aí? Passando pra saber se conseguiu dar uma olhada na proposta que enviei";
+    if(lanc) wpp+=" para o "+lanc;
+    wpp+= ".\n\n";
+    wpp+= "Caso tenha alguma dúvida ou queira ajustar algum ponto — prazo, escopo, formato de entrega — é só me falar. O Max também está disponível pra conversar diretamente, se preferir.\n\nAguardo o retorno! 🙏";
+
+    assunto = empresa+(lanc?" | "+lanc:"")+' | Proposta — Flying Studio';
+    email = saud+", "+fn+",\n\n";
+    email+= "Tudo bem? Acompanhando o andamento da proposta que enviei"+(lanc?" para o "+lanc:"")+", queria ver se ficou alguma dúvida ou se há algo que prefira ajustar.\n\n";
+    email+= "Estamos flexíveis em relação ao escopo, prazo de entrega e formato dos materiais. O Max Barbosa pode participar diretamente da conversa se houver pontos técnicos ou estratégicos a alinhar.\n\n";
+    email+= "Me fala o que está pendendo para fecharmos?\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+  }
+
+  // ── FOLLOW UP ─────────────────────────────────────────────────────────────
+  else if(ctx==="followup"){
+    wpp = saud+", "+fn+"!\n\n";
+    wpp+= "Passando pra dar um alô — sei que a rotina de lançamento é intensa e pode ter ficado algo pra trás.\n\n";
+    if(lanc) wpp+= "O "+lanc+" ainda está no radar. ";
+    wpp+= "Se fizer sentido, podemos bater um papo rápido de 10 minutinhos essa semana pra eu entender melhor o momento de vocês.\n\nQual o melhor horário? 🙏";
+
+    assunto = empresa+(lanc?" | "+lanc:"")+' | Follow up — Flying Studio';
+    email = saud+", "+fn+",\n\n";
+    email+= "Sei que a agenda de uma incorporadora não para, então vou ser breve.\n\n";
+    if(lanc) email+= "Estava acompanhando o andamento do "+lanc+" e ";
+    else email+= "Estava pensando na "+empresa+" e ";
+    email+= "queria checar se ainda há interesse em conversar sobre como a Flying Studio pode contribuir com a apresentação visual dos projetos de vocês.\n\n";
+    email+= "Se o timing ainda não é o certo, me diz — assim consigo encaminhar melhor a conversa.\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+  }
+
+  // ── PROPOSTA RECUSADA ─────────────────────────────────────────────────────
+  else if(ctx==="recusada"){
+    wpp = saud+", "+fn+"! Tudo bem?\n\n";
+    wpp+= "Sem problemas com o retorno — entendo que nem sempre o timing bate.\n\n";
+    wpp+= "Só queria deixar aberta a porta: se surgir um novo projeto, uma dúvida ou quiser ver algum case novo que fizemos, é só me chamar. A Flying Studio vai continuar por aqui. 😊\n\nForça aí, "+fn+"!";
+
+    assunto = empresa+' | Obrigado pelo retorno — Flying Studio';
+    email = saud+", "+fn+",\n\n";
+    email+= "Obrigado pelo retorno — respeito muito quando a resposta é direta, independente do resultado.\n\n";
+    email+= "Entendo que o momento ou a proposta não encaixaram agora. Mas gostaria de manter contato: se surgir um novo lançamento, uma segunda opinião sobre apresentação visual ou simplesmente quiserem ver o que estamos fazendo de novo, pode me chamar.\n\n";
+    email+= "Foi um prazer conversar, "+fn+". Boa sorte com os próximos projetos.\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+  }
+
+  // ── PROPOSTA ANTIGA ───────────────────────────────────────────────────────
+  else if(ctx==="antiga"){
+    wpp = saud+", "+fn+"! Tudo bem?\n\n";
+    wpp+= "Faz um tempinho que não nos falamos — a última vez foi sobre";
+    if(lanc) wpp+=" o "+lanc;
+    else wpp+=" uma possível parceria com a "+empresa;
+    wpp+= ".\n\nO mercado de "+seg+(cidade?" em "+cidade:"")+" está aquecido e temos cases novos que acho que vão chamar a atenção. Daria pra retomar a conversa?\n\nTem 15 minutos essa semana? 🙏";
+
+    assunto = empresa+(lanc?" | "+lanc:"")+' | Retomando contato — Flying Studio';
+    email = saud+", "+fn+",\n\n";
+    email+= "Espero que esteja tudo bem! Faz algum tempo desde nossa última conversa";
+    if(lanc) email+=" sobre o "+lanc;
+    email+= ", e queria retomar o contato.\n\n";
+    email+= "Desde então, fizemos novos projetos no segmento "+seg+(cidade?" em "+cidade:"")+" com resultados expressivos — e acredito que vale a pena apresentar o que está saindo da nossa equipe.\n\n";
+    email+= "O Max Barbosa, nosso CEO, tem agenda disponível essa semana caso queira evoluir em 4 mãos.\n\n";
+    email+= "Qual dia fica melhor?\n\nAtt,\nLucas Leal\nFlying Studio · (11) 2351-4138";
+  }
+
+  renderMensagens({wpp:wpp,assunto:assunto,email:email},fn,empresa);}
+
+function renderMensagens(msgs,fn,empresa){
+  var html='<div class="fade">';
+  function card(id,titulo,icon,body,subject){
+    return '<div class="card" style="margin-bottom:12px">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
+        '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:17px">'+icon+'</span>'+
+        '<p style="font-size:14px;font-weight:700;color:#1a1a2e">'+titulo+'</p></div>'+
+      '</div>'+
+      (subject?'<div style="background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;padding:8px 12px;margin-bottom:10px">'+
+        '<span style="font-size:12px;color:#9ca3af;font-weight:600">Assunto: </span>'+
+        '<span style="font-size:13px;color:#374151;font-weight:600">'+subject+'</span></div>':"")+
+      '<div class="msg-editable" id="msg-'+id+'" contenteditable="true">'+body.replace(/\n/g,"<br>")+'</div>'+
+      '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
+        '<button class="btn-copy" data-id="msg-'+id+'" onclick="copyEl(this.dataset.id,this)">📋 Copiar</button>'+
+        (id==="wpp"?'<a class="btn-wpp" href="https://wa.me/?text='+encodeURIComponent(msgs.wpp||"")+'" target="_blank">📱 Abrir WhatsApp</a>':"")+
+        (id==="email"?'<a class="btn-icon" href="mailto:?subject='+encodeURIComponent(msgs.assunto||"")+'&body='+encodeURIComponent(msgs.email||"")+'" target="_blank">📤 Abrir email</a>':"")+
+      '</div>'+
+    '</div>';
+  }
+  if(msgs.wpp)  html+=card("wpp",  "WhatsApp","💬",msgs.wpp);
+  if(msgs.email) html+=card("email","Email",   "📧",msgs.email,msgs.assunto);
+  html+='<div class="card-flat tip-gold">'+
+    '<p style="font-size:12px;font-weight:700;color:#5a3dd4;margin-bottom:6px">✏️ Textos editáveis</p>'+
+    '<p style="font-size:13px;color:#5a3dd4;line-height:1.5">Clique direto no texto para ajustar antes de enviar. Adapte o tom conforme o relacionamento com o contato.</p>'+
+  '</div>';
+  html+='</div>';
+  var el=document.getElementById("msg-results");
+  el.innerHTML=html; el.style.display="block";
+}
+
+// ═══════════════════════════════════════
+// EMPREENDIMENTOS — scrape site real
+// ═══════════════════════════════════════
+function buscarEmp(){
+  var company = document.getElementById("emp-company").value.trim();
+  var domain  = cleanDomain(document.getElementById("emp-domain").value);
+  var nome    = company || domain;
+  if(!nome){ document.getElementById("emp-company").classList.add("error"); toast("⚠️ Preencha o nome da empresa"); return; }
+  document.getElementById("emp-company").classList.remove("error");
+  document.getElementById("emp-error").style.display="none";
+  addHistory({key:"emp:"+nome,type:"empreendimentos",label:nome,sublabel:"Pesquisa de empreendimentos",ts:Date.now()});
+
+  var el = document.getElementById("emp-results");
+  el.style.display = "block";
+
+  if (!domain) {
+    el.innerHTML = '<div class="card"><div class="empty-state"><p>Informe o domínio do site para buscar os empreendimentos</p><p>Ex: eztec.com.br</p></div></div>';
+    return;
+  }
+
+  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;font-weight:600;color:#374151;margin-top:14px">Acessando '+domain+'...</p></div>';
+
+  // Tenta a página principal e também páginas de empreendimentos/lançamentos
+  var urls = [
+    "https://"+domain,
+    "https://"+domain+"/empreendimentos",
+    "https://"+domain+"/lancamentos",
+    "https://"+domain+"/imoveis",
+  ];
+
+  var allEmps = [], allLinks = [], siteTitle = "", siteDesc = "", done = 0;
+
+  function tryUrl(url) {
+    return fetch("https://api.allorigins.win/get?url="+encodeURIComponent(url), {headers:{Accept:"application/json"}})
+      .then(function(r){ return r.json(); })
+      .then(function(proxy){
+        var raw = proxy.contents || "";
+        if (!raw) return;
+        var doc = new DOMParser().parseFromString(raw, "text/html");
+
+        // Título e descrição (só da primeira página)
+        if (!siteTitle) {
+          siteTitle = (doc.querySelector("title")||{textContent:""}).textContent.trim();
+          var md = doc.querySelector('meta[name="description"]')||doc.querySelector('meta[property="og:description"]');
+          siteDesc = md ? (md.getAttribute("content")||"").trim() : "";
+        }
+
+        // Padrões de nome de empreendimento
+        var empRe = /residenc|condomin|lançam|lanc|apart|torre|park|garden|plaza|vila|living|home|prime|reserva|parque|jardim|comercial|corporat|studios?|flat|loft|empreend/i;
+        var seen = {};
+
+        // Extrai de headings, cards, títulos
+        doc.querySelectorAll("h1,h2,h3,h4,h5,[class*='title'],[class*='name'],[class*='empreend'],[class*='product'],[class*='imovel'],[class*='lancam'],[class*='card']").forEach(function(el){
+          var text = (el.textContent||"").replace(/\s+/g," ").trim();
+          if (text.length < 4 || text.length > 80 || seen[text.toLowerCase()]) return;
+          if (empRe.test(text)) { seen[text.toLowerCase()]=true; allEmps.push(text); }
+        });
+
+        // Extrai links internos relevantes
+        doc.querySelectorAll("a[href]").forEach(function(a){
+          var href = (a.getAttribute("href")||"").trim();
+          var text = (a.textContent||"").replace(/\s+/g," ").trim();
+          if (!text || text.length < 4 || text.length > 80) return;
+          var lh = href.toLowerCase(), lt = text.toLowerCase();
+          var isRelevant = empRe.test(lt) || lh.match(/empreend|lanc|imovel|residenc|comercial|apart|cond|tower|park|vila|reserva/);
+          if (!isRelevant) return;
+          if (href.match(/^(#|javascript|mailto|tel)/)) return;
+          var full = href.startsWith("http") ? href : "https://"+domain+(href.startsWith("/")?href:"/"+href);
+          if (!allLinks.find(function(l){return l.href===full;})) {
+            allLinks.push({href:full, text:text});
+          }
+        });
+
+        // Extrai meta og:title de cards de produto
+        doc.querySelectorAll("[class*='empreend'] [class*='title'], [class*='product'] [class*='title'], [class*='card'] h3, [class*='card'] h4").forEach(function(el){
+          var text = (el.textContent||"").replace(/\s+/g," ").trim();
+          if (text.length < 4 || text.length > 80 || seen[text.toLowerCase()]) return;
+          seen[text.toLowerCase()]=true; allEmps.push(text);
+        });
+      })
+      .catch(function(){});
+  }
+
+  // Busca todas as URLs em paralelo, depois renderiza
+  Promise.all(urls.map(tryUrl)).then(function(){
+    // Dedup emps
+    var unique = [], seenU = {};
+    allEmps.forEach(function(e){ if(!seenU[e.toLowerCase()]){seenU[e.toLowerCase()]=true;unique.push(e);} });
+    allEmps = unique.slice(0, 20);
+    allLinks = allLinks.slice(0, 16);
+    renderEmpScrape({nome:nome, domain:domain, siteTitle:siteTitle, siteDesc:siteDesc, emps:allEmps, links:allLinks});
+  });
+
+  // Timeout 12s
+  setTimeout(function(){
+    if (el.innerHTML.includes("loader-box")) {
+      var unique = [], seenU = {};
+      allEmps.forEach(function(e){ if(!seenU[e.toLowerCase()]){seenU[e.toLowerCase()]=true;unique.push(e);} });
+      renderEmpScrape({nome:nome, domain:domain, siteTitle:siteTitle, siteDesc:siteDesc, emps:unique.slice(0,20), links:allLinks.slice(0,16)});
+    }
+  }, 12000);
+}
+
+function renderEmpScrape(info){
+  var el = document.getElementById("emp-results");
+  var html = '<div class="fade">';
+
+  // Header
+  html += '<div class="card" style="margin-bottom:12px">'+
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:'+(info.siteDesc?'12':'0')+'px">'+
+      '<div style="width:40px;height:40px;background:#F3F0FF;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏢</div>'+
+      '<div>'+
+        '<h2 style="font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:2px">'+info.nome+'</h2>'+
+        '<a href="https://'+info.domain+'" target="_blank" style="font-size:12px;color:#7C5CFC;text-decoration:none;font-weight:500">'+info.domain+' ↗</a>'+
+      '</div>'+
+    '</div>'+
+    (info.siteDesc?'<p style="font-size:13px;color:#6b7280;line-height:1.6;padding-top:10px;border-top:1px solid #f3f4f6">'+info.siteDesc+'</p>':"")+
+  '</div>';
+
+  // Empreendimentos identificados
+  if (info.emps.length) {
+    html += '<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+
+      info.emps.length+' empreendimento'+(info.emps.length!==1?"s":"")+" identificado"+(info.emps.length!==1?"s":"")+" no site</p>";
+    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">';
+    info.emps.forEach(function(e){
+      html += '<div class="card-flat" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px">'+
+        '<div style="display:flex;align-items:center;gap:10px">'+
+          '<div style="width:34px;height:34px;border-radius:8px;background:#F3F0FF;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">🏗️</div>'+
+          '<p style="font-size:14px;font-weight:600;color:#1a1a2e">'+e+'</p>'+
+        '</div>'+
+        '<button class="btn-icon" data-nome="'+encodeURIComponent(info.nome)+'" data-lanc="'+encodeURIComponent(e)+'" onclick="usarEmpresaMensagem(this.dataset.nome,this.dataset.lanc)">✉ Abordagem</button>'+
+      '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Páginas do site
+  if (info.links.length) {
+    html += '<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Páginas de empreendimentos</p>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">';
+    info.links.forEach(function(l){
+      html += '<a href="'+l.href+'" target="_blank" class="portal-link" style="padding:10px 14px">'+
+        '<span style="font-size:14px;flex-shrink:0">🔗</span>'+
+        '<span style="font-size:13px;font-weight:600;color:#374151;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+l.text+'</span>'+
+        '<svg style="flex-shrink:0" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'+
+      '</a>';
+    });
+    html += '</div>';
+  }
+
+  if (!info.emps.length && !info.links.length) {
+    html += '<div class="card" style="text-align:center;padding:32px">'+
+      '<p style="font-size:14px;font-weight:600;color:#6b7280;margin-bottom:6px">Site acessado, mas sem empreendimentos identificados</p>'+
+      '<p style="font-size:13px;color:#9ca3af">O site pode carregar conteúdo via JavaScript dinâmico.</p>'+
+      '<a href="https://'+info.domain+'" target="_blank" class="btn-icon" style="display:inline-flex;margin-top:14px">🌐 Abrir site direto</a>'+
+    '</div>';
+  }
+
+  if (info.emps.length || info.links.length) {
+    html += '<div class="card-flat" style="background:#F3F0FF;border-color:#c4b5fd;margin-top:4px">'+
+      '<p style="font-size:12px;font-weight:700;color:#5a3dd4;margin-bottom:4px">💡 Dica</p>'+
+      '<p style="font-size:13px;color:#5a3dd4;line-height:1.5">Clique em <strong>"✉ Abordagem"</strong> para gerar mensagem personalizada com o empreendimento já preenchido.</p>'+
+    '</div>';
+  }
+
+  html += '</div>';
+  el.innerHTML = html; el.style.display = "block";
+}
+
+function renderEmpAI(d,nome,domain){
+  var el=document.getElementById("emp-results");
+  var stMap={"Em lancamento":{bg:"#f0fdf4",c:"#166534",b:"#bbf7d0"},"Em lançamento":{bg:"#f0fdf4",c:"#166534",b:"#bbf7d0"},"Em obras":{bg:"#eff6ff",c:"#1e40af",b:"#bfdbfe"},"Pronto para morar":{bg:"#f5f3ff",c:"#5b21b6",b:"#ddd6fe"}};
+  var getSt=function(s){return stMap[s]||{bg:"#f9fafb",c:"#374151",b:"#e5e7eb"};};
+  var html='<div class="fade">';
+  html+='<div class="card" style="margin-bottom:12px">'+
+    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">'+
+      '<div><h2 style="font-size:18px;font-weight:700;color:#1a1a2e;margin-bottom:4px">'+(d.empresa||nome)+'</h2>'+
+      (d.descricao?'<p style="font-size:13px;color:#6b7280;line-height:1.5">'+d.descricao+'</p>':"")+
+      '</div>'+
+      (d.totalLancamentos>0?'<div style="background:#F3F0FF;border:1.5px solid #c4b5fd;border-radius:10px;padding:12px 18px;text-align:center;flex-shrink:0"><p style="font-size:28px;font-weight:800;color:#7C5CFC;line-height:1">'+d.totalLancamentos+'</p><p style="font-size:10px;font-weight:700;color:#5a3dd4;text-transform:uppercase;margin-top:3px">Em lançamento</p></div>':"")+
+    '</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid #f3f4f6">'+
+      (d.segmento?'<span class="badge" style="background:#F3F0FF;color:#5a3dd4;border-color:#c4b5fd">'+d.segmento+'</span>':"")+
+      (d.atuacao?'<span class="badge" style="background:#f9fafb;color:#374151;border-color:#e5e7eb">📍 '+d.atuacao+'</span>':"")+
+      '<span class="badge" style="background:#eff6ff;color:#1e40af;border-color:#bfdbfe">🤖 IA + web search</span>'+
+    '</div>'+
+  '</div>';
+  var emps=d.empreendimentos||[];
+  if(emps.length){
+    html+='<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+emps.length+' empreendimento'+(emps.length!==1?"s":"")+'</p>';
+    emps.forEach(function(emp){
+      var st=getSt(emp.status);
+      html+='<div class="card" style="margin-bottom:10px">'+
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">'+
+          '<h3 style="font-size:16px;font-weight:700;color:#1a1a2e;line-height:1.3">'+emp.nome+'</h3>'+
+          '<span class="badge" style="background:'+st.bg+';color:'+st.c+';border-color:'+st.b+';flex-shrink:0">'+emp.status+'</span>'+
+        '</div>'+
+        (emp.cidade?'<p style="font-size:13px;color:#6b7280;margin-bottom:8px">📍 '+(emp.cidade||"")+(emp.bairro?" · "+emp.bairro:"")+'</p>':"")+
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">'+
+          (emp.tipo?'<span class="badge" style="background:#f9fafb;color:#374151;border-color:#e5e7eb">'+emp.tipo+'</span>':"")+
+          (emp.tipologia?'<span class="badge" style="background:#f9fafb;color:#374151;border-color:#e5e7eb">'+emp.tipologia+'</span>':"")+
+          '<button class="btn-icon" style="margin-left:auto" data-nome="'+encodeURIComponent(nome)+'" data-lanc="'+encodeURIComponent(emp.nome)+'" onclick="usarEmpresaMensagem(this.dataset.nome,this.dataset.lanc)">✉ Abordagem</button>'+
+        '</div>'+
+        (emp.destaque?'<p style="font-size:12px;color:#6b7280;border-left:3px solid #c4b5fd;padding-left:10px;font-style:italic;margin-top:8px">'+emp.destaque+'</p>':"")+
+      '</div>';
+    });
+  } else {
+    html+='<div class="card"><div class="empty-state"><p>Nenhum empreendimento encontrado</p><p>Tente informar o domínio para busca direta</p></div></div>';
+  }
+  html+='</div>';
+  el.innerHTML=html; el.style.display="block";
+}
+
+function renderEmpSemDominio(nome){
+  var q=encodeURIComponent(nome);
+  var el=document.getElementById("emp-results");
+  var portais=[
+    {icon:"🔑",label:"Viva Real — imóveis de "+nome,url:"https://www.vivareal.com.br/venda/?q="+q},
+    {icon:"🏠",label:"Zap Imóveis — "+nome,url:"https://www.zapimoveis.com.br/venda/imoveis/?q="+q},
+    {icon:"🏗️",label:"Imovelweb — lançamentos "+nome,url:"https://www.imovelweb.com.br/imoveis-venda/?q="+q},
+    {icon:"💼",label:"LinkedIn — perfil de "+nome,url:"https://www.linkedin.com/search/results/companies/?keywords="+q},
+  ];
+  var html='<div class="fade"><div class="card" style="margin-bottom:12px">'+
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'+
+      '<span style="font-size:20px">🏢</span>'+
+      '<div><h2 style="font-size:17px;font-weight:700;color:#1a1a2e">'+nome+'</h2>'+
+      '<p style="font-size:12px;color:#9ca3af">Informe o domínio para busca direta no site da empresa</p></div>'+
+    '</div>'+
+    '<div class="tip-box tip-gold"><span style="font-size:14px;flex-shrink:0">💡</span>'+
+    '<p style="font-size:12px;color:#5a3dd4;font-weight:500">Com o domínio preenchido, o app acessa o site e extrai os empreendimentos automaticamente.</p></div>'+
+  '</div>'+
+  '<div style="display:flex;flex-direction:column;gap:8px">';
+  portais.forEach(function(p){
+    html+='<a href="'+p.url+'" target="_blank" class="portal-link" style="padding:12px 16px">'+
+      '<span style="font-size:18px;flex-shrink:0">'+p.icon+'</span>'+
+      '<span style="font-size:13px;font-weight:600;color:#374151;flex:1">'+p.label+'</span>'+
+      '<svg style="flex-shrink:0" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'+
+    '</a>';
+  });
+  html+='</div></div>';
+  el.innerHTML=html; el.style.display="block";
+}
+function usarEmpresaMensagem(nomeEnc,lancEnc){
+  document.getElementById("msg-empresa").value=decodeURIComponent(nomeEnc);
+  if(lancEnc) document.getElementById("msg-lancamento").value=decodeURIComponent(lancEnc||"");
+  selectCtx("frio"); switchTab("mensagem");
+  toast("✅ Empreendimento preenchido na aba Mensagem!",3000);
+}
+
+
+// ═══════════════════════════════════
+// HOME + ANÁLISE RÁPIDA IA
+// ═══════════════════════════════════
+function renderHome(){
+  var list=getHistory().slice(0,4);
+  var el=document.getElementById("home-hist");
+  if(!el) return;
+  if(!list.length){
+    el.innerHTML='<div style="text-align:center;padding:28px;color:var(--gray-4)"><p style="font-size:14px;font-weight:600">Nenhuma prospecção ainda</p><p style="font-size:12px;margin-top:4px">As empresas pesquisadas aparecem aqui</p></div>';
+    return;
+  }
+  var typeIcons={cnpj:"🏢",contatos:"📧",empreendimentos:"🏗️"};
+  el.innerHTML=list.map(function(h){
+    var icon=typeIcons[h.type]||"🔍";
+    var ageMs=Date.now()-h.ts, ageDays=Math.floor(ageMs/86400000);
+    var ageStr=ageDays===0?"Hoje":ageDays===1?"Ontem":ageDays+"d";
+    return '<div class="hist-row row-in" data-h="'+encodeURIComponent(JSON.stringify(h))+'" onclick="reabrirPesquisa(this.dataset.h)" title="Reabrir">'+
+      '<div style="width:36px;height:36px;border-radius:9px;background:var(--gray-1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+icon+'</div>'+
+      '<div style="flex:1;min-width:0"><p style="font-size:14px;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+h.label+'</p>'+
+      '<p style="font-size:12px;color:var(--gray-4)">'+h.sublabel+'</p></div>'+
+      '<span style="font-size:11px;color:var(--gray-4);flex-shrink:0">'+ageStr+'</span>'+
+    '</div>';
+  }).join('');
+  var hora=new Date().getHours();
+  var saud=hora<12?"Bom dia":hora<18?"Boa tarde":"Boa noite";
+  var eyebrow=document.querySelector("#page-home .sec-eyebrow");
+  if(eyebrow) eyebrow.textContent=saud+", time Flying Studio 👋";
+}
+
+function analisarRapido(){
+  var val=document.getElementById("quick-empresa").value.trim();
+  if(!val){toast("⚠️ Digite o nome ou domínio");return;}
+  var el=document.getElementById("quick-result");
+  el.style.display="block";
+  el.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:14px 0"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;color:var(--gray-4);font-weight:500">Analisando "'+val+'"...</p></div>';
+  var domain=cleanDomain(val);
+  var nome=val.includes(".")?domain.split(".")[0]:val;
+  var done=false;
+  var timer=setTimeout(function(){if(!done){done=true;mostrarAnaliseLocal(val,nome,domain,el);}},5000);
+  var prompt='Análise de prospecção de "'+val+'" para Flying Studio (visualização 3D imobiliária em SP). 4 tópicos: 1) Segmento e porte, 2) Lançamentos recentes, 3) Oportunidade (Alta/Média/Baixa) + motivo em 1 frase, 4) Abordagem recomendada em 1 frase.';
+  callClaude({model:"claude-sonnet-4-20250514",max_tokens:500,messages:[{role:"user",content:prompt}]})
+  .then(function(text){
+    if(done) return; done=true; clearTimeout(timer);
+    el.innerHTML='<div class="card-purple pop">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'+
+        '<span class="ai-badge">✦ IA</span>'+
+        '<p style="font-size:13px;font-weight:700;color:var(--navy)">'+val+'</p>'+
+      '</div>'+
+      '<p style="font-size:13px;color:var(--navy);line-height:1.75;white-space:pre-wrap">'+text.trim()+'</p>'+
+      buildQuickActions(val,nome,domain)+
+    '</div>';
+  })
+  .catch(function(){if(done)return;done=true;clearTimeout(timer);mostrarAnaliseLocal(val,nome,domain,el);});
+}
+
+function buildQuickActions(val,nome,domain){
+  return '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'+
+    '<button class="btn-sm" data-nome="'+encodeURIComponent(val)+'" data-domain="'+encodeURIComponent(domain)+'" onclick="prefillContatos(this.dataset.nome,this.dataset.domain)">📧 Contatos</button>'+
+    '<button class="btn-sm" data-nome="'+encodeURIComponent(nome)+'" onclick="prefillMensagem(this.dataset.nome)">💬 Mensagem</button>'+
+    '<button class="btn-sm" data-nome="'+encodeURIComponent(val)+'" data-domain="'+encodeURIComponent(domain)+'" onclick="prefillEmpreendimentos(this.dataset.nome,this.dataset.domain)">🏗️ Empreendimentos</button>'+
+  '</div>';
+}
+
+function mostrarAnaliseLocal(val,nome,domain,el){
+  var v=val.toLowerCase();
+  var seg="Médio/Alto padrão",op="Média",cor="#854d0e";
+  var motivo="Incorporadora ativa — demanda contínua por visualização 3D.";
+  var abordagem="Apresentar cases do segmento. Propor conversa com CEO Max Barbosa.";
+  if(v.match(/cyrela|helbor|tegra|rem |vitacon|klabin|brookfield|jhsf/)){
+    seg="Alto padrão";op="Alta";cor="#166534";
+    motivo="Alto padrão residencial — visual 3D premium é diferencial decisivo de vendas.";
+    abordagem="Focar em qualidade e cases de luxo. Agendar direto com o Max.";
+  } else if(v.match(/mrv|direcional|tenda|cury|plano|patriani/)){
+    seg="MCMV / Econômico";op="Média";cor="#854d0e";
+    motivo="Grande volume de lançamentos, ticket por projeto menor.";
+    abordagem="Proposta de pacote para múltiplos empreendimentos. Foco em escala.";
+  } else if(v.match(/eztec|trisul|even|tecnisa|kallas|setin/)){
+    seg="Médio padrão";op="Alta";cor="#166534";
+    motivo="Ritmo constante de lançamentos em SP — demanda recorrente.";
+    abordagem="Propor contrato recorrente. Mostrar agilidade e padrão técnico.";
+  } else if(v.match(/multiplan|br prop|syn |wtorre/)){
+    seg="Comercial / Lajes";op="Alta";cor="#166534";
+    motivo="Projetos corporativos de alto padrão exigem visual de impacto.";
+    abordagem="Apresentar cases comerciais. Focar em renders e perspectivas aéreas.";
+  }
+  el.innerHTML='<div class="card-purple pop">'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">'+
+      '<div style="background:var(--navy);color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">📊 Análise</div>'+
+      '<p style="font-size:13px;font-weight:700;color:var(--navy)">'+val+'</p>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'+
+      '<div style="background:var(--white);border-radius:8px;padding:10px 12px">'+
+        '<p style="font-size:10px;font-weight:700;color:var(--gray-4);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Segmento</p>'+
+        '<p style="font-size:13px;font-weight:600;color:var(--navy)">'+seg+'</p>'+
+      '</div>'+
+      '<div style="background:var(--white);border-radius:8px;padding:10px 12px">'+
+        '<p style="font-size:10px;font-weight:700;color:var(--gray-4);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Oportunidade</p>'+
+        '<p style="font-size:13px;font-weight:700;color:'+cor+'">'+op+'</p>'+
+      '</div>'+
+    '</div>'+
+    '<p style="font-size:13px;color:var(--navy);margin-bottom:4px;line-height:1.5"><strong>Por quê:</strong> '+motivo+'</p>'+
+    '<p style="font-size:13px;color:var(--navy);margin-bottom:14px;line-height:1.5"><strong>Abordagem:</strong> '+abordagem+'</p>'+
+    buildQuickActions(val,nome,domain)+
+  '</div>';
+}
+
+
+function prefillContatos(nomeEnc,domainEnc){
+  document.getElementById("inp-company").value=decodeURIComponent(nomeEnc);
+  document.getElementById("inp-domain").value=decodeURIComponent(domainEnc);
+  onDomainInput("inp-domain","domain-hint");
+  switchTab("contatos");
+}
+function prefillMensagem(nomeEnc){
+  document.getElementById("msg-empresa").value=decodeURIComponent(nomeEnc);
+  switchTab("mensagem");
+}
+function prefillEmpreendimentos(nomeEnc,domainEnc){
+  document.getElementById("emp-company").value=decodeURIComponent(nomeEnc);
+  document.getElementById("emp-domain").value=decodeURIComponent(domainEnc);
+  switchTab("empreendimentos");
+  setTimeout(buscarEmp,100);
+}
+</script>
+</body>
+        '<button class="btn btn-primary" style="width:auto;padding:11px 18px;white-space:nowrap" onclick="buscarSociosCnpjManual()">Buscar sócios</button>'+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Flying Studio · Prospector</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --purple:#7C5CFC;--purple-d:#6344E0;--purple-l:#F3F0FF;--purple-m:#c4b5fd;
+  --green:#A8E63D;--green-d:#7fb82e;
+  --navy:#1a1a2e;--navy-2:#252545;
+  --gray-1:#f8f8f6;--gray-2:#f0efe9;--gray-3:#e5e4dd;--gray-4:#9ca3af;--gray-5:#6b7280;
+  --white:#ffffff;
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;
+  --shadow:0 1px 4px rgba(26,26,46,.07);--shadow-md:0 4px 16px rgba(26,26,46,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'DM Sans',sans-serif}
+body{background:var(--gray-1);min-height:100vh;color:var(--navy)}
+h1,h2,h3,.display{font-family:'Syne',sans-serif;letter-spacing:0}
+
+/* ─── ANIMATIONS ─── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes slideRight{from{transform:translateX(-6px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes popIn{0%{transform:scale(.94);opacity:0}100%{transform:scale(1);opacity:1}}
+.fade{animation:fadeUp .22s ease both}
+.pop{animation:popIn .18s ease both}
+.row-in{animation:fadeUp .18s ease both}
+.row-in:nth-child(1){animation-delay:.03s}.row-in:nth-child(2){animation-delay:.06s}
+.row-in:nth-child(3){animation-delay:.09s}.row-in:nth-child(n+4){animation-delay:.12s}
+
+/* ─── INPUTS ─── */
+input,select,textarea{
+  background:var(--white);border:1.5px solid var(--gray-3);color:var(--navy);
+  font-size:14px;width:100%;outline:none;padding:11px 14px;
+  transition:all .15s;border-radius:var(--radius-sm);font-family:inherit;line-height:1.5
+}
+input:focus,select:focus,textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,92,252,.1)}
+input:hover:not(:focus),select:hover:not(:focus){border-color:#bbb}
+input::placeholder,textarea::placeholder{color:var(--gray-4)}
+input.error{border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.08)}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+textarea{resize:vertical;line-height:1.75;min-height:100px}
+label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bottom:5px;letter-spacing:.02em;text-transform:uppercase}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:none;border-radius:var(--radius-sm);padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;letter-spacing:.01em}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn-primary{background:var(--purple);color:#fff;width:100%}.btn-primary:hover{background:var(--purple-d);transform:translateY(-1px);box-shadow:0 4px 12px rgba(124,92,252,.3)}
+.btn-dark{background:var(--navy);color:#fff;width:100%}.btn-dark:hover{background:var(--navy-2);transform:translateY(-1px)}
+.btn-green{background:var(--green);color:var(--navy);width:100%;font-weight:700}.btn-green:hover{background:var(--green-d);transform:translateY(-1px)}
+.btn-ghost{background:transparent;border:1.5px solid var(--gray-3);color:var(--gray-5)}.btn-ghost:hover{border-color:var(--purple-m);color:var(--purple);background:var(--purple-l)}
+.btn-sm{background:var(--white);border:1.5px solid var(--gray-3);color:var(--gray-5);border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:all .14s;font-family:inherit}
+.btn-sm:hover{border-color:var(--purple-m);color:var(--purple);background:var(--purple-l)}
+.btn-icon{background:var(--gray-1);border:1.5px solid var(--gray-3);color:var(--gray-5);border-radius:var(--radius-sm);padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:all .13s;font-family:inherit;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-icon:hover{border-color:var(--purple-m);color:var(--purple);background:var(--purple-l)}
+.btn-copy{background:var(--navy);color:#fff;border:none;border-radius:var(--radius-xs);padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn-copy:hover{background:var(--navy-2)}
+.btn-wpp{background:#25d366;color:#fff;border:none;border-radius:var(--radius-xs);padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px;text-decoration:none}
+.btn-wpp:hover{background:#1da851}
+.btn-danger{background:var(--white);border:1.5px solid #fecaca;color:#ef4444;border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .14s}
+.btn-danger:hover{background:#fff5f5}
+
+/* ─── CHIPS ─── */
+.chip{display:inline-flex;align-items:center;padding:7px 14px;border:1.5px solid var(--gray-3);border-radius:20px;font-size:13px;font-weight:500;color:var(--gray-5);cursor:pointer;transition:all .12s;background:var(--white);font-family:inherit}
+.chip.active{border-color:var(--purple);color:var(--purple-d);background:var(--purple-l);font-weight:600}
+.chip:hover:not(.active){border-color:var(--purple-m);color:var(--purple-d)}
+
+/* ─── CARDS ─── */
+.card{background:var(--white);border:1.5px solid var(--gray-3);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+.card-flat{background:var(--white);border:1.5px solid #ebebeb;border-radius:10px;padding:14px 16px}
+.card-purple{background:var(--purple-l);border:1.5px solid var(--purple-m);border-radius:var(--radius);padding:20px}
+.card-dark{background:var(--navy);border-radius:var(--radius);padding:22px;color:#fff}
+.stat-card{background:var(--gray-1);border:1.5px solid #ebebeb;border-radius:10px;padding:16px 18px;transition:border-color .15s}
+.stat-card:hover{border-color:var(--purple-m)}
+
+/* ─── BADGES ─── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;border-width:1px;border-style:solid}
+.tag-hot{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
+.tag-ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
+.tag-warn{background:#fffbeb;color:#854d0e;border:1px solid #fde68a;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
+.tag-purple{background:var(--purple-l);color:var(--purple-d);border:1px solid var(--purple-m);border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700}
+
+/* ─── LAYOUT ─── */
+.topbar{background:var(--white);border-bottom:1.5px solid var(--gray-3);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:30;box-shadow:0 2px 8px rgba(26,26,46,.05)}
+.tabs{background:var(--white);border-bottom:1.5px solid var(--gray-3);padding:0 20px;display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:60px;z-index:29}
+.tabs::-webkit-scrollbar{height:0}
+.content{max-width:680px;margin:0 auto;padding:28px 18px 80px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+/* ─── TABS NAV ─── */
+.tab-btn{background:transparent;border:none;padding:12px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray-4);transition:all .15s;position:relative;font-family:'DM Sans',sans-serif;white-space:nowrap;border-radius:var(--radius-sm) var(--radius-sm) 0 0;flex-shrink:0}
+.tab-btn::after{content:"";position:absolute;bottom:-1.5px;left:0;right:0;height:2px;background:var(--purple);border-radius:2px;transform:scaleX(0);transition:transform .2s ease}
+.tab-btn.active{color:var(--navy);font-weight:700}
+.tab-btn.active::after{transform:scaleX(1)}
+.tab-btn:hover:not(.active){color:var(--navy);background:var(--gray-1)}
+.tab-btn .notif{position:absolute;top:9px;right:7px;width:6px;height:6px;background:#ef4444;border-radius:50%;border:1.5px solid var(--white)}
+
+/* ─── MISC ─── */
+.dot{width:5px;height:5px;background:var(--purple);border-radius:50%;display:inline-block;margin:0 3px;animation:pulse 1.4s ease infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+.loader-box{text-align:center;padding:44px 0}
+.progress-bar{background:#eee;border-radius:99px;height:4px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--purple),var(--green));transition:width .5s ease}
+.result-row{border-bottom:1px solid var(--gray-2);padding:14px 4px;display:flex;align-items:flex-start;gap:12px;transition:background .12s;border-radius:var(--radius-sm);cursor:default}
+.result-row:last-child{border-bottom:none}
+.result-row:hover{background:var(--gray-1);padding:14px 10px;margin:0 -6px}
+.hist-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--gray-2);cursor:pointer;transition:all .12s}
+.hist-row:last-child{border-bottom:none}
+.hist-row:hover{background:var(--gray-1);padding:12px 8px;margin:0 -8px;border-radius:var(--radius-sm)}
+.info-row{display:flex;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--gray-2);gap:12px}
+.info-row:last-child{border-bottom:none}
+.msg-editable{background:var(--gray-1);border:1.5px solid var(--gray-3);border-radius:10px;padding:16px;font-size:14px;line-height:1.8;color:#374151;white-space:pre-wrap;min-height:120px;outline:none;transition:border-color .15s}
+.msg-editable:focus{border-color:var(--purple);background:var(--white)}
+.search-wrap{position:relative}
+.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none}
+.search-inp{background:var(--gray-1);border:1.5px solid var(--gray-3);color:var(--navy);font-size:14px;width:100%;outline:none;padding:10px 14px 10px 38px;border-radius:var(--radius-sm);transition:all .15s;font-family:inherit}
+.search-inp:focus{border-color:var(--purple);background:var(--white);box-shadow:0 0 0 3px rgba(124,92,252,.1)}
+.search-inp::placeholder{color:var(--gray-4)}
+.portal-link{background:var(--white);border:1.5px solid #ebebeb;border-radius:10px;padding:13px 16px;display:flex;align-items:center;gap:12px;text-decoration:none;transition:all .14s}
+.portal-link:hover{border-color:var(--purple-m);background:var(--purple-l)}
+.socio-card{background:var(--gray-1);border:1px solid #ebebeb;border-radius:10px;padding:14px 16px;margin-bottom:8px;transition:border-color .15s}
+.socio-card:hover{border-color:var(--purple-m)}
+.field-ok{font-size:11px;color:var(--purple);margin-top:4px;font-weight:600}
+.field-hint{font-size:11px;color:var(--gray-4);margin-top:4px}
+.field-err{font-size:11px;color:#ef4444;margin-top:4px;font-weight:600}
+
+/* ─── QUICK ACTIONS HOME ─── */
+.qa-card{background:var(--white);border:1.5px solid var(--gray-3);border-radius:var(--radius);padding:18px 20px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:14px;text-decoration:none}
+.qa-card:hover{border-color:var(--purple);transform:translateY(-2px);box-shadow:0 6px 20px rgba(124,92,252,.12)}
+.qa-card.active{border-color:var(--purple);background:var(--purple-l)}
+.ai-badge{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,var(--purple),#a78bfa);color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700}
+
+/* ─── TOAST ─── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--navy);color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;z-index:200;white-space:nowrap;box-shadow:var(--shadow-md)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ─── SECTION HEADER ─── */
+.sec-eyebrow{font-size:11px;font-weight:700;color:var(--purple);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
+.sec-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--navy);line-height:1.35;letter-spacing:0}
+.sec-sub{font-size:13px;color:var(--gray-5);margin-top:6px;line-height:1.5}
+
+/* ─── DIVIDER ─── */
+.divider{height:1px;background:var(--gray-2);margin:18px 0}
+
+/* ─── SCORE RING ─── */
+.score-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:600px){
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .topbar{padding:0 14px}
+  .content{padding:20px 14px 72px}
+  .card{padding:16px}
+  .sec-title{font-size:20px}
+}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:12px">
+    <svg width="40" height="40" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="cursor:pointer" onclick="switchTab('home')">
+      <rect width="44" height="44" rx="10" fill="#7C5CFC"/>
+      <rect x="9" y="14" width="19" height="19" rx="2.5" fill="white"/>
+      <line x1="9" y1="32" x2="27" y2="14" stroke="#7C5CFC" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="31" cy="13" r="6" fill="#A8E63D"/>
+    </svg>
+    <div style="line-height:1.1">
+      <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--navy);letter-spacing:-.01em">Flying Studio</div>
+      <div style="font-size:10px;font-weight:700;color:var(--purple);letter-spacing:.08em;text-transform:uppercase">Prospector</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span id="hist-count-top" style="font-size:12px;color:var(--gray-4);font-weight:500"></span>
+    <button onclick="switchTab('home')" class="btn-sm" style="display:flex;align-items:center;gap:5px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      Início
+    </button>
+  </div>
+</div>
+
+<!-- ═══ TABS ═══ -->
+<div class="tabs" id="main-tabs">
+  <button class="tab-btn active" id="tab-home"            onclick="switchTab('home')">🏠 Home</button>
+  <button class="tab-btn" id="tab-contatos" onclick="switchTab('contatos')">📧 Contatos</button>
+  <button class="tab-btn" id="tab-cnpj"            onclick="switchTab('cnpj')">🏢 CNPJ</button>
+  <button class="tab-btn" id="tab-mensagem"        onclick="switchTab('mensagem')">💬 Mensagem</button>
+  <button class="tab-btn" id="tab-empreendimentos" onclick="switchTab('empreendimentos')">🏗️ Empreendimentos</button>
+  <button class="tab-btn" id="tab-historico"       onclick="switchTab('historico')">🕑 Pipeline<span id="hist-notif" style="display:none" class="notif"></span></button>
+</div>
+
+<div class="content">
+
+<!-- ═══════════════════════════════════════ HOME ═══════════════════════════════════════ -->
+<div id="page-home">
+  <div style="margin-bottom:24px">
+    <p class="sec-eyebrow">Bom dia, time Flying Studio 👋</p>
+    <h1 class="sec-title" style="font-size:26px;line-height:1.3;letter-spacing:0">O que vamos fazer hoje?</h1>
+  </div>
+
+  <!-- Quick actions -->
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px">
+    <div class="qa-card" onclick="switchTab('contatos')">
+      <div style="width:44px;height:44px;background:var(--purple-l);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📧</div>
+      <div style="flex:1">
+        <p style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:2px">Mapear contatos</p>
+        <p style="font-size:13px;color:var(--gray-5)">Digite o domínio e encontre decisores da empresa</p>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </div>
+    <div class="qa-card" onclick="switchTab('cnpj')">
+      <div style="width:44px;height:44px;background:#f0fdf4;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏢</div>
+      <div style="flex:1">
+        <p style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:2px">Pesquisar por CNPJ</p>
+        <p style="font-size:13px;color:var(--gray-5)">Veja sócios, telefone e email da Receita Federal</p>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </div>
+    <div class="qa-card" onclick="switchTab('mensagem')">
+      <div style="width:44px;height:44px;background:#fff7ed;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">💬</div>
+      <div style="flex:1">
+        <p style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:2px">Gerar mensagem</p>
+        <p style="font-size:13px;color:var(--gray-5)">WhatsApp e email personalizados padrão Flying Studio</p>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </div>
+    <div class="qa-card" onclick="switchTab('empreendimentos')">
+      <div style="width:44px;height:44px;background:#eff6ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏗️</div>
+      <div style="flex:1">
+        <p style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:2px">Ver empreendimentos</p>
+        <p style="font-size:13px;color:var(--gray-5)">Conheça a carteira e os lançamentos ativos</p>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </div>
+  </div>
+
+  <!-- Busca rápida AI -->
+  <div class="card" style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span class="ai-badge">✦ IA</span>
+      <p style="font-size:14px;font-weight:700;color:var(--navy)">Análise rápida de empresa</p>
+    </div>
+    <p style="font-size:13px;color:var(--gray-5);margin-bottom:12px">Cole o domínio ou nome da empresa e a IA gera um resumo de prospecção em segundos.</p>
+    <div style="display:flex;gap:8px">
+      <input id="quick-empresa" type="text" placeholder="Ex: cyrela.com.br ou Cyrela" style="flex:1" onkeydown="if(event.key==='Enter')analisarRapido()"/>
+      <button class="btn btn-primary" style="width:auto;padding:11px 18px;white-space:nowrap" onclick="analisarRapido()">Analisar</button>
+    </div>
+    <div id="quick-result" style="display:none;margin-top:14px"></div>
+  </div>
+
+  <!-- Pipeline resumido -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <p style="font-size:13px;font-weight:700;color:var(--navy)">Prospectados recentemente</p>
+    <button class="btn-sm" onclick="switchTab('historico')">Ver tudo</button>
+  </div>
+  <div id="home-hist" class="card" style="padding:4px 16px"></div>
+</div>
+
+<!-- ═══════════════════════════════════════ CONTATOS ═══════════════════════════════════════ -->
+<div id="page-contatos" style="display:none">
+  <div style="margin-bottom:20px">
+    <p class="sec-eyebrow" id="contatos-source">Apollo.io · Base de 275M+ pessoas</p>
+    <h1 class="sec-title">Encontre os decisores</h1>
+    <p class="sec-sub">Cole o domínio da empresa — identificamos a empresa e buscamos os decisores automaticamente.</p>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <!-- Mode tabs -->
+    <div style="display:flex;gap:4px;border-bottom:1.5px solid var(--gray-2);margin-bottom:18px;margin:-22px -22px 18px -22px;padding:0 22px;overflow-x:auto">
+      <button class="tab-btn active" id="mode-domain" onclick="switchMode('domain')" style="padding:10px 12px 12px;font-size:13px">📧 Por domínio</button>
+      <button class="tab-btn"        id="mode-role"   onclick="switchMode('role')"   style="padding:10px 12px 12px;font-size:13px">🎯 Por cargo</button>
+      <button class="tab-btn"        id="mode-socios" onclick="switchMode('socios')" style="padding:10px 12px 12px;font-size:13px">🏢 CNPJ + Sócios</button>
+    </div>
+    <div style="margin-bottom:14px">
+      <label>Domínio do site</label>
+      <input id="inp-domain" type="text" placeholder="eztec.com.br ou cyrela.com.br" oninput="onDomainInput('inp-domain','domain-hint')" onkeydown="if(event.key==='Enter')doSearch()" style="font-size:15px;padding:13px 16px"/>
+      <p id="domain-hint" class="field-ok" style="display:none"></p>
+      <input id="inp-company" type="hidden" value=""/>
+    </div>
+    <div id="filters-block">
+      <div style="margin-bottom:14px">
+        <label style="margin-bottom:8px">Área / Departamento</label>
+        <div id="dept-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="margin-bottom:8px">Nível hierárquico</label>
+        <div id="sen-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+    </div>
+    <div id="socios-info" style="display:none;margin-bottom:16px;background:var(--purple-l);border:1.5px solid var(--purple-m);border-radius:10px;padding:14px 16px">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">🔍</span>
+        <div>
+          <p style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px">Como funciona</p>
+          <p style="font-size:13px;color:var(--purple-d);line-height:1.6">Buscamos o CNPJ da empresa → extraímos os sócios da Receita Federal → inferimos os emails com o padrão do domínio.</p>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btn-search" onclick="doSearch()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Buscar decisores
+    </button>
+  </div>
+  <div id="search-error" style="display:none"></div>
+  <div id="search-loader" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <p id="prog-step" style="font-size:13px;font-weight:600;color:var(--gray-5)">Conectando...</p>
+      <p id="prog-pct" style="font-size:18px;font-weight:800;color:var(--purple)">0%</p>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+    <p style="font-size:12px;color:var(--gray-4);margin-top:8px">Consultando Apollo.io — nome, email e telefone...</p>
+  </div>
+  <div id="search-results" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════ CNPJ ═══════════════════════════════════════ -->
+<div id="page-cnpj" style="display:none">
+  <div style="margin-bottom:20px">
+    <p class="sec-eyebrow">Receita Federal · BrasilAPI</p>
+    <h1 class="sec-title">Dados oficiais da empresa</h1>
+    <p class="sec-sub">Sócios, endereço, telefone — grátis e ilimitado.</p>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="grid-2" style="margin-bottom:0">
+      <div>
+        <label>CNPJ</label>
+        <input id="inp-cnpj" type="text" placeholder="00.000.000/0001-00" oninput="maskCnpj(this)" maxlength="18" onkeydown="if(event.key==='Enter')buscarCnpj()"/>
+        <p id="cnpj-hint" class="field-hint">14 dígitos</p>
+      </div>
+      <div style="display:flex;flex-direction:column;justify-content:flex-end">
+        <button class="btn btn-dark" id="btn-cnpj" onclick="buscarCnpj()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Buscar empresa
+        </button>
+      </div>
+    </div>
+  </div>
+  <div id="cnpj-loader" class="loader-box" style="display:none">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <p style="font-size:13px;color:var(--gray-4);margin-top:12px;font-weight:500">Consultando Receita Federal...</p>
+  </div>
+  <div id="cnpj-error" style="display:none"></div>
+  <div id="cnpj-results" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════ MENSAGEM ═══════════════════════════════════════ -->
+<div id="page-mensagem" style="display:none">
+  <div style="margin-bottom:20px">
+    <p class="sec-eyebrow">Padrão Flying Studio</p>
+    <h1 class="sec-title">Mensagem certa, na hora certa</h1>
+    <p class="sec-sub">Preencha os dados do lead e gere WhatsApp + email em segundos.</p>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <!-- Step 1: Contato -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="width:26px;height:26px;background:var(--purple);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">1</div>
+      <p style="font-size:13px;font-weight:700;color:var(--navy)">Quem é o decisor?</p>
+    </div>
+    <div class="grid-2" style="margin-bottom:14px">
+      <div>
+        <label>Nome</label>
+        <input id="msg-nome" type="text" placeholder="Ex: João Silva"/>
+      </div>
+      <div>
+        <label>Cargo</label>
+        <select id="msg-cargo">
+          <option>Diretor de Marketing</option>
+          <option>Gerente de Marketing</option>
+          <option>CEO / Presidente</option>
+          <option>Diretor Comercial</option>
+          <option>CMO</option>
+          <option>Gerente Comercial</option>
+          <option>Gerente de Produto</option>
+          <option>Sócio / Fundador</option>
+          <option>Coordenador de Marketing</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Step 2: Empresa -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="width:26px;height:26px;background:var(--purple);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">2</div>
+      <p style="font-size:13px;font-weight:700;color:var(--navy)">Qual é a empresa?</p>
+    </div>
+    <div class="grid-2" style="margin-bottom:14px">
+      <div>
+        <label>Empresa</label>
+        <input id="msg-empresa" type="text" placeholder="Ex: Gama Pro"/>
+      </div>
+      <div>
+        <label>Segmento</label>
+        <select id="msg-segmento">
+          <option value="alto padrão">Alto padrão</option>
+          <option value="médio padrão">Médio padrão</option>
+          <option value="econômico / MCMV">Econômico / MCMV</option>
+          <option value="comercial / lajes">Comercial / Lajes</option>
+          <option value="loteamentos">Loteamentos</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-bottom:16px">
+      <div>
+        <label>Empreendimento <span style="font-weight:400;color:var(--gray-4);text-transform:none;letter-spacing:0">(opcional)</span></label>
+        <input id="msg-lancamento" type="text" placeholder="Ex: Residencial Vista Verde"/>
+      </div>
+      <div>
+        <label>Cidade</label>
+        <input id="msg-cidade" type="text" placeholder="Ex: São Paulo - SP"/>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Step 3: Contexto -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="width:26px;height:26px;background:var(--purple);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">3</div>
+      <p style="font-size:13px;font-weight:700;color:var(--navy)">Qual é o momento do lead?</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+      <button class="chip active" id="ctx-frio"     onclick="selectCtx('frio')">🧊 Primeiro contato</button>
+      <button class="chip"        id="ctx-proposta" onclick="selectCtx('proposta')">📄 Proposta enviada</button>
+      <button class="chip"        id="ctx-followup" onclick="selectCtx('followup')">🔄 Follow up</button>
+      <button class="chip"        id="ctx-recusada" onclick="selectCtx('recusada')">❌ Proposta recusada</button>
+      <button class="chip"        id="ctx-antiga"   onclick="selectCtx('antiga')">📅 Proposta antiga</button>
+    </div>
+
+    <button class="btn btn-primary" onclick="gerarMensagem()" style="font-size:15px;padding:14px">
+      ✨ Gerar mensagens
+    </button>
+  </div>
+  <div id="msg-results" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════ EMPREENDIMENTOS ═══════════════════════════════════════ -->
+<div id="page-empreendimentos" style="display:none">
+  <div style="margin-bottom:20px">
+    <p class="sec-eyebrow">Inteligência de mercado</p>
+    <h1 class="sec-title">Conheça a carteira</h1>
+    <p class="sec-sub">Informe o site e extraímos os lançamentos automaticamente.</p>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="grid-2" style="margin-bottom:12px">
+      <div>
+        <label>Empresa</label>
+        <input id="emp-company" type="text" placeholder="Ex: EZTec" onkeydown="if(event.key==='Enter')buscarEmp()"/>
+      </div>
+      <div>
+        <label>Domínio <span style="font-weight:400;color:var(--gray-4);text-transform:none;letter-spacing:0">(recomendado)</span></label>
+        <input id="emp-domain" type="text" placeholder="eztec.com.br" oninput="onDomainInput('emp-domain','emp-domain-hint')" onkeydown="if(event.key==='Enter')buscarEmp()"/>
+        <p id="emp-domain-hint" class="field-ok" style="display:none"></p>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="buscarEmp()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Pesquisar empreendimentos
+    </button>
+  </div>
+  <div id="emp-error" style="display:none"></div>
+  <div id="emp-results" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════ PIPELINE ═══════════════════════════════════════ -->
+<div id="page-historico" style="display:none">
+  <div style="margin-bottom:20px">
+    <p class="sec-eyebrow">Pipeline comercial</p>
+    <h1 class="sec-title">Empresas prospectadas</h1>
+    <p class="sec-sub">Histórico salvo localmente — nunca prospecte a mesma empresa duas vezes.</p>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">
+    <p id="hist-total" style="font-size:14px;font-weight:700;color:var(--navy)"></p>
+    <div style="display:flex;gap:8px">
+      <button class="btn-sm" onclick="exportHistorico()">↓ Exportar</button>
+      <button class="btn-danger" onclick="limparHistorico()">🗑 Limpar</button>
+    </div>
+  </div>
+  <div class="search-wrap" style="margin-bottom:14px">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input class="search-inp" placeholder="Buscar empresa..." oninput="filterHistorico(this.value)"/>
+  </div>
+  <div id="hist-list"></div>
+</div>
+
+</div><!-- end .content -->
+
+<script>
+// ═══════════════════════════════════════
+// PROXY — chama /api/claude (Vercel)
+// ═══════════════════════════════════════
+function callClaude(body) {
+  return fetch("/api/claude", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    return (data.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("");
+  });
+}
+
+
+// ═══════════════════════════════════════
+// CONSTANTES
+// ═══════════════════════════════════════
+var HUNTER_KEY = "8f122be7c8440172a49875acc9356073cb141ce2";
+var HIST_KEY   = "fp_hist_v2";
+
+var DEPTS = [
+  {id:"",label:"Todos"},
+  {id:"executive",label:"Diretoria / C-Level"},
+  {id:"management",label:"Gerência"},
+  {id:"marketing",label:"Marketing"},
+  {id:"sales",label:"Comercial / Vendas"},
+  {id:"communications",label:"Comunicação / PR"},
+  {id:"operations",label:"Operações"},
+  {id:"finance",label:"Financeiro"},
+];
+var SENS = [
+  {id:"",label:"Qualquer nível"},
+  {id:"executive",label:"Executivo (C-Level / Diretor)"},
+  {id:"senior",label:"Sênior (Gerente / Coord.)"},
+  {id:"junior",label:"Júnior / Analista"},
+];
+var ESTADOS = ["SP","RJ","MG","RS","PR","SC","BA","GO","DF","PE","CE","ES","MT","PA","MA","PB","RN","AL","AM"];
+var SEGS = [
+  {id:"all",label:"Todos"},
+  {id:"alto",label:"Alto padrão"},
+  {id:"medio",label:"Médio padrão"},
+  {id:"mcmv",label:"MCMV"},
+  {id:"comercial",label:"Comercial"},
+  {id:"loteamento",label:"Loteamentos"},
+];
+var TARGET_ROLES = ["ceo","diretor","director","marketing","comercial","gerente","manager","product","cmo","founder","sócio","socio","proprietário","presidente","vp","head"];
+
+// ═══════════════════════════════════════
+// ESTADO GLOBAL
+// ═══════════════════════════════════════
+var currentMode = "domain";
+var selectedDept = "";
+var selectedSen = "executive";
+var selectedEstado = "SP";
+var selectedSeg = "all";
+var selectedCtx = "frio";
+var allResults = [];
+var progTimers = [];
+var fullHistory = [];
+
+// ═══════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════
+function cleanDomain(raw){
+  return (raw||"").trim()
+    .replace(/^https?:\/\//i,"")
+    .replace(/^www\./i,"")
+    .replace(/[/?#].*/,"")
+    .trim().toLowerCase();
+}
+function isTarget(p){ return TARGET_ROLES.some(function(r){return (p||"").toLowerCase().includes(r);}); }
+function scoreColor(s){ return s>=75?"#166534":s>=45?"#854d0e":"#9a3412"; }
+function scoreBg(s)   { return s>=75?"#f0fdf4":s>=45?"#fefce8":"#fff7ed"; }
+function scoreBd(s)   { return s>=75?"#bbf7d0":s>=45?"#fde68a":"#fed7aa"; }
+function scoreLabel(s){ return s>=75?"Confirmado":s>=45?"Provável":"Incerto"; }
+var avColors = ["#1d4ed8","#7c3aed","#0f766e","#b45309","#be185d","#0284c7","#7c2d12"];
+var avBgs    = ["#eff6ff","#f5f3ff","#f0fdfa","#fffbeb","#fdf2f8","#f0f9ff","#fff7ed"];
+function getAvColor(n){ return avColors[(n||"?").charCodeAt(0)%avColors.length]; }
+function getAvBg(n)   { return avBgs[(n||"?").charCodeAt(0)%avBgs.length]; }
+function initials(f,l){ return ((f||"")[0]||"").toUpperCase()+((l||"")[0]||"").toUpperCase()||"?"; }
+function fmtDate(d){
+  if(!d) return "-";
+  var p=d.split("-");
+  return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:d;
+}
+function monthsAgo(ds){
+  if(!ds) return 9999;
+  var d=new Date(ds), n=new Date();
+  return (n.getFullYear()-d.getFullYear())*12+(n.getMonth()-d.getMonth());
+}
+function fmtPhone(ddd,tel){
+  if(!tel) return null;
+  return "("+ddd+") "+tel;
+}
+function fmtCapital(v){
+  if(!v||v==0) return null;
+  return "R$ "+Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2});
+}
+function cnpjFmt(c){
+  c=(c||"").replace(/\D/g,"");
+  return c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5");
+}
+function leadScore(d){
+  // Score 0-100 based on company signals
+  var s = 50;
+  var months = monthsAgo(d.data_inicio_atividade);
+  if(months<=6) s+=30;
+  else if(months<=12) s+=20;
+  else if(months<=24) s+=10;
+  else if(months>60) s-=10;
+  if(d.email) s+=10;
+  if(d.ddd_telefone_1) s+=5;
+  if(d.capital_social>100000) s+=5;
+  if(d.descricao_situacao_cadastral==="ATIVA") s+=5;
+  else s-=20;
+  var cnae = (d.cnae_fiscal_descricao||"").toLowerCase();
+  if(cnae.includes("incorpora")) s+=10;
+  else if(cnae.includes("constru")) s+=5;
+  return Math.min(100,Math.max(0,s));
+}
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+var toastTimer;
+function toast(msg,dur){
+  clearTimeout(toastTimer);
+  var t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  toastTimer=setTimeout(function(){t.classList.remove("show");},dur||2200);
+}
+
+// ═══════════════════════════════════════
+// COPY
+// ═══════════════════════════════════════
+function copyEl(id,btn){
+  var el=document.getElementById(id);
+  var text=el.innerText||el.textContent||"";
+  navigator.clipboard.writeText(text.trim()).then(function(){
+    var orig=btn.innerHTML; btn.innerHTML="✓ Copiado!";
+    setTimeout(function(){btn.innerHTML=orig;},1800);
+    toast("📋 Copiado!");
+  }).catch(function(){
+    // fallback
+    var ta=document.createElement("textarea");
+    ta.value=text; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); document.body.removeChild(ta);
+    toast("📋 Copiado!");
+  });
+}
+
+// ═══════════════════════════════════════
+// DOMAIN HINT
+// ═══════════════════════════════════════
+function onDomainInput(inputId,hintId){
+  var raw=document.getElementById(inputId).value;
+  var clean=cleanDomain(raw);
+  var hint=document.getElementById(hintId);
+  if(raw.trim()&&clean!==raw.trim()){
+    hint.textContent="✓ Será usado: "+clean;
+    hint.style.display="block";
+  } else { hint.style.display="none"; }
+}
+
+// ═══════════════════════════════════════
+// CNPJ MASK
+// ═══════════════════════════════════════
+function maskCnpj(input){
+  var v=input.value.replace(/\D/g,"").slice(0,14);
+  v=v.replace(/^(\d{2})(\d)/,"$1.$2");
+  v=v.replace(/^(\d{2})\.(\d{3})(\d)/,"$1.$2.$3");
+  v=v.replace(/\.(\d{3})(\d)/,".$1/$2");
+  v=v.replace(/(\d{4})(\d)/,"$1-$2");
+  input.value=v;
+  var hint=document.getElementById("cnpj-hint");
+  var n=input.value.replace(/\D/g,"").length;
+  if(n===14){ hint.className="field-ok"; hint.textContent="✓ CNPJ válido — pressione Enter ou clique em Buscar"; }
+  else if(n>0){ hint.className="field-err"; hint.textContent=n+"/14 dígitos"; }
+  else{ hint.className="field-hint"; hint.textContent="14 dígitos · Receita Federal via BrasilAPI"; }
+}
+
+// ═══════════════════════════════════════
+// ERROR BOX
+// ═══════════════════════════════════════
+function showError(elId,msg){
+  var el=document.getElementById(elId);
+  el.innerHTML='<div class="card" style="border-color:#fecaca;background:#fff7ed;margin-bottom:14px">'+
+    '<div style="display:flex;gap:10px;align-items:flex-start">'+
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'+
+    '<div><p style="font-size:12px;font-weight:700;color:#c2410c;text-transform:uppercase;margin-bottom:3px">Erro</p>'+
+    '<p style="font-size:14px;color:#9a3412">'+msg+'</p></div></div></div>';
+  el.style.display="block";
+}
+
+// ═══════════════════════════════════════
+// TAB / MODE SWITCHES
+// ═══════════════════════════════════════
+var TABS=["home","contatos","cnpj","mensagem","empreendimentos","historico"];
+var HEADLINES={
+  home:["Início","O que vamos fazer hoje?"],
+  contatos:       ["Prospecção inteligente","Encontre decisores. Feche mais projetos."],
+  cnpj:           ["Receita Federal","Busque qualquer CNPJ e veja sócios."],
+  mensagem:       ["Apoio à abordagem","Mensagem certa. Decisor certo."],
+  empreendimentos:["Inteligência de mercado","Conheça a carteira. Chegue na hora certa."],
+  historico:      ["Histórico","Empresas já pesquisadas ficam salvas aqui."],
+};
+function switchTab(tab){
+  TABS.forEach(function(t){
+    var el=document.getElementById("page-"+t);
+    if(el) el.style.display=t===tab?"block":"none";
+    var tb=document.getElementById("tab-"+t);
+    if(tb) tb.classList.toggle("active",t===tab);
+  });
+  if(tab==="historico") renderHistorico();
+  if(tab==="home") renderHome();
+  window.scrollTo({top:0,behavior:"smooth"});
+  var activeTab=document.getElementById("tab-"+tab);
+  if(activeTab) activeTab.scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"});
+}
+function switchMode(m){
+  currentMode=m;
+  ["domain","role","socios"].forEach(function(x){
+    var el=document.getElementById("mode-"+x);
+    if(el) el.classList.toggle("active",x===m);
+  });
+  var filtersBlock=document.getElementById("filters-block");
+  var sociosInfo=document.getElementById("socios-info");
+  if(filtersBlock) filtersBlock.style.display=m==="role"?"block":"none";
+  if(sociosInfo)   sociosInfo.style.display=m==="socios"?"block":"none";
+  var btn=document.getElementById("btn-search");
+  if(btn) btn.innerHTML=m==="socios"
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Buscar via CNPJ + Sócios'
+    : m==="role"
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Buscar por cargo'
+    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Buscar contatos';
+}
+
+// ═══════════════════════════════════════
+// CHIPS
+// ═══════════════════════════════════════
+function buildChips(){
+  document.getElementById("dept-chips").innerHTML=DEPTS.map(function(d){
+    return '<button class="chip'+(d.id===selectedDept?" active":"")+'" onclick="selectDept(\''+d.id+'\')">'+d.label+'</button>';
+  }).join("");
+  document.getElementById("sen-chips").innerHTML=SENS.map(function(s){
+    return '<button class="chip'+(s.id===selectedSen?" active":"")+'" onclick="selectSen(\''+s.id+'\')">'+s.label+'</button>';
+  }).join("");
+  document.getElementById("estado-chips").innerHTML=ESTADOS.map(function(e){
+    return '<button class="chip'+(e===selectedEstado?" active":"")+'" onclick="selectEstado(\''+e+'\')">'+e+'</button>';
+  }).join("");
+  document.getElementById("seg-chips").innerHTML=SEGS.map(function(s){
+    return '<button class="chip'+(s.id===selectedSeg?" active":"")+'" onclick="selectSeg(\''+s.id+'\')">'+s.label+'</button>';
+  }).join("");
+}
+function selectDept(id){selectedDept=id;buildChips();}
+function selectSen(id){selectedSen=id;buildChips();}
+function selectEstado(id){selectedEstado=id;buildChips();}
+function selectSeg(id){selectedSeg=id;buildChips();}
+function selectCtx(id){
+  selectedCtx=id;
+  ["frio","proposta","followup","recusada","antiga"].forEach(function(x){
+    document.getElementById("ctx-"+x).classList.toggle("active",x===id);
+  });
+}
+buildChips();
+
+// ═══════════════════════════════════════
+// PROGRESS
+// ═══════════════════════════════════════
+function startProgress(steps){
+  progTimers.forEach(clearTimeout); progTimers=[];
+  progTimers=steps.map(function(s){
+    return setTimeout(function(){
+      document.getElementById("prog-fill").style.width=s.pct+"%";
+      document.getElementById("prog-pct").textContent=s.pct+"%";
+      document.getElementById("prog-step").textContent=s.label;
+    },s.delay);
+  });
+}
+function stopProgress(){ progTimers.forEach(clearTimeout); progTimers=[]; }
+
+// ═══════════════════════════════════════
+// HISTÓRICO
+// ═══════════════════════════════════════
+function getHistory(){ try{return JSON.parse(localStorage.getItem(HIST_KEY)||"[]");}catch(e){return[];} }
+function saveHistory(list){ try{localStorage.setItem(HIST_KEY,JSON.stringify(list.slice(0,200)));}catch(e){} }
+function addHistory(item){
+  var list=getHistory().filter(function(h){return h.key!==item.key;});
+  list.unshift(item); saveHistory(list); updateHistCount();
+switchTab('home');
+}
+function updateHistCount(){
+  var n=getHistory().length;
+  var el=document.getElementById("hist-count-top");
+  if(el) el.textContent=n>0?n+" salva"+(n!==1?"s":""):"";
+  var notif=document.getElementById("hist-notif");
+  if(notif) notif.style.display=n>0?"block":"none";
+}
+function filterHistorico(q){
+  var list=getHistory();
+  if(q) list=list.filter(function(h){ return (h.label+h.sublabel).toLowerCase().includes(q.toLowerCase()); });
+  renderHistList(list);
+}
+function renderHistorico(){
+  var list=getHistory();
+  fullHistory=list;
+  var sub=document.getElementById("hist-sub");
+  if(sub) sub.textContent=list.length+" pesquisa"+(list.length!==1?"s":"")+" salva"+(list.length!==1?"s":"");
+  renderHistList(list);
+}
+function renderHistList(list){
+  var el=document.getElementById("hist-list");
+  if(!list.length){
+    el.innerHTML='<div class="card"><div class="empty-state"><p>Nenhuma pesquisa ainda</p><p>As empresas pesquisadas aparecem aqui automaticamente</p></div></div>';
+    return;
+  }
+  var typeIcons={cnpj:"🏢",contatos:"📧",empreendimentos:"🏗️"};
+  var typeLabels={cnpj:"CNPJ","contatos":"Contatos",empreendimentos:"Empreendimentos"};
+  el.innerHTML='<div class="card" style="padding:4px 20px">'+
+    list.map(function(h){
+      var icon=typeIcons[h.type]||"🔍";
+      var ageMs=Date.now()-h.ts;
+      var ageDays=Math.floor(ageMs/86400000);
+      var ageStr=ageDays===0?"Hoje":ageDays===1?"Ontem":ageDays+"d atrás";
+      return '<div class="hist-row" onclick="reabrirPesquisa(\''+encodeURIComponent(JSON.stringify(h))+'\')" title="Clique para reabrir">'+
+        '<div style="width:38px;height:38px;border-radius:9px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">'+icon+'</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<p style="font-size:14px;font-weight:600;color:#1a1a2e;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+h.label+'</p>'+
+          '<p style="font-size:12px;color:#9ca3af">'+h.sublabel+'</p>'+
+        '</div>'+
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">'+
+          '<span style="font-size:11px;color:#d1d5db">'+ageStr+'</span>'+
+          '<span class="badge" style="background:#f3f4f6;color:#6b7280;border-color:#e5e7eb;font-size:10px">'+( typeLabels[h.type]||h.type)+'</span>'+
+          (h.isNew?'<span class="tag-hot" style="font-size:10px">🔥 Nova</span>':"")+
+        '</div>'+
+      '</div>';
+    }).join("")+
+  '</div>';
+}
+function reabrirPesquisa(enc){
+  var h=JSON.parse(decodeURIComponent(enc));
+  if(h.type==="cnpj"){ document.getElementById("inp-cnpj").value=h.cnpjFormatted||""; switchTab("cnpj"); setTimeout(buscarCnpj,100); }
+  else if(h.type==="contatos"){ document.getElementById("inp-domain").value=h.domain||""; document.getElementById("inp-company").value=h.company||""; switchTab("contatos"); setTimeout(doSearch,100); }
+}
+function limparHistorico(){
+  if(!confirm("Apagar todo o histórico?")) return;
+  localStorage.removeItem(HIST_KEY); updateHistCount(); renderHistorico();
+}
+function exportHistorico(){
+  var list=getHistory();
+  if(!list.length){ toast("Histórico vazio"); return; }
+  var rows=list.map(function(h){
+    return {"Empresa":h.label,"Detalhe":h.sublabel,"Tipo":h.type,"Data":new Date(h.ts).toLocaleDateString("pt-BR")};
+  });
+  var ws=XLSX.utils.json_to_sheet(rows);
+  ws["!cols"]=[30,40,15,14].map(function(w){return{wch:w};});
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Histórico");
+  XLSX.writeFile(wb,"historico_prospeccao.xlsx");
+  toast("📊 Histórico exportado!");
+}
+updateHistCount();
+
+// ═══════════════════════════════════════
+// CONTATOS (Hunter.io)
+// ═══════════════════════════════════════
+function doSearch(){
+  var domain  = cleanDomain(document.getElementById("inp-domain").value);
+  var company = document.getElementById("inp-company").value.trim();
+  if(!domain && !company){
+    document.getElementById("inp-domain").classList.add("error");
+    toast("⚠️ Informe o domínio ou nome da empresa"); return;
+  }
+  document.getElementById("inp-domain").classList.remove("error");
+  document.getElementById("search-error").style.display="none";
+  document.getElementById("search-results").style.display="none";
+  document.getElementById("search-loader").style.display="block";
+  document.getElementById("btn-search").disabled=true;
+
+  // ── CNPJ + Sócios mode ──────────────────────────────────────────
+  if (currentMode === "socios") {
+    document.getElementById("prog-step").textContent = "Buscando CNPJ...";
+    document.getElementById("prog-fill").style.width = "20%";
+    document.getElementById("prog-pct").textContent = "20%";
+    setTimeout(function(){document.getElementById("prog-step").textContent="Consultando Receita Federal...";document.getElementById("prog-fill").style.width="55%";document.getElementById("prog-pct").textContent="55%";},1000);
+    setTimeout(function(){document.getElementById("prog-step").textContent="Inferindo emails...";document.getElementById("prog-fill").style.width="85%";document.getElementById("prog-pct").textContent="85%";},2500);
+    fetch("/api/socios", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({domain:domain})})
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      stopProgress();
+      document.getElementById("search-loader").style.display = "none";
+      document.getElementById("btn-search").disabled = false;
+      if (data.error) { showError("search-error", data.error); return; }
+      allResults = data.people || [];
+      if (data.warning && !allResults.length) { showError("search-error", data.warning); return; }
+      addHistory({key:"s:"+(domain||company), type:"contatos", label:company||domain, sublabel:allResults.length+" sócios · CNPJ "+(data.cnpj||""), domain:domain, company:company, ts:Date.now()});
+      renderSocios(data, domain||company);
+    })
+    .catch(function(e){
+      stopProgress();
+      document.getElementById("search-loader").style.display = "none";
+      document.getElementById("btn-search").disabled = false;
+      showError("search-error", "Erro: " + e.message);
+    });
+    return;
+  }
+
+  startProgress([
+    {pct:20,label:"Conectando ao Apollo.io...",delay:200},
+    {pct:50,label:"Buscando decisores...",delay:1200},
+    {pct:80,label:"Verificando emails...",delay:2500},
+    {pct:95,label:"Finalizando...",delay:4000},
+  ]);
+
+  // Monta payload
+  var body = {
+    domain: domain,
+    seniority: selectedSen || "",
+    department: selectedDept || "",
+  };
+
+  fetch("/api/apollo", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    stopProgress();
+    document.getElementById("search-loader").style.display="none";
+    document.getElementById("btn-search").disabled=false;
+
+    if (data.error) {
+      showError("search-error", data.error);
+      return;
+    }
+
+    var people = data.people || [];
+    if (!people.length) {
+      showError("search-error", "Nenhum contato encontrado para "+( domain||company)+". Tente outro domínio ou nome.");
+      return;
+    }
+
+    allResults = people;
+    addHistory({key:"c:"+(domain||company),type:"contatos",label:company||domain,sublabel:people.length+" contatos · Apollo.io",domain:domain,company:company,ts:Date.now()});
+    renderContatosApollo(people, domain, company);
+  })
+  .catch(function(e){
+    stopProgress();
+    document.getElementById("search-loader").style.display="none";
+    document.getElementById("btn-search").disabled=false;
+    showError("search-error","Falha na conexão: "+e.message);
+  });
+}
+
+
+
+function buscarSociosCnpjManual(){
+  var domain = cleanDomain(document.getElementById('inp-domain').value);
+  var cnpjRaw = (document.getElementById("cnpj-manual-input")||{value:""}).value.replace(/\D/g,"");
+  if(cnpjRaw.length!==14){ toast("⚠️ CNPJ deve ter 14 dígitos"); return; }
+
+  var el = document.getElementById("search-results");
+  el.innerHTML = '<div class="loader-box"><div class="dot"></div><div class="dot"></div><div class="dot"></div><p style="font-size:13px;color:var(--gray-4);margin-top:12px">Consultando Receita Federal...</p></div>';
+
+  var hunterKey = "8f122be7c8440172a49875acc9356073cb141ce2";
+  var pattern = null;
+
+  // Busca padrão Hunter + dados CNPJ em paralelo
+  Promise.all([
+    fetch("https://api.hunter.io/v2/domain-search?domain="+encodeURIComponent(domain)+"&api_key="+hunterKey+"&limit=3",{headers:{Accept:"application/json"}}).then(function(r){return r.json();}).catch(function(){return{};}),
+    fetch("https://brasilapi.com.br/api/cnpj/v1/"+cnpjRaw,{headers:{Accept:"application/json"}}).then(function(r){return r.json();})
+  ]).then(function(results){
+    var hunterData = results[0];
+    var cnpjData   = results[1];
+    pattern = hunterData?.data?.pattern || null;
+
+    var socios = cnpjData.qsa || [];
+    var empresa = cnpjData.nome_fantasia || cnpjData.razao_social || domain;
+    var cnpjFmted = cnpjRaw.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5");
+
+    if(!socios.length){
+      el.innerHTML='<div class="card"><div class="empty-state"><p>Nenhum sócio registrado para este CNPJ</p><p>Tente buscar na aba CNPJ para ver detalhes</p></div></div>';
+      return;
+    }
+
+    var people = socios.map(function(s){
+      var nomeCompleto=(s.nome_socio||s.nome||"").trim();
+      var partes=nomeCompleto.toLowerCase().split(" ").filter(Boolean);
+      var fn=partes[0]||"", ln=partes[partes.length-1]||"";
+      var qual=s.qualificacao_socio||s.descricao_qualificacao_socio||"Sócio";
+      var email=fn?(pattern?pattern.replace("{first}",fn).replace("{last}",ln).replace("{f}",fn[0]||"").replace("{l}",ln[0]||"")+"@"+domain:fn+"."+ln+"@"+domain):null;
+      return {name:nomeCompleto,first_name:fn,last_name:ln,title:qual,email:email,
+        email_status:pattern?"likely_to_engage":"guessed",phone_numbers:[],
+        organization:{name:empresa},
+        linkedin_url:"https://www.linkedin.com/search/results/people/?keywords="+encodeURIComponent(nomeCompleto+" "+empresa),
+        is_socio:true};
+    });
+
+    allResults = people;
+    addHistory({key:"s:"+domain,type:"contatos",label:empresa,sublabel:people.length+" sócios · CNPJ "+cnpjFmted,domain:domain,company:empresa,ts:Date.now()});
+    renderSocios({source:"socios",people:people,empresa:empresa,cnpj:cnpjFmted,pattern:pattern,pagination:{total_entries:people.length}},domain);
+  })
+  .catch(function(e){
+    el.innerHTML='<div class="card"><div class="empty-state"><p>Erro ao buscar: '+e.message+'</p></div></div>';
+  });
+}
+
+
 function renderSocios(data, compOrDomain){
   var people = data.people || [];
   var html = '<div class="fade">';
