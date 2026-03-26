@@ -146,8 +146,10 @@ export default async function handler(req, res) {
         const name = namePart;
 
         // Infer email using Hunter pattern or most common BR pattern
-        const fn = words[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-        const ln = words[words.length-1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+        // Use REAL name words, not the potentially corrupted 'words' from above
+        const nameWords = name.split(/\s+/).filter(Boolean);
+        const fn = nameWords[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z]/g,"");
+        const ln = nameWords[nameWords.length-1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z]/g,"");
         let inferredEmail = null;
         if (fn && ln) {
           if (pattern) {
