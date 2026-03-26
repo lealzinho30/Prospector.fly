@@ -267,7 +267,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
 <!-- ═══════════════════════════════════════ CONTATOS ═══════════════════════════════════════ -->
 <div id="page-contatos" style="display:none">
   <div style="margin-bottom:20px">
-    <p class="sec-eyebrow" id="contatos-source">Apollo.io · Base de 275M+ pessoas</p>
+    <p class="sec-eyebrow" id="contatos-source">Snov.io · Apollo.io · Hunter.io</p>
     <h1 class="sec-title">Encontre os decisores</h1>
     <p class="sec-sub">Cole o domínio da empresa — identificamos a empresa e buscamos os decisores automaticamente.</p>
   </div>
@@ -1090,7 +1090,9 @@ function renderContatosApollo(people, compOrDomain, pagination, data){
   var html='<div class="fade">';
 
   // Stats
-  var srcBadge = data.source==="apollo"
+  var srcBadge = data.source==="snov"
+    ? '<span class="tag-purple" style="font-size:11px">✦ Snov.io</span>'
+    : data.source==="apollo"
     ? '<span class="tag-purple" style="font-size:11px">✦ Apollo.io</span>'
     : '<span class="tag-ok" style="font-size:11px">Hunter.io</span>';
 
