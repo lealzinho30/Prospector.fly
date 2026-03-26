@@ -362,10 +362,24 @@ var EMP_DB={
     {nome:"EZ Vila Mariana",status:"Em lançamento",cidade:"São Paulo",bairro:"Vila Mariana",destaque:"Studios e 2 dormitórios na Vila Mariana"},
   ]},
   cyrela:{empresa:"Cyrela",segmento:"Alto padrão",atuacao:"SP, RJ e principais capitais",totalLancamentos:18,empreendimentos:[
-    {nome:"Cyrela Unique Moema",status:"Em lançamento",cidade:"São Paulo",bairro:"Moema",destaque:"Design exclusivo em Moema"},
-    {nome:"Cyrela Century Vila Olímpia",status:"Em lançamento",cidade:"São Paulo",bairro:"Vila Olímpia",destaque:"Projeto assinado na Vila Olímpia"},
+    {nome:"Cyrela Unique Moema",status:"Em lançamento",cidade:"São Paulo",bairro:"Moema",destaque:"Cobertura duplex com piscina privativa"},
+    {nome:"Cyrela Century Vila Olímpia",status:"Em lançamento",cidade:"São Paulo",bairro:"Vila Olímpia",destaque:"Projeto assinado com rooftop exclusivo"},
+    {nome:"Cyrela Haus Jardins",status:"Em lançamento",cidade:"São Paulo",bairro:"Jardins",destaque:"Ultra alto padrão nos Jardins"},
+    {nome:"Cyrela Reserva Ipiranga",status:"Em obras",cidade:"São Paulo",bairro:"Ipiranga",destaque:"Condomínio clube com 40 itens de lazer"},
+    {nome:"Living Campo Belo",status:"Em lançamento",cidade:"São Paulo",bairro:"Campo Belo",destaque:"Médio padrão com localização privilegiada"},
     {nome:"Living Interlagos",status:"Em lançamento",cidade:"São Paulo",bairro:"Interlagos",destaque:"Médio padrão com custo-benefício"},
+    {nome:"Living Guarulhos",status:"Em obras",cidade:"Guarulhos",bairro:"Centro",destaque:"MCMV fase 3 com infraestrutura completa"},
     {nome:"Cyrela Landscape Barra",status:"Em obras",cidade:"Rio de Janeiro",bairro:"Barra da Tijuca",destaque:"Alto padrão na Barra da Tijuca"},
+    {nome:"Cyrela Beach Place",status:"Em lançamento",cidade:"Rio de Janeiro",bairro:"Recreio",destaque:"Frente à praia no Recreio"},
+    {nome:"Cyrela Penthouses Ipanema",status:"Em lançamento",cidade:"Rio de Janeiro",bairro:"Ipanema",destaque:"Coberturas exclusivas em Ipanema"},
+    {nome:"Cyrela Prime Curitiba",status:"Em obras",cidade:"Curitiba",bairro:"Batel",destaque:"Alto padrão no melhor bairro de Curitiba"},
+    {nome:"Living Campinas",status:"Em lançamento",cidade:"Campinas",bairro:"Cambuí",destaque:"Médio padrão na região metropolitana"},
+    {nome:"Cyrela Infinity Porto Alegre",status:"Em lançamento",cidade:"Porto Alegre",bairro:"Moinhos de Vento",destaque:"Alto padrão em POA"},
+    {nome:"Living BH",status:"Em obras",cidade:"Belo Horizonte",bairro:"Savassi",destaque:"Médio padrão no coração da Savassi"},
+    {nome:"Cyrela Sky Florianópolis",status:"Em lançamento",cidade:"Florianópolis",bairro:"Agronômica",destaque:"Vista para o mar e montanhas"},
+    {nome:"Living Goiânia",status:"Em obras",cidade:"Goiânia",bairro:"Setor Bueno",destaque:"MCMV com lazer completo em GO"},
+    {nome:"Cyrela Vitae São José",status:"Em lançamento",cidade:"São José dos Campos",bairro:"Centro",destaque:"Alto padrão no Vale do Paraíba"},
+    {nome:"Living Santos",status:"Em lançamento",cidade:"Santos",bairro:"Gonzaga",destaque:"Médio padrão no litoral paulista"},
   ]},
   mrv:{empresa:"MRV Engenharia",segmento:"MCMV / Econômico",atuacao:"Todo o Brasil",totalLancamentos:85,empreendimentos:[
     {nome:"Reserva das Árvores",status:"Em lançamento",cidade:"São Paulo",bairro:"Itaquera",destaque:"MCMV fase 3 com lazer completo"},
@@ -526,6 +540,7 @@ function agStep3(domain){
   if(dbResult){
     AG.empreendimentos=dbResult.empreendimentos||[];
     AG.segmento=dbResult.segmento;
+    AG.totalLancamentos=dbResult.totalLancamentos||AG.empreendimentos.length;
     updateStep(3,"done",dbResult.empresa+" — "+dbResult.totalLancamentos+" lançamentos",dbResult.segmento+" · "+dbResult.atuacao);
     agStep4();
     return;
@@ -599,7 +614,7 @@ function renderAgenteResult(empresa,msgs,decisorPrincipal){
       '</div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
         (decisores.length?'<span class="tag-p">'+decisores.length+' decisores</span>':'')+
-        (AG.empreendimentos.length?'<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700">'+AG.empreendimentos.length+' lançamentos</span>':'')+
+        (AG.empreendimentos.length?'<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700">'+(AG.totalLancamentos||AG.empreendimentos.length)+' lançamentos</span>':'')+
       '</div>'+
     '</div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
@@ -632,7 +647,11 @@ function renderAgenteResult(empresa,msgs,decisorPrincipal){
             (e.destaque?'<p style="font-size:12px;color:var(--g4);margin-top:2px">'+e.destaque+'</p>':'')+
           '</div>'+
         '</div>'+
-        '<button class="link-btn" data-emp="'+encodeURIComponent(empresa)+'" data-lanc="'+encodeURIComponent(e.nome)+'" onclick="agenteAbordagem(this.dataset.emp,this.dataset.lanc)">✉ Abordar</button>'+
+        '<div style="display:flex;gap:5px;flex-wrap:wrap">'+
+          '<a class="link-btn" href="https://www.vivareal.com.br/venda/?q='+encodeURIComponent(e.nome)+'" target="_blank">VivaReal ↗</a>'+
+          '<a class="link-btn" href="https://www.zapimoveis.com.br/venda/?q='+encodeURIComponent(e.nome)+'" target="_blank">Zap ↗</a>'+
+          '<button class="link-btn" data-emp="'+encodeURIComponent(empresa)+'" data-lanc="'+encodeURIComponent(e.nome)+'" onclick="agenteAbordagem(this.dataset.emp,this.dataset.lanc)">✉ Abordar</button>'+
+        '</div>'+
       '</div>';
     });
     html+='</div>';
