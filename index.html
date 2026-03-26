@@ -943,7 +943,7 @@ function renderContatosApollo(people, domain, company){
   html += '<div style="display:flex;gap:10px;margin-bottom:12px">'+
     '<div class="search-wrap" style="flex:1">'+
       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+
-      '<input class="search-inp" placeholder="Filtrar..." oninput="filterContatos(this.value,''+encodeURIComponent(compOrDomain)+'')"/>'+
+      '<input class="search-inp" placeholder="Filtrar..." data-comp="'+encodeURIComponent(compOrDomain)+'" oninput="filterContatos(this.value,this.dataset.comp)"/>'+ 
     '</div>'+
     '<button class="btn-sm" onclick="exportXlsx()">↓ Excel</button>'+
   '</div>';
@@ -963,66 +963,28 @@ function renderContatosApollo(people, domain, company){
   el.innerHTML = html; el.style.display = "block";
 }
 
-function buildContactRowApollo(p, compOrDomain){
-  var name  = [p.first_name||"", p.last_name||""].filter(Boolean).join(" ");
-  var email = p.email || "";
-  var phone = (p.phone_numbers&&p.phone_numbers[0]&&p.phone_numbers[0].sanitized_number)||"";
-  var title = p.title || "";
-  var li    = p.linkedin_url || "";
-  var photo = p.photo_url || "";
-  var org   = (p.organization&&p.organization.name)||compOrDomain;
-  var hl    = isTarget(title);
-
-  var avatar = photo
-    (photo?'<img src="'+photo+'" style="width:42px;height:42px;border-radius:10px;object-fit:cover;flex-shrink:0" onError="this.remove()"/>'+
-    : '<div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;background:'+getAvBg(name)+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:'+getAvColor(name)+'">'+((name[0]||"?").toUpperCase())+'</div>';
-
-  var html = '<div class="result-row row-in">'+
-    avatar+
-    '<div style="flex:1;min-width:0">'+
-      '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap">'+
-        '<span style="font-size:14px;font-weight:700;color:var(--navy)">'+( name||"Contato")+'</span>'+
-        (hl?'<span class="tag-purple">Decisor</span>':"")+
-      '</div>'+
-      (title?'<p style="font-size:13px;color:var(--gray-5);margin-bottom:2px">'+title+'</p>':"")+
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">'+
-        (email?'<span style="font-size:12px;color:var(--purple);font-weight:500;display:flex;align-items:center;gap:3px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>'+email+'</span>':"")+
-        (phone?'<span style="font-size:12px;color:#166534;font-weight:500;display:flex;align-items:center;gap:3px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'+phone+'</span>':"")+
-      '</div>'+
-    '</div>'+
-    '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">'+
-      (li?'<a class="link-btn" href="'+li+'" target="_blank">LinkedIn</a>':"")+
-      '<button class="link-btn" data-nome="'+encodeURIComponent(name)+'" data-cargo="'+encodeURIComponent(title)+'" data-empresa="'+encodeURIComponent(org)+'" onclick="atalhoMensagem(this.dataset.nome,this.dataset.cargo,this.dataset.empresa)">✉ Msg</button>'+
-    '</div>'+
-  '</div>';
-  return html;
-}
-
 
 function buildContactRow(p, compOrDomain){
-  // Suporta tanto formato Apollo quanto Hunter
-  var name    = p.name || [(p.first_name||""),(p.last_name||"")].filter(Boolean).join(" ") || "-";
-  var email   = p.email || p.value || "-";
-  var title   = p.title || p.position || "-";
-  var phone   = p.phone_numbers&&p.phone_numbers[0]?p.phone_numbers[0].sanitized_number:
-                (p.direct_phone||p.mobile_phone||null);
+  var name    = p.name||[(p.first_name||""),(p.last_name||"")].filter(Boolean).join(" ")||"-";
+  var email   = p.email||p.value||"-";
+  var title   = p.title||p.position||"-";
+  var phone   = p.phone_numbers&&p.phone_numbers[0]?p.phone_numbers[0].sanitized_number:(p.direct_phone||p.mobile_phone||null);
   var linkedin= p.linkedin_url||null;
   var photo   = p.photo_url||null;
-  var org     = p.organization&&p.organization.name ? p.organization.name : compOrDomain;
-  var emailStatus = p.email_status||"";
-  var isVerified = emailStatus==="verified"||emailStatus==="likely_to_engage";
-  var avCol   = getAvColor(name); var avBg2 = getAvBg(name);
+  var org     = p.organization&&p.organization.name?p.organization.name:compOrDomain;
+  var isVerified = p.email_status==="verified"||p.email_status==="likely_to_engage";
+  var avCol   = getAvColor(name); var avBg2=getAvBg(name);
   var ini     = initials((p.first_name||name.split(" ")[0]||""),(p.last_name||name.split(" ")[1]||""));
   var isTarget2 = isTarget(title);
-
-  return '<div class="result-row row-in">'+
-    (photo?'<img src="'+photo+'" style="width:42px;height:42px;border-radius:10px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'"/>':
-      '<div style="width:42px;height:42px;border-radius:10px;flex-shrink:0;background:'+avBg2+';display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:'+avCol+'">'+ini+'</div>')+
+  var avatar  = photo
+    ? '<img src="'+photo+'" style="width:42px;height:42px;border-radius:10px;object-fit:cover;flex-shrink:0" onError="this.remove()"/>'
+    : '<div style="width:42px;height:42px;border-radius:10px;flex-shrink:0;background:'+avBg2+';display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:'+avCol+'">'+ini+'</div>';
+  return '<div class="result-row row-in">'+avatar+
     '<div style="flex:1;min-width:0">'+
       '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap">'+
         '<span style="font-size:14px;font-weight:700;color:var(--navy)">'+name+'</span>'+
         (isTarget2?'<span class="tag-purple" style="font-size:10px">Decisor</span>':"")+
-        (isVerified?'<span class="tag-ok" style="font-size:10px">✓ Email verificado</span>':"")+
+        (isVerified?'<span class="tag-ok" style="font-size:10px">✓ Verificado</span>':"")+
       '</div>'+
       '<p style="font-size:13px;color:var(--gray-5);margin-bottom:2px">'+title+'</p>'+
       (email&&email!=="-"?'<p style="font-size:12px;color:var(--gray-4);font-family:monospace">'+email+'</p>':"")+
@@ -1057,7 +1019,7 @@ function renderContatosApollo(people, compOrDomain, pagination){
   html+='<div style="display:flex;gap:10px;margin-bottom:12px">'+
     '<div class="search-wrap" style="flex:1">'+
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-4)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+
-    '<input class="search-inp" placeholder="Filtrar por nome, cargo ou email..." oninput="filterContatos(this.value,''+encodeURIComponent(compOrDomain)+'')"/></div>'+
+      '<input class="search-inp" placeholder="Filtrar..." data-comp="'+encodeURIComponent(compOrDomain)+'" oninput="filterContatos(this.value,this.dataset.comp)"/>'+
     '<button class="btn-sm" onclick="exportXlsx()">↓ Excel</button>'+
   '</div>';
 
