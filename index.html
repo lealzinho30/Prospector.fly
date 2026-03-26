@@ -482,7 +482,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-5);margin-bo
     <div style="display:flex;gap:8px;align-items:flex-end">
       <div style="flex:1">
         <label>Domínio da empresa</label>
-        <input id="agente-domain" type="text" placeholder="cyrela.com.br" style="font-size:15px;padding:13px 16px" onkeydown="if(event.key===&apos;Enter&apos;)iniciarAgente()"/>
+        <input id="agente-domain" type="text" placeholder="cyrela.com.br" style="font-size:15px;padding:13px 16px" onkeydown="if(event.key==='Enter')iniciarAgente()"/>
       </div>
       <button class="btn btn-primary" onclick="iniciarAgente()" style="width:auto;padding:13px 22px;white-space:nowrap;font-size:15px">
         🤖 Iniciar agente
@@ -2227,7 +2227,7 @@ function renderAgenteResultado() {
             '<p style="font-size:11px;color:'+statusColor+';font-weight:600">'+e.status+(e.cidade?" · "+e.cidade:"")+'</p>'+
           '</div>'+
         '</div>'+
-        '<button class="btn-icon" onclick="preencherMensagemAgente(''+encodeURIComponent(s.empresa)+'',''+encodeURIComponent(e.nome)+'')">✉ Abordar</button>'+
+        '<button class="btn-icon" data-e="'+encodeURIComponent(s.empresa)+'" data-l="'+encodeURIComponent(e.nome)+'" onclick="preencherMensagemAgente(this.dataset.e,this.dataset.l)">✉ Abordar</button>'+
       '</div>';
     });
     html += '</div>';
@@ -2266,6 +2266,12 @@ function preencherMensagemAgente(empresaEnc, lancEnc) {
   switchTab("mensagem");
 }
 
+
+function resetAgente(){
+  document.getElementById('agente-domain').value='';
+  document.getElementById('agente-steps').style.display='none';
+  document.getElementById('agente-resultado').style.display='none';
+}
 </script>
 </body>
 </html>
