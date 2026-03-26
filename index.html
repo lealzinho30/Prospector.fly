@@ -531,16 +531,9 @@ function agOrquestrador(domain) {
       });
 
       // Step 2: Ask Claude to identify launches from the collected content
-      var claudePrompt='Analise este conteúdo do site "'+domain+'" e liste TODOS os empreendimentos/lançamentos imobiliários mencionados. '
-        +'Conteúdo do site:
-'+allText.slice(0,4000)+'
-
-Links encontrados:
-'+allLinks.slice(0,50).map(function(l){return l.text+' -> '+l.href;}).join('
-')
-        +'
-
-Retorne SOMENTE JSON válido: {"empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras|Pronto para morar","cidade":"string","link":"url completa do empreendimento ou null"}],"segmento":"string"}';
+      var siteResume=allText.slice(0,3000);
+      var linksResume=allLinks.slice(0,40).map(function(l){return l.text+" -> "+l.href;}).join("; ");
+      var claudePrompt='Analise o site "'+domain+'". Conteúdo: '+siteResume+'. Links: '+linksResume+'. Liste TODOS os empreendimentos/lançamentos imobiliários encontrados. JSON: {"empreendimentos":[{"nome":"string","status":"Em lançamento|Em obras|Pronto para morar","cidade":"string","link":"url ou null"}],"segmento":"string"}';
 
       return callClaude({model:"claude-sonnet-4-20250514",max_tokens:1500,messages:[{role:"user",content:claudePrompt}]})
       .then(function(text){
