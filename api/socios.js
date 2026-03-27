@@ -62,11 +62,18 @@ export default async function handler(req, res) {
 
     // DuckDuckGo search with multiple name variations
     if (!cnpjNum) {
-      const searchTerms = [
-        `"${shortName}" CNPJ incorporadora`,
-        `"${orgName}" CNPJ`,
-        `${domainPrefix} CNPJ`,
-      ];
+      // Generate multiple name variations for CNPJ search
+    const nameVariations = [...new Set([
+      shortName,
+      orgName,
+      orgName.replace(/&/g," e ").replace(/\s+/g," ").trim(),  // "Plano&Plano" → "Plano e Plano"
+      domainPrefix.replace(/e([a-z])/g,"e $1").replace(/([a-z])e([a-z])/g,"$1 e $2"), // "planoeplano" → "plano e plano"
+      domainPrefix,
+    ])];
+    const searchTerms = nameVariations.flatMap(n => [
+      `"${n}" CNPJ`,
+      `${n} CNPJ incorporadora`,
+    ]).slice(0, 6);
       for (const q of searchTerms) {
         if (cnpjNum) break;
         // DuckDuckGo instant answer
@@ -94,16 +101,25 @@ export default async function handler(req, res) {
       }
     }
 
-    // BrasilAPI search
+    // BrasilAPI search — try multiple name forms
     if (!cnpjNum) {
-      for (const q of [shortName, orgName.split(" ").slice(0,2).join(" ")]) {
+      const brazilQueries = [...new Set([
+        shortName,
+        orgName.replace(/&/g,"e").replace(/\s+/g," ").trim(),
+        domainPrefix.replace(/([a-z])e([a-z])/g,"$1 $2"), // "planoeplano" → "plano plano"
+        orgName.split(" ").slice(0,3).join(" "),
+      ])];
+      for (const q of brazilQueries) {
         if (cnpjNum) break;
         try {
           const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/search?query=${encodeURIComponent(q)}&page=1&perPage=5`, {headers:{Accept:"application/json"}});
           if (r.ok) {
             const list = await r.json();
             const items = Array.isArray(list) ? list : [];
-            const best = items.find(i => (i.nome_fantasia||i.razao_social||"").toLowerCase().includes(shortName.toLowerCase())) || items[0];
+            const sn = shortName.toLowerCase();
+            const best = items.find(i => (i.nome_fantasia||"").toLowerCase().includes(sn))
+                      || items.find(i => (i.razao_social||"").toLowerCase().includes(sn))
+                      || items[0];
             if (best) cnpjNum = (best.cnpj||"").replace(/\D/g,"");
           }
         } catch(e) {}
