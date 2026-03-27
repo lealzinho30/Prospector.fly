@@ -341,7 +341,9 @@ function callClaude(body){
 }
 
 function callApollo(domain){
-  return fetch("/api/apollo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({domain:domain,seniority:""})})
+  // /api/contacts uses Hunter + Snov + Apollo + Claude web_search
+  var empresa=AG.empresa||"";
+  return fetch("/api/contacts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({domain:domain,empresa:empresa})})
   .then(function(r){return r.json();});
 }
 
