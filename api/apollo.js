@@ -170,15 +170,20 @@ export default async function handler(req, res) {
         if (found.length >= 8) break;
         const url = m[1].startsWith("http") ? m[1].split("?")[0] : `https://www.linkedin.com/in/${m[2]}`;
         const raw = m[3].trim();
-        const parts = raw.split(/\s*[-–|]\s*/);
+        // Split on -, –, |, · (all common separators in LinkedIn titles)
+        const parts = raw.split(/\s*[-–|·]\s*/);
         const pname = parts[0].trim();
         const words = pname.split(/\s+/).filter(Boolean);
-        if (words.length < 2 || words.length > 5 || /\d/.test(pname)) continue;
+        // Validate: 2-5 words, no digits, not linkedin itself, not company name
+        if (words.length < 2 || words.length > 5) continue;
+        if (/[\d@]/.test(pname)) continue;
+        if (pname.toLowerCase().includes("linkedin")) continue;
         if (m[2] === domain.split(".")[0]) continue;
         if (seenNames.has(pname.toLowerCase())) continue;
-        const titlePart = parts.slice(1).join(" ").replace(/\|.*$/,"").trim();
-        const atIdx = titlePart.toLowerCase().lastIndexOf(" at ");
-        const title = (atIdx > 0 ? titlePart.slice(0, atIdx) : titlePart.split("·")[0]).trim().slice(0,80);
+        // Extract title: text before "at/na/em Company"
+        const rest = parts.slice(1).join(" - ").replace(/linkedin/gi,"").trim();
+        const atMatch = rest.match(/^(.+?)\s+(?:at|na|em|–)\s+/i);
+        const title = (atMatch ? atMatch[1] : (parts[1] || "")).replace(/linkedin/gi,"").trim().slice(0,80);
         const fn = words[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z]/g,"");
         const ln = words[words.length-1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z]/g,"");
         seenNames.add(pname.toLowerCase());
